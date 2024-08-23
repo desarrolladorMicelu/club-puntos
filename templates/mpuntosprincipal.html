@@ -34,6 +34,8 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
 
 </head>
 
@@ -76,6 +78,15 @@
                       <span class="badge bg-primary ms-2">102</span>
                   </div>
               </li>
+              </ul>
+            </div>
+            <div class="dropdown ms-2">
+              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
+                <i class="material-icons custom-icon">account_circle</i>
+                <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                <li><a class="custom-dropdown-item" href="/miperfil">Mi perfil</a></li>
               </ul>
             </div>
           </div>

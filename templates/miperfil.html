@@ -13,7 +13,7 @@
   <meta name="author" content="" />
   <meta http-equiv="refresh" content="14400">
 
-  <title>¿QUE SON PUNTOS?</title>
+  <title>MI PERFIL</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
   <!-- slider stylesheet -->
@@ -36,51 +36,50 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
-
 </head>
 
 <body>
   <div class="hero_area">
     <!-- header section strats -->
     <header class="header_section">
-      <div class="container-fluid">
-        <nav class="navbar navbar-expand-lg custom_nav-container ">
-          <a class="navbar-brand" href="/quesonpuntos">
-            <span>
-              Micelu.co
-            </span>
-          </a>
-          <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
-            data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
-            aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-
-          <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
-              <ul class="navbar-nav  ">
-                <li class="nav-item active">
-                  <a class="nav-link" href="/quesonpuntos">¿Que son Puntos?</a>
-                </li>
-                <li class="nav-item ">
-                  <a class="nav-link" href="/mhistorialcompras">Compras Realizadas</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href="/mpuntosprincipal">Canjea Puntos</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href="logout">Cerrar sesion</a>
-                </li>
-                <li class="nav-item d-flex align-items-center">
-                  <!-- Tarjeta con puntos -->
-                  <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
-                      <span class="fw-bold">Puntos</span>
-                      <span class="badge bg-primary ms-2">102</span>
-                  </div>
-              </li>
-              </ul>
-            </div>
-            <div class="dropdown ms-2">
+        <div class="container-fluid">
+          <nav class="navbar navbar-expand-lg custom_nav-container ">
+            <a class="navbar-brand" href="/quesonpuntos">
+              <span>
+                Micelu.co
+              </span>
+            </a>
+            <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
+              data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+              aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+  
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+              <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
+                <ul class="navbar-nav  ">
+                  <li class="nav-item">
+                    <a class="nav-link" href="/quesonpuntos">¿Que son Puntos?</a>
+                  </li>
+                  <li class="nav-item active">
+                    <a class="nav-link" href="/mhistorialcompras">Compras Realizadas</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="/mpuntosprincipal">Canjea Puntos</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="logout">Cerrar sesion</a>
+                  </li>
+                  <li class="nav-item d-flex align-items-center">
+                    <!-- Tarjeta con puntos -->
+                    <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
+                        <span class="fw-bold">Puntos</span>
+                        <span class="badge bg-primary ms-2">102</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="dropdown ms-2">
                 <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
                   <i class="material-icons custom-icon">account_circle</i>
                   <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
@@ -89,11 +88,10 @@
                   <li><a class="custom-dropdown-item" href="/miperfil">Mi perfil</a></li>
                 </ul>
               </div>
-          </div>
-
-        </nav>
-      </div>
-    </header>
+            </div>
+          </nav>
+        </div>
+      </header>
 
 
 

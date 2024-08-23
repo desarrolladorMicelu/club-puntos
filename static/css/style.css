@@ -998,10 +998,76 @@ body {
 .footer-link:hover,
 .footer-link:focus,
 .footer-link:active {
-  color: #ffffff; /* Mantiene el color del texto del enlace al pasar el cursor, hacer clic, o estar en foco */
-  text-decoration: none; /* Elimina el subrayado del enlace al pasar el cursor o hacer clic */
+  color: #ffffff; 
+  text-decoration: none; 
 }
-    
-  
+
+
+/* css mi perfil */
+.custom-dropdown-toggle {
+  color: white !important;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.custom-dropdown-toggle:hover,
+.custom-dropdown-toggle:focus {
+  color: white !important;
+}
+
+.custom-icon,
+.custom-icon-arrow {
+  color: white;
+}
+
+.custom-icon-arrow {
+  font-size: 18px;
+  margin-left: 2px;
+}
+
+.custom-dropdown-item {
+  color: black !important;
+  text-decoration: none;
+}
+
+.custom-dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  left: auto;
+  min-width: 120px; /* Ajusta este valor según tus necesidades */
+  text-align: center;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background-color: rgb(255, 255, 255);
+  border: 1.5px solid #000000; /* Añadido: borde negro de 1 píxel */
+  font-family: "Poppins", sans-serif;
+}
+
+.custom-dropdown-item {
+  display: block;
+  padding: 10px;
+  color: #333;
+  text-decoration: none;
+  transition: background-color 0.3s;
+}
+
+.custom-dropdown-item:hover {
+  background-color: #ffffff;
+  border-radius: 5px;
+}
+
+
+
   
   

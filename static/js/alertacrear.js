@@ -1,5 +1,4 @@
 window.onload = function() {
-    // Cierra la alerta automáticamente después de 10 segundos
     setTimeout(function() {
         var flashMessage = document.querySelector('.flash-messages');
         if (flashMessage) {
@@ -11,7 +10,6 @@ window.onload = function() {
         }
     }, 10000);
 
-    // Permite que el usuario cierre la alerta manualmente
     var closeBtn = document.querySelector('.close-btn');
     if (closeBtn) {
         closeBtn.onclick = function() {

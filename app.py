@@ -41,6 +41,10 @@ def login_required(f):
 @app.route('/recuperar_pass')
 def recuperar_pass():
     return render_template('recuperar_pass.html')
+
+@app.route('/miperfil')
+def miperfil():
+    return render_template('miperfil.html')
 #---------------------------------------------------LOGIN-------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -68,7 +72,81 @@ def login():
 @app.route('/mhistorialcompras')
 @login_required
 def mhistorialcompras():
-    return render_template('mhistorialcompras.html')
+    documento = session.get('user_documento')
+    
+    if not documento:
+        flash('No se encontró información del usuario. Por favor, inicie sesión nuevamente.', 'error')
+        return redirect(url_for('login'))
+    
+    try:
+        connection_string = (
+            "DRIVER={ODBC Driver 18 for SQL Server};"
+            "SERVER=20.109.21.246;"
+            "DATABASE=MICELU;"
+            "UID=db_read;"
+            "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
+            "TrustServerCertificate=yes"    
+        )
+        conn = pyodbc.connect(connection_string)
+        cursor = conn.cursor()
+ 
+        print(f"Buscando historial para NIT: {documento}")
+ 
+        # Verificar si el cliente existe
+        check_query = """
+        SELECT COUNT(*) as count
+        FROM Clientes c
+        WHERE c.HABILITADO = 'S' AND c.NIT = ?
+        """
+        cursor.execute(check_query, documento)
+        count = cursor.fetchone().count
+        print(f"Número de clientes encontrados: {count}")
+ 
+        # Consulta principal
+        query = """
+        SELECT
+            m.NOMBRE AS PRODUCTO_NOMBRE,
+            m.VLRVENTA,
+            m.FHCOMPRA
+        FROM
+            Clientes c
+        JOIN
+            V_CLIENTES_FAC vc ON c.NOMBRE = vc.NOMBRE
+        JOIN
+            Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
+        WHERE
+            c.HABILITADO = 'S'
+            AND c.NIT = ?
+        ORDER BY
+            m.FHCOMPRA DESC;
+        """
+ 
+        cursor.execute(query, documento)
+        results = cursor.fetchall()
+ 
+        print(f"Número de resultados: {len(results)}")
+ 
+        historial = []
+        for row in results:
+            print(f"Fila: {row}")
+            historial.append({
+                "PRODUCTO_NOMBRE": row.PRODUCTO_NOMBRE,
+                "VLRVENTA": float(row.VLRVENTA),
+                "FHCOMPRA": row.FHCOMPRA.strftime('%Y-%m-%d')
+            })
+ 
+        cursor.close()
+        conn.close()
+ 
+        if not historial:
+            flash('No se encontró historial de compras para este usuario.', 'info')
+        
+        return render_template('mhistorialcompras.html', historial=historial)
+ 
+    except pyodbc.Error as e:
+        print("Error al conectarse a la base de datos:", e)
+        flash('Error al obtener el historial de compras. Por favor, intente más tarde.', 'error')
+        return render_template('mhistorialcompras.html', historial=[])
 
 @app.route('/mpuntosprincipal')
 @login_required
