@@ -7,6 +7,19 @@
     text-decoration: none;
 }
 
+.flash-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  width: 100%;
+  text-align: center;
+}
+
 .flash-messages {
   position: fixed; /* Fija el elemento en la pantalla */
   top: 50%; /* Posiciona al 50% de la altura de la ventana */

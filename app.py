@@ -13,7 +13,7 @@ app.config['SQLALCHEMY_BINDS'] = {
 }
 
 db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)  # Initialize Bcrypt with the app
+bcrypt = Bcrypt(app)  
 
 class Usuario(db.Model):
     __bind_key__ = 'db2'
@@ -28,47 +28,67 @@ class Usuario(db.Model):
     nombre = db.Column(db.String(50))
     rango = db.Column(db.String(50))
     estado = db.Column(db.Boolean, default=True)
+    
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_documento' not in session:
+            flash('Debes iniciar sesión para acceder a esta página.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/recuperar_pass')
 def recuperar_pass():
     return render_template('recuperar_pass.html')
-
+#---------------------------------------------------LOGIN-------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         documento = str(request.form.get('documento'))
         contraseña = str(request.form.get('contraseña'))
         
-        # Debugging: Print received values
-        print(f"Documento: {documento}")
-        print(f"Contraseña recibida: {contraseña}")
-        
-        # Buscar al usuario por su documento
         user = Usuario.query.filter_by(documento=documento).first()
-        
-        if user:
-            print(f"Usuario encontrado: {user.nombre}")
-            print(f"Contraseña almacenada: {user.contraseña}")
-        else:
-            print("Usuario no encontrado")
-        
         # Verifica las credenciales del usuario
         if user and user.contraseña and contraseña:
             try:
                 if bcrypt.check_password_hash(user.contraseña, contraseña):
                     session['user_documento'] = user.documento
-                    flash(f'Bienvenido, @{user.nombre}. Has iniciado sesión correctamente.', 'success')
-                    return redirect(url_for('mhistorialcompras'))
+                    flash(f'Bienvenido, {user.nombre}. Has iniciado sesión correctamente.', 'success')
+                    return render_template('login.html', redirect_url=url_for('mhistorialcompras'))
                 else:
                     flash('Contraseña incorrecta. Por favor, intenta de nuevo.', 'error')
             except ValueError as e:
                 print(f"Error al verificar la contraseña: {str(e)}")
                 flash('Error al verificar la contraseña. Por favor, contacta al administrador.', 'error')
         else:
-            flash('Credenciales inválidas o incompletas. Por favor, intenta de nuevo.', 'error')
-    
+            flash('Documento o Contraseña Incorrectos. Por favor, intenta de nuevo.', 'error')
     return render_template('login.html')
 
+@app.route('/mhistorialcompras')
+@login_required
+def mhistorialcompras():
+    return render_template('mhistorialcompras.html')
+
+@app.route('/mpuntosprincipal')
+@login_required
+def mpuntosprincipal():
+    return render_template('mpuntosprincipal.html')
+
+@app.route('/quesonpuntos')
+@login_required
+def quesonpuntos():
+    return render_template('puntos.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    session.pop('user_documento', None)
+    flash('Has cerrado sesión exitosamente.', 'success')
+    return redirect(url_for('login'))
+
+#----------------------------------CREAR CONTRASEÑA----------------------------------
 @app.route('/crear_pass', methods=['GET', 'POST'])
 def crear_pass():
     if request.method == 'POST':
@@ -208,13 +228,6 @@ def crear_usuario(cedula, contraseña, habeasdata):
         print("Error al crear el usuario:", e)
         raise e
     
-@app.route('/mhistorialcompras')
-def mhistorialcompras():
-    return render_template('mhistorialcompras.html')
-
-@app.route('/mpuntosprincipal')
-def mpuntosprincipal():
-    return render_template('mpuntosprincipal.html')
 
 
 if __name__ == '__main__':
