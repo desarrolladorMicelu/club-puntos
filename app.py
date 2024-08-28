@@ -51,7 +51,6 @@ def login():
     if request.method == 'POST':
         documento = str(request.form.get('documento'))
         contraseña = str(request.form.get('contraseña'))
-        
         user = Usuario.query.filter_by(documento=documento).first()
         # Verifica las credenciales del usuario
         if user and user.contraseña and contraseña:
@@ -75,7 +74,6 @@ def mhistorialcompras():
     documento = session.get('user_documento')
     
     if not documento:
-        flash('No se encontró información del usuario. Por favor, inicie sesión nuevamente.', 'error')
         return redirect(url_for('login'))
     
     try:
@@ -89,9 +87,7 @@ def mhistorialcompras():
         )
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
- 
-        print(f"Buscando historial para NIT: {documento}")
- 
+
         # Verificar si el cliente existe
         check_query = """
         SELECT COUNT(*) as count
@@ -100,8 +96,6 @@ def mhistorialcompras():
         """
         cursor.execute(check_query, documento)
         count = cursor.fetchone().count
-        print(f"Número de clientes encontrados: {count}")
- 
         # Consulta principal
         query = """
         SELECT
@@ -123,12 +117,8 @@ def mhistorialcompras():
  
         cursor.execute(query, documento)
         results = cursor.fetchall()
- 
-        print(f"Número de resultados: {len(results)}")
- 
         historial = []
         for row in results:
-            print(f"Fila: {row}")
             historial.append({
                 "PRODUCTO_NOMBRE": row.PRODUCTO_NOMBRE,
                 "VLRVENTA": float(row.VLRVENTA),
@@ -157,6 +147,12 @@ def mpuntosprincipal():
 @login_required
 def quesonpuntos():
     return render_template('puntos.html')
+
+@app.route('/homepuntos')
+@login_required
+def homepuntos():
+    return render_template('home.html')
+
 
 
 @app.route('/logout')
@@ -305,6 +301,51 @@ def crear_usuario(cedula, contraseña, habeasdata):
     except Exception as e:
         print("Error al crear el usuario:", e)
         raise e
+    
+#------------------funciones para traer informacion del carrusel------------------------------------------------
+
+def get_product_info(product_id):
+    products = {
+        1: {
+            'nombre': 'Iphone 12',
+            'precio': 1450000,
+            'puntos': 500,
+            'descripcion': 'El Apple iPhone 15 conserva el diseño de la generación anterior pero incorpora el Dynamic Island ',
+            'image': 'images/iphone12.png'
+        },
+        2: {
+            'nombre': 'Diadema -Smartpods',
+            'precio': 999000,
+            'puntos': 800 ,
+            'descripcion': 'Diadema bluetooth SmartPods Pro A+  con diseño ergonómico, con la posibilidad de adaptarse a la cabeza',
+            'image': 'images/diadema.png'
+        },
+        3: {
+            'nombre': 'Airpods Pro 2 Alta Calidad (Genéricos 1.1)',
+            'precio': 675000,
+            'puntos': 350 ,
+            'descripcion': '',
+            'image': 'images/airpods.jpg'
+        },
+        4: {
+            'nombre': 'Smartwatch',
+            'precio': 210000,
+            'puntos': 150 ,
+            'descripcion': '',
+            'image': 'images/smartwatch.png'
+        }
+        # Añade más productos aquí
+    }
+    return products.get(product_id)
+    #----------------------------------- mpuntosprincipal-----------------------------
+@app.route('/infobeneficios/<int:product_id>')
+def infobeneficios(product_id):
+    # Aquí deberías tener una función que obtenga la información del producto
+    # basándose en el product_id. Por ejemplo:
+    product = get_product_info(product_id)
+
+    
+    return render_template("infobeneficios.html", product=product)
     
 
 

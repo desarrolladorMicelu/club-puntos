@@ -1,0 +1,325 @@
+/*---------------Estilos del Carrusel------------*/
+.carousel-inner img {
+    max-width: 100%;    /* Ajusta el ancho máximo de la imagen, en este caso 80% del contenedor */
+    height: auto;      /* Mantiene la proporción de la imagen */
+    margin: 0 auto;    /* Centra la imagen en el carrusel */
+    border-radius: 10px; /* Añade esquinas redondeadas a la imagen */
+    width: 100%;       /* Hace que la imagen ocupe todo el ancho de la tarjeta */
+    max-height: 500px; /* Altura máxima de la imagen */
+    object-fit: cover; /* Ajusta la imagen para que cubra el contenedor sin distorsionarse */
+  }
+  
+    /* Opcional: Ajusta el tamaño del contenedor del carrusel */
+#carouselExample {
+    max-width: 900px; /* Ajusta el tamaño máximo del carrusel */
+    margin: 0 auto;   /* Centra el carrusel en la página */
+    
+}
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: #007bff; /* Cambia este valor al color deseado */
+    width: 30px; /* Ajusta el tamaño de las flechas */
+    height: 30px; /* Ajusta el tamaño de las flechas */
+    left: 5%; /* Mueve la flecha hacia la izquierda */
+    right: 5%; /* Mueve la flecha hacia la derecha */
+  
+}
+.carousel-control-prev {
+    left: -15%; /* Mueve la flecha hacia la izquierda */
+}
+    
+.carousel-control-next {
+    right: -15%; /* Mueve la flecha hacia la derecha */
+}
+  
+  
+.carousel-inner {
+    height: 500px; /* Ajusta esta altura según tus necesidades */
+}
+/*----------------------estilos para las cards-----------------------------*/
+.carousel-item .card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-align: center;
+    padding-top: 5px;
+    border-radius: 10px;
+}
+.card-img-top {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+}
+  
+.card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+/* estilos para el texto de las card*/
+.card-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem; /* Ajusta el tamaño de la fuente según prefieras */
+    font-weight: 700; /* Usa 400 para normal, 700 para bold */
+    color: #476cf4; /* Cambia el color si es necesario */
+    margin-bottom: 0.5rem; /* Ajusta el margen inferior si es necesario */
+    text-align: center;
+}
+.card-text{
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.3rem;
+}
+.card-text1{
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    color: rgb(114, 48, 114);
+    font-weight: bold;
+}
+.imgcelu{
+    width: 100%;            /* La imagen ocupará el 100% del contenedor */
+    max-height: 450px;      /* Ajusta este valor al alto máximo deseado */
+    height: auto;           /* Mantiene las proporciones de la imagen */
+    display: block;  
+    object-fit: cover;
+    
+
+}
+.carousel-wrapper {
+    background-color: #f8f9fa; /* Fondo gris claro */
+    padding-top: 10px;
+}
+
+/*----- Estilos para los indicadores carrusel*/
+.indicadores {
+    position: absolute;
+   /* Ajusta la distancia desde la parte inferior */
+    left: 35%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px; /* Espacio entre los indicadores */
+    padding: 8px;
+   
+}
+  
+.indicadores button {
+    background-color: #007bff; /* Color de los puntos indicadores */
+    border: none;
+    width: 30px; /* Tamaño de los puntos */
+    height: 30px;
+    border-radius: 50%; /* Hace que los indicadores sean círculos */
+    cursor: pointer;
+    transition: background-color 0.3s; /* Transición suave para el cambio de color */
+}
+.indicadores button.active {
+    background-color: #007bff; /* Color del punto activo */
+}
+/*----------- estilos informacion productos */
+.product-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+/*manejo de la card*/
+.product-card {
+    width: 100%; /* Ancho completo de la columna */
+    max-width: 700px; /* Ancho máximo de la tarjeta */
+    margin: auto; /* Centrar la tarjeta */
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    background-color: #ffffff; /* Color de fondo de la tarjeta */
+    text-align: center; /* Centrar el contenido dentro de la tarjeta */
+    border: none;
+    display: flex; /* Usa flexbox para organizar el contenido dentro del contenedor */
+    
+}
+
+.product-image {
+    padding: 10px;
+    text-align: center; /* Centra la imagen dentro del contenedor */
+    
+}
+
+.product-img {
+    max-width: 100%;
+    
+    border-radius: 8px;
+    align-items: center;
+    
+}
+
+.product-title {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    color: #333;
+    font-weight: bold;
+    font-family: 'Poppins', sans-serif;
+
+}
+
+.product-price {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    color: rgb(114, 48, 114);
+    font-weight: bold;
+    margin: 20px;
+}
+
+.product-points {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    color: rgb(114, 48, 114);
+    font-weight: bold;
+}
+
+
+.product-description {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #444;
+}
+
+@media (max-width: 768px) {
+    .product-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .product-image {
+        padding: 5px;
+    }
+
+    .product-title {
+        font-size: 1.5rem;
+    }
+
+    .product-price {
+        font-size: 1rem;
+    }
+
+    .product-points {
+        font-size: 0.9rem;
+    }
+}
+/*---- Estilos aside*/
+.description-container {
+    margin-left: -250px; /* Ajusta el valor según sea necesario */
+    padding: 10px; /* Espaciado interno */
+    border-radius: 8px; /* Bordes redondeados */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    margin-top: 10px; /* Espacio superior si es necesario */
+    max-width: 100%; 
+    
+}
+
+.description-container h2 {
+    font-size: 3.3rem; /* Tamaño del texto del título */
+    color: #007bff; /* Color del texto del título */
+    margin-bottom: 15px; /* Espacio debajo del título */
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+    font-weight: bold;
+
+}
+
+.description {
+    font-size: 2.3rem; /* Tamaño del texto de la descripción */
+    color: #000000; /* Color del texto de la descripción */
+    line-height: 1.6; /* Altura de línea para mejor legibilidad */
+    font-family: 'Poppins', sans-serif;
+    
+    margin-bottom: 0; /* Sin margen inferior */
+}
+/*--------estilos tabla puntos------------*/
+.table-container {
+    margin-top: 20px; /* Espacio superior para separar de la descripción */
+    
+}
+
+.tabla-puntos {
+    width: 100%; /* Hace que la tabla ocupe todo el ancho del contenedor */
+    border-collapse: separate; /* Permite el uso de bordes redondeados en la tabla */
+    border-spacing: 0; /* Elimina el espacio entre celdas para asegurar el borde redondeado */
+    background-color: #ffffff; /* Fondo blanco para la tabla */
+    border: 1px solid #007bff; /* Borde azul alrededor de la tabla */
+    border-radius: 10px; /* Esquinas redondeadas para la tabla */
+    overflow: hidden; /* Asegura que el borde redondeado se aplique a las celdas internas */
+}
+
+.tabla-puntos th, .tabla-puntos td {
+    padding: 8px; /* Espaciado interno en celdas */
+    text-align: center; /* Centra el texto en celdas */
+    font-family: 'Poppins', sans-serif;
+    
+}
+
+.tabla-puntos th {
+    font-size: 20px;
+    font-weight: bold; /* Fuente en negrita para el encabezado */
+    font-family: 'Poppins', sans-serif;
+}
+
+.points-input {
+    width: 100%; /* Ancho completo del campo de texto */
+    padding: 6px; /* Espaciado interno en el campo de texto */
+    border: 1px solid #ced4da; /* Borde ligero del campo de texto */
+    border-radius: 4px; /* Bordes redondeados del campo de texto */
+    box-sizing: border-box; /* Incluye el padding en el ancho total */
+    font-size: 20px;
+}
+.checkbox-button {
+    display: flex;
+    align-items: center; /* Alinea el checkbox y el texto verticalmente */
+    cursor: pointer; /* Cambia el cursor al pasar sobre el checkbox */
+    background-color: #007bff; /* Color de fondo del botón */
+    color: #fff; /* Color del texto */
+    border: 2px solid #007bff; /* Borde del botón */
+    border-radius: 20px; /* Bordes redondeados para el botón */
+    padding: 10px 20px; /* Espaciado interno del botón */
+    font-size: 16px; /* Tamaño de la fuente del texto */
+    transition: background-color 0.3s, border-color 0.3s; /* Transiciones suaves */
+}
+/*------estilos para las cards visualizacion*/
+.custom-container {
+    padding: 20px; /* Espacio alrededor de las cards */
+    border-radius: 10px; /* Bordes redondeados para el contenedor */
+  }
+  
+  .custom-card {
+    border: none; /* Eliminar borde de la card */
+    border-radius: 10px; /* Bordes redondeados para las cards */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra sutil para las cards */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Efecto de transición */
+    margin-bottom: 20px; /* Espacio debajo de cada card */
+  }
+  
+  .custom-card:hover {
+    transform: translateY(-5px); /* Elevar la card al pasar el mouse */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra más intensa al pasar el mouse */
+  }
+  
+  .custom-card-img {
+    border-top-left-radius: 10px; /* Bordes redondeados para la imagen */
+    border-top-right-radius: 10px;
+    width: 100%; /* Asegura que la imagen se ajuste al ancho de la card */
+  }
+  
+  .custom-card-body {
+    padding: 15px; /* Espacio interno para el cuerpo de la card */
+    text-align: center; /* Centrar el texto */
+  }
+  
+  .custom-card-text {
+    font-size: 1rem; /* Tamaño de fuente para el texto */
+    color: #343a40; /* Color de texto gris oscuro */
+  }
+  .titulo1{
+    font-size: 3rem;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    margin: 20px;
+    font-weight: bold;
+    color: #007bff;
+  }

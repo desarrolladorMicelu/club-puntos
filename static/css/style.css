@@ -933,7 +933,7 @@ body {
   
   /*menu*/
   .footer {
-    position: fixed;
+    position: relative;
     bottom: 0;
     width: 100%;
     background-color: #000000; /* Color de fondo del footer */
