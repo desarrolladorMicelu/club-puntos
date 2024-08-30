@@ -29,7 +29,7 @@ body {
   }
  
   .card-img-top {
-    height: 170px;
+    height: 150px;
     object-fit: cover;
     border-bottom: 5px solid #000000;
     transition: filter 0.3s ease;

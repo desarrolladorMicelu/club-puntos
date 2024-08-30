@@ -337,7 +337,7 @@ def mhistorialcompras():
 @login_required
 def mpuntosprincipal():
     # Asumimos que el documento del usuario está en la sesión
-    documento = session.get('documento_usuario')
+    documento = session.get('user_documento')
     
     total_puntos = 0
     if documento:
@@ -353,47 +353,45 @@ def mpuntosprincipal():
 @login_required
 def redimir_puntos():
     try:
-        documento = session.get('documento_usuario')
-        punto_a_redimir = request.json.get('points')
-        
-        if not documento or punto_a_redimir is None:
-            return jsonify({'success': False, 'message': 'Datos inválidos'}), 400
-        
-        try:
-            punto_a_redimir = int(punto_a_redimir)  # Convierte a entero
-        except ValueError:
-            return jsonify({'success': False, 'message': 'Cantidad de puntos inválida'}), 400
-        
+        documento = session.get('user_documento')
+        punto_a_redimir = int(request.json.get('points'))
+       
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        
-        if not puntos_usuario:
-            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
-        
         current_points = int(puntos_usuario.total_puntos)
-        
+       
         if punto_a_redimir > current_points:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
-        
+       
         new_total = current_points - punto_a_redimir
         puntos_usuario.total_puntos = str(new_total)
-        db.session.commit()  # Guarda los cambios en la base de datos
-        
+        db.session.commit()
+       
         return jsonify({'success': True, 'new_total': new_total}), 200
-    
+   
     except Exception as e:
-        # Log the exception and return a generic error message
         print(f"Error: {e}")
-        return jsonify({'success': False, 'message': 'Error interno del servidor'}), 500
+        return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
 
 @app.route('/quesonpuntos')
 @login_required
 def quesonpuntos():
-    return render_template('puntos.html')
+    documento = session.get('user_documento')
+    total_puntos = 0
+    puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+    if puntos_usuario:
+            total_puntos = puntos_usuario.total_puntos
+            
+    return render_template('puntos.html', total_puntos=total_puntos)
 
 @app.route('/homepuntos')
 @login_required
 def homepuntos():
-    return render_template('home.html')
+    documento = session.get('user_documento')
+    total_puntos = 0
+    puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+    if puntos_usuario:
+            total_puntos = puntos_usuario.total_puntos
+    return render_template('home.html', total_puntos=total_puntos)
 
 
 
@@ -599,26 +597,28 @@ def get_product_info(product_id):
     return products.get(product_id)
     #----------------------------------- mpuntosprincipal-----------------------------
 @app.route('/infobeneficios/<int:product_id>')
+@login_required
 def infobeneficios(product_id):
     product = get_product_info(product_id)
         # Asumimos que el documento del usuario está en la sesión
-    documento = session.get('documento_usuario')
-    
+    documento = session.get('user_documento')
+  
     total_puntos = 0
     if documento:
         # Consulta a la base de datos para obtener los puntos del usuario
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             total_puntos = puntos_usuario.total_puntos
-
     
     return render_template("infobeneficios.html", product=product, total_puntos=total_puntos)
 
 @app.route('/acumulapuntos')
+@login_required
 def acumulapuntos():
     return render_template("acumulapuntos.html")
 
 @app.route('/redimir')
+@login_required
 def redimiendo():
     return render_template("redimir.html")
     
