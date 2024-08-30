@@ -1,26 +1,21 @@
-window.onload = function() {
-    setTimeout(function() {
-        var flashMessage = document.querySelector('.flash-messages');
-        if (flashMessage) {
-            flashMessage.style.transition = 'opacity 0.5s ease';
-            flashMessage.style.opacity = '0';
-            setTimeout(function() {
-                flashMessage.style.display = 'none';
-            }, 500);
+document.addEventListener('DOMContentLoaded', function() {
+    var flashMessages = document.querySelectorAll('.flash1');
+    flashMessages.forEach(function(flash) {
+        // Cerrar manualmente
+        var closeBtn = flash.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                flash.remove();
+            });
         }
-    }, 10000);
-
-    var closeBtn = document.querySelector('.close-btn');
-    if (closeBtn) {
-        closeBtn.onclick = function() {
-            var flashMessage = document.querySelector('.flash-messages');
-            if (flashMessage) {
-                flashMessage.style.transition = 'opacity 0.5s ease';
-                flashMessage.style.opacity = '0';
-                setTimeout(function() {
-                    flashMessage.style.display = 'none';
-                }, 500);
-            }
-        };
-    }
-};
+       
+        // Desaparecer automáticamente después de 5 segundos
+        setTimeout(function() {
+            flash.style.opacity = '0';
+            flash.style.transition = 'opacity 0.5s ease';
+            setTimeout(function() {
+                flash.remove();
+            }, 500);
+        }, 3000);
+    });
+});

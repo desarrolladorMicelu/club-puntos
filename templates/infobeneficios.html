@@ -13,7 +13,8 @@
     <meta name="author" content="" />
     <meta http-equiv="refresh" content="14400">
 
-    <title>¿QUE SON PUNTOS?</title>
+    <title>Redime</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo1.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <!-- slider stylesheet -->
@@ -80,10 +81,9 @@
                                     <a class="nav-link" href="logout">Cerrar sesion</a>
                                 </li>
                                 <li class="nav-item d-flex align-items-center">
-                                    <!-- Tarjeta con puntos -->
                                     <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
                                         <span class="fw-bold">Puntos</span>
-                                        <span class="badge bg-primary ms-2">102</span>
+                                        <span id="nav-points" class="badge bg-primary ms-2">{{ total_puntos }}</span>
                                     </div>
                                 </li>
                             </ul>
@@ -137,7 +137,7 @@
                     </div>
                     <div class="table-container">
                         <div class="container mt-4">
-                            <h3>¿Como desea hacer la compra? </h3>
+                            <h3 class="titulo3">¿Como desea hacer la compra? </h3>
                             <table class="tabla-puntos">
                                 <thead>
                                     <tr>
@@ -146,7 +146,13 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td><input type="text" class="points-input" placeholder="Ingrese puntos"></td>
+                                        <td>
+                                            <input type="number" id="points-input" class="redimepun" placeholder="Ingrese puntos">
+                                            <button id="redeem-button" class="btn btn-primary mt-2">Redimir Puntos</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="Pun">Puntos actuales : <span id="current-points">{{ total_puntos }}</span></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -157,6 +163,10 @@
                                     Solo Dinero
                                 </label>
                             </div>
+                        </div>
+                    </div>
+                </aside>
+                            
                         </div>
                     </div>
 
@@ -203,6 +213,56 @@
         </div>
 
 
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const redeemButton = document.getElementById('redeem-button');
+                const pointsInput = document.getElementById('points-input');
+                const currentPointsDisplay = document.getElementById('current-points');
+                const navPointsDisplay = document.getElementById('nav-points');
+            
+                function updatePointsDisplay(newTotal) {
+                    currentPointsDisplay.textContent = newTotal;
+                    navPointsDisplay.textContent = newTotal;
+            
+                    [currentPointsDisplay, navPointsDisplay].forEach(element => {
+                        element.classList.add('updated');
+                        setTimeout(() => {
+                            element.classList.remove('updated');
+                        }, 1000);
+                    });
+                }
+            
+                redeemButton.addEventListener('click', function() {
+                    const pointsToRedeem = pointsInput.value;
+            
+                    fetch('/redimir_puntos', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ points: pointsToRedeem })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updatePointsDisplay(data.new_total);
+                            pointsInput.value = '';
+                            alert('Puntos redimidos exitosamente');
+                        } else {
+                            if (data.message === 'No tienes suficientes puntos') {
+                                alert('No tienes suficientes puntos');
+                            } else {
+                                alert('Error: ' + data.message);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Ocurrió un error al procesar la solicitud');
+                    });
+                });
+            });
+            </script>
 
 
 

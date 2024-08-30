@@ -14,6 +14,7 @@
   <meta http-equiv="refresh" content="14400">
 
   <title>PUNTOS MICELU</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo1.png') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
   <!-- slider stylesheet -->
@@ -73,12 +74,11 @@
                   <a class="nav-link" href="logout">Cerrar sesion</a>
                 </li>
                 <li class="nav-item d-flex align-items-center">
-                  <!-- Tarjeta con puntos -->
                   <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
                       <span class="fw-bold">Puntos</span>
-                      <span class="badge bg-primary ms-2">102</span>
+                      <span id="nav-points" class="badge bg-primary ms-2">{{ total_puntos }}</span>
                   </div>
-                </li>
+              </li>
               </ul>
             </div>
             <div class="dropdown ms-2">
