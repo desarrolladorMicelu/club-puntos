@@ -324,6 +324,7 @@ def mhistorialcompras():
  
         cursor.close()
         conn.close()
+        
  
        
         return render_template('mhistorialcompras.html', historial=historial)
@@ -565,32 +566,57 @@ def crear_usuario(cedula, contraseña, habeasdata):
 def get_product_info(product_id):
     products = {
         1: {
+            'tipo': 'celular',
             'nombre': 'Iphone 12',
             'precio': 1450000,
             'puntos': 500,
             'descripcion': 'El Apple iPhone 15 conserva el diseño de la generación anterior pero incorpora el Dynamic Island ',
-            'image': 'images/iphone12.png'
+            'image': 'images/iphone12.png',
+            #especificaciones
+            'tipo_pantalla': 'pantalla Super Retina XDR de 6.1 pulgadas de tecnología OLED',
+            'sistema_operativo': 'iOS es el sistema operativo móvil más personal y seguro del mundo',
+            'almacenamiento': '128GB, 256GB, 64GB',
+            'color': 'Azul, Lila, Negro, Verde',
         },
         2: {
+            'tipo': 'diadema',
             'nombre': 'Diadema -Smartpods',
             'precio': 999000,
             'puntos': 800 ,
             'descripcion': 'Diadema bluetooth SmartPods Pro A+  con diseño ergonómico, con la posibilidad de adaptarse a la cabeza',
-            'image': 'images/diadema.png'
+            'image': 'images/diadema.png',
+            #especificaciones
+            'tipo_conexion': 'Diadema conexion bluetooth',
+            'cancelacion_ruido': 'Si',
+            'almacenamiento': '',
+            'color': 'Gris-plata',
         },
         3: {
+            'tipo': 'airpods',
             'nombre': 'Airpods Pro 2 Alta Calidad (Genéricos 1.1)',
             'precio': 675000,
             'puntos': 350 ,
             'descripcion': '',
-            'image': 'images/airpods.jpg'
+            'image': 'images/airpods.jpg',
+            #especificaciones
+            'tipo_conexion': 'Estuche MagSafe USB-C ',
+            'duracion_bateria': 'hasta 6 horas de batería',
+            'cancelacion_ruido': 'Cancelación activa de ruido/transparencia',
+            'color': 'blanco',
         },
         4: {
-            'nombre': 'Smartwatch',
-            'precio': 210000,
-            'puntos': 150 ,
-            'descripcion': '',
-            'image': 'images/smartwatch.png'
+            'tipo': 'reloj',
+            'nombre': 'Smartwatch SE',
+            'precio': 950000,
+            'puntos': 800 ,
+            'descripcion': 'APPLE WATCH SE 2 GENERACIÓN 40MM - ORIGINAL',
+            'image': 'images/smartwatch3.png',
+            #especificaciones
+            'tipo_pantalla': 'Pantalla Retina OLED LTPO',
+            'duracion_bateria': 'Batería de iones de litio recargable integrada, Hasta 18 horas',
+            'resistencia_agua': 'Si , hasta 50 metros3',
+            'funcionalidad': 'GPS (L1), GLONASS, Galileo y QZSS, Brújula, Siri, sensor ambiental',
+            'color': 'Blanco',
         }
         # Añade más productos aquí
     }

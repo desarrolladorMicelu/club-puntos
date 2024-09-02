@@ -126,12 +126,77 @@
                             </div>
                         </div>
                     </div>
-                    {% else %}
-                    <p>Producto no encontrado</p>
-                    {% endif %}
+                    
+                    <!-- Tabla de descripción -->
+                    <div class="row mt-4">
+                        <div class="col-6">
+                            <div class="tabla-descripcion">
+                                <h3 class="tabla-titulo">Especificaciones del producto</h3>
+                                <div class="descripcion">
+                                    {% if product.tipo == 'celular' %}
+                                        <div>
+                                            <div class="etiqueta">Tipo de Pantalla:</div>
+                                            <div class="valor">{{ product.tipo_pantalla }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Sistema Operativo:</div>
+                                            <div class="valor">{{ product.sistema_operativo }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Almacenamiento:</div>
+                                            <div class="valor">{{ product.almacenamiento }}</div>
+                                        </div>
+                                    {% elif product.tipo == 'airpods' %}
+                                        <div>
+                                            <div class="etiqueta">Tipo de Conexión:</div>
+                                            <div class="valor">{{ product.tipo_conexion }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Duración de Batería:</div>
+                                            <div class="valor">{{ product.duracion_bateria }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Duración de Batería:</div>
+                                            <div class="valor">{{ product.cancelacion_ruido }}</div>
+                                        </div>
+                                    {% elif product.tipo == 'diadema' %}
+                                        <div>
+                                            <div class="etiqueta">Tipo de Conexión:</div>
+                                            <div class="valor">{{ product.tipo_conexion }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Cancelación de Ruido:</div>
+                                            <div class="valor">{{ product.cancelacion_ruido }}</div>
+                                        </div>
+                                    {% elif product.tipo == 'reloj' %}
+                                        <div>
+                                            <div class="etiqueta">Tipo de Pantalla:</div>
+                                            <div class="valor">{{ product.tipo_pantalla }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Duración de Batería:</div>
+                                            <div class="valor">{{ product.duracion_bateria }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Resistencia al Agua:</div>
+                                            <div class="valor">{{ product.resistencia_agua }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="etiqueta">Funcionalidad:</div>
+                                            <div class="valor">{{ product.funcionalidad }}</div>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="etiqueta">Color:</div>
+                                        <div class="valor">{{ product.color }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                
                 <!-- Aside -->
-                {% if product %}
                 <aside class="col-md-4">
                     <div class="description-container">
                         <h2>Descripción</h2>
@@ -168,15 +233,16 @@
                         </div>
                     </div>
                 </aside>
-                            
-                        </div>
-                    </div>
-
-                </aside>
-                {% endif %}
-
             </div>
         </div>
+        {% else %}
+        <p>Producto no encontrado</p>
+        {% endif %}
+            
+        </body>
+            
+        </div>
+
 
         <script src="path/to/bootstrap.bundle.min.js"></script> <!-- Bootstrap JS -->
 

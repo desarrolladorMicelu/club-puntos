@@ -110,11 +110,11 @@
 }
   
 .indicadores button {
+    margin-top: 15px;
     background-color: #007bff; /* Color de los puntos indicadores */
     border: none;
     width: 30px; /* Tamaño de los puntos */
     height: 30px;
-    border-radius: 50%; /* Hace que los indicadores sean círculos */
     cursor: pointer;
     transition: background-color 0.3s; /* Transición suave para el cambio de color */
 }
@@ -209,7 +209,7 @@
 }
 /*---- Estilos aside*/
 .description-container {
-    margin-left: -70px; 
+    margin-left: -5px; 
     padding: 10px; /* Espaciado interno */
     border-radius: 8px; /* Bordes redondeados */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra ligera */
@@ -328,6 +328,7 @@
     font-family: 'Poppins', sans-serif;
     font-weight: bold;
     color: #007bff;
+    margin: 20px;
 }
 .titulo2{
     font-size: 3rem;
@@ -612,5 +613,66 @@ table {
     .row {
         display: flex;
         justify-content: center;
+    }
+}
+
+
+.tabla-descripcion {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.tabla-titulo {
+    background-color: #007bff;
+    color: white;
+    padding: 15px 20px;
+    margin: 0;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.descripcion {
+    padding: 20px;
+}
+
+.descripcion > div {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.descripcion > div:last-child {
+    border-bottom: none;
+}
+
+.etiqueta {
+    font-weight: bold;
+    color: #333;
+    flex-basis: 40%;
+}
+
+.valor {
+    color: #666;
+    flex-basis: 60%;
+    text-align: left;
+}
+
+@media (max-width: 768px) {
+    .descripcion > div {
+        flex-direction: column;
+    }
+    
+    .etiqueta, .valor {
+        flex-basis: 100%;
+        text-align: left;
+    }
+    
+    .valor {
+        margin-top: 4px;
     }
 }

@@ -13,7 +13,7 @@
   <meta name="author" content="" />
   <meta http-equiv="refresh" content="14400">
 
-  <title>MI PERFIL</title>
+  <title>Redimir</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo1.png') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
@@ -33,6 +33,7 @@
   <!-- Custom styles for this template -->
 
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/beneficios.css') }}">
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -59,6 +60,9 @@
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
               <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
                 <ul class="navbar-nav  ">
+                  <li class="nav-item">
+                    <a class="nav-link" href="/homepuntos">Personas</a>
+                  </li>
                   <li class="nav-item">
                     <a class="nav-link" href="/quesonpuntos">¿Que son Puntos?</a>
                   </li>
@@ -92,6 +96,38 @@
           </nav>
         </div>
       </header>
+
+      <div class="section">
+        <img src="{{ url_for('static', filename='images/flyer.png') }}" class="imgcelu">
+      </div>
+      <div class="container">
+        <!---<div class="card1">
+            <img src="{{ url_for('static', filename='images/avion.png') }}" class="avion" alt="...">
+            <div class="card-body">
+              <p class="card-text"></p>
+            </div>-->
+        </div>
+        <h1 class="titulo2">¿ Como Redimir tus puntos ? </h1>
+    </div>
+    <div class="container-fluid">
+      <div class="row ">
+          <div class="col-md-3 d-flex justify-content-center ">
+              <div class="card2" >
+                  <img src="{{ url_for('static', filename='images/redimir1.png') }}" class="card-img-top1" alt="...">
+              </div>
+          </div>
+          <div class="col-md-3 d-flex justify-content-center ">
+              <div class="card2">
+                  <img src="{{ url_for('static', filename='images/redimir2.png') }}" class="card-img-top1" alt="...">
+              </div>
+          </div>
+          <div class="col-md-3 d-flex justify-content-center ">
+              <div class="card2">
+                  <img src="{{ url_for('static', filename='images/redimir3.png') }}" class="card-img-top1" alt="...">
+              </div>
+          </div>
+      </div>
+  </div>
       
     <div class="footer">
 
