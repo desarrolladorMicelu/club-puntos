@@ -5,7 +5,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Contraseña</title>
-    <link rel="icon" type="image/x-icon" href="/static/images/icon.png">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño1.png') }}">
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/login.css') }}">
@@ -17,13 +18,16 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/cambiar_pass.js') }}"></script>
 </head>
-<body>
+<body class="bodylogin">
     <a href="{{ url_for('login') }}" class="back-arrow">
-        <i class="fas fa-arrow-left"></i>
+        <i class="fa-solid fa-circle-arrow-left"></i>
     </a>
  
     <section class="d-flex justify-content-center align-items-center">
         <div class="panel card shadow col-xs-12 col-sm-6 col-md-6 col-lg-4 p-4">
+            <div class="logo-container text-center mb-4">
+                <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="logo">
+            </div>
             <div class="title-container">
                 <h4 class="title-text">
                     ¿Olvidaste tu contraseña?
@@ -39,13 +43,15 @@
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label for="password" class="label-text"><i class="fas fa-envelope" style="color: black;"></i> Correo Electronico:</label>
+                        <label for="email" class="label-text">
+                            <i class="fas fa-envelope" style="color: black; font-size: 17px;"></i> Correo Electrónico:
+                        </label>
                         <div class="input-group">
-                            <input type="email" class="form-control" name="email" id="email" placeholder="Ingrese Su Correo Electrónico" required>
+                            <input type="text" class="form-control" name="email" id="email" placeholder="Ingrese Su Correo Electrónico" required>
                         </div>
                     </div>
                     <div class="mb-2">
-                        <button id="botton" type="submit" class="boton1 col-12 d-flex justify-content-between">
+                        <button id="botton" type="submit" class="boton1">
                             <span class="button-text">Recuperar</span>
                         </button>
                     </div>
@@ -56,30 +62,32 @@
  
 <!-- menu section -->
 <div class="footer">
- 
     <div class="Principalfooter">
-        <div class="half">
-            <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-                <i class="fa-brands fa-whatsapp"></i>
-            </a>
-            Comprar
-        </div>
         <div class="social-icons">
-            <!-- Icono de TikTok -->
-            <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
-                <i class="fa-brands fa-tiktok"></i>
-            </a>
-            Tiktok
-            <!-- Icono de Instagram -->
-            <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
-                <i class="fa-brands fa-instagram"></i>
-            </a>
-            Instagram
+            <div class="social-item">
+                <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                <p class="text-icono">Comprar</p>
+            </div>
+            <div class="social-item">
+                <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
+                    <i class="fa-brands fa-tiktok"></i>
+                </a>
+                <p class="text-icono">Tiktok</p>
+            </div>
+            <div class="social-item">
+                <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
+                    <i class="fa-brands fa-instagram"></i>
+                </a>
+                <p class="text-icono">Instagram</p>
+            </div>
         </div>
-       
-  </div>
-  <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
-  </div>
+    </div>
+    <div class="footer1">
+        <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+    </div>
+</div>
  
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
@@ -119,5 +127,6 @@
         </div>
     </div>
 </div>
+
 </body>
 </html>

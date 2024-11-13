@@ -1,9 +1,13 @@
+
+.bodylogin {
+  background-image: url(/static/images/fondo1.jpg);
+}
 body .back-arrow {
   position: fixed !important;
   top: 20px !important;
   left: 20px !important;
   font-size: 24px !important;
-  color: #000 !important;
+  color: #ffffff !important;
   text-decoration: none !important;
   z-index: 9999 !important;
   width: auto !important;
@@ -82,11 +86,12 @@ body .back-arrow i {
 }
 
 body {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Poppins', sans-serif;
     color: #000000;
     background-color: #ffffff;
+    padding-bottom: 80px; /* Ajusta según la altura del footer */
   }
-  
+ 
   .layout_padding {
     padding: 75px 0;
   }
@@ -190,6 +195,7 @@ body {
     margin: 0 auto;
   }
   
+  /*estilos para las opciones del navbar*/
   .custom_nav-container .navbar-nav .nav-item .nav-link {
     padding: 20px 60px;
     color: #ffffff;
@@ -207,7 +213,7 @@ body {
     height: 4px;
     -webkit-transform: translateX(-50%);
             transform: translateX(-50%);
-    background-color: #ff4f5a;
+    background-color: #39E0EC;
     border-radius: 5px;
   }
   
@@ -258,14 +264,18 @@ body {
   }
   
   .navbar-brand img {
-    width: 45px;
-    margin-right: 5px;
+    width: 125px;
+    margin-right: 35px;
   }
-  
+  /*logo micelu*/
   .navbar-brand span {
     font-weight: bold;
     font-size: 24px;
     color: #ffffff;
+  }
+  #nav-points{
+    font-size: 25px;
+    color: #000000;
   }
   
   .custom_nav-container {
@@ -297,7 +307,7 @@ body {
   .slider_section .detail-box h1 {
     font-weight: bold;
     font-size: 4rem;
-    color: #1a2e35;
+    color: #178db8;
   }
   
   .slider_section .detail-box h1 span {
@@ -834,16 +844,16 @@ body {
     /* Estilo para el botón de copiar */
   .boton-copiar {
     background-color: #ff4f5a; /* Color de fondo del botón */
-    color: white; /* Color del texto del botón */
-    border: none; /* Sin borde */
-    padding: 10px 20px; /* Espaciado interno del botón */
-    text-align: center; /* Alineación del texto al centro */
-    text-decoration: none; /* Sin decoración de texto */
-    display: inline-block; /* Mostrar como un elemento de línea */
-    font-size: 16px; /* Tamaño de fuente */
-    margin: 4px 2px; /* Márgenes superior e inferior */
-    cursor: pointer; /* Cambiar el cursor al pasar el ratón por encima */
-    border-radius: 5px; /* Bordes redondeados */
+    color: white; 
+    border: none;
+    padding: 10px 20px; 
+    text-align: center; 
+    text-decoration: none; 
+    display: inline-block; 
+    font-size: 16px; 
+    margin: 4px 2px; 
+    cursor: pointer; 
+    border-radius: 5px; 
   }
   
   /* Estilo para el icono dentro del botón */
@@ -877,7 +887,9 @@ body {
   /*historial*/
   
   .historial{
-    width: 100%;
+    width: 95%;
+    margin: 35px;
+    
   }
   
   .titulohistorial{
@@ -885,9 +897,10 @@ body {
     text-align: center; 
     margin: 0 auto; 
     font-weight: bold;
-    font-size: 20px;
-    color: #1a2e35;
+    font-size: 30px;
+    color: #185F64;
     width: 100%;
+    margin: 10px;
   }
   
   table {
@@ -940,77 +953,77 @@ body {
   }
   
   
-  /*menu*/
-  .footer {
-    position: relative;
-    bottom: 0;
-    width: 100%;
-    background-color: #000000; /* Color de fondo del footer */
-    color: #fff; /* Color del texto del footer */
-    padding: 10px;
-    text-align: center;
-    border-top-left-radius: 3vw;
-    border-top-right-radius: 3vw;
-    border: 1px solid black;
-  }
-  
-  .Principalfooter {
-    display: flex; 
-    overflow: hidden; 
-    
-  }
-
-
-  .social-icons {
-    flex: 1; 
-    padding: 0.90vw;
-    align-items: center;
-    text-decoration: none;
-    }
-
-    
-  .social-icons svg,
-  .social-icons svg {
-      fill: #25D366; /* Mantiene el color verde del ícono al pasar el cursor o hacer clic */
-    }
-    
-  .social-icons a:active {
-      color: white; /* Mantiene el color del texto blanco al hacer clic */
-    }
-
-    .icon-tiktok i {
-      font-size: 26px; /* Ajusta el tamaño del icono si es necesario */
-      color: #ffffff; /* Color original del ícono de TikTok */
-  }
-  
-  .icon-tiktok a:hover i,
-  .icon-tiktok a:focus i,
-  .icon-tiktok a:active i {
-      color: currentColor; /* Mantiene el color original del ícono */
-  }
-  
-  .icon-instagram i {
-      font-size: 26px;
-      color: #C13584; /* Color original del ícono de Instagram */
-  }
-  .icon-whatsapp i {
-    font-size: 26px;
-    color: #25D366; /* Color original del ícono de Instagram */
+ /*menu*/
+ .content {
+  flex: 1;
 }
-
-
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #000000;
+  color: #fff;
+  text-align: center;
+  border-top-left-radius: 3vw;
+  border-top-right-radius: 3vw;
+  border: 1px solid black;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 0;
+  height: 100px;
+}
+.Principalfooter {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  padding: 10px 20px;
+  box-sizing: border-box;
+}
+.social-icons {
+  display: flex;
+  align-items: center;
+  gap: 70px;
+}
+.social-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.icon-whatsapp i, .icon-tiktok i, .icon-instagram i {
+  font-size: 24px;
+}
+.icon-whatsapp i { color: #25D366; }
+.icon-tiktok i { color: #ffffff; }
+.icon-instagram i { color: #C13584; }
+.text-icono {
+  margin: 0;
+  color: #ffffff;
+}
 .footer-link {
-  color: #ffffff; /* Color del texto del enlace */
-  text-decoration: none; /* Elimina el subrayado del enlace */
+  color: #ffffff;
+  text-decoration: none;
 }
-
-.footer-link:hover,
-.footer-link:focus,
-.footer-link:active {
-  color: #ffffff; 
-  text-decoration: none; 
+.footer-link:hover, .footer-link:focus, .footer-link:active {
+  color: #ffffff;
+  text-decoration: underline;
 }
-
+@media (max-width: 768px) {
+  .Principalfooter {
+      flex-direction: column;
+      gap: 45px;
+  }
+  .social-icons {
+      width: 100%;
+      justify-content: space-around;
+  }
+  .social-item {
+      flex-direction: column;
+  }
+}
 
 /* css mi perfil */
 .custom-dropdown-toggle {
@@ -1036,7 +1049,7 @@ body {
 }
 
 .custom-dropdown-item {
-  color: black !important;
+  color: rgb(152, 8, 8) !important;
   text-decoration: none;
 }
 
@@ -1046,34 +1059,6 @@ body {
 
 .dropdown {
   position: relative;
-}
-
-.dropdown-menu {
-  position: absolute;
-  right: 0;
-  left: auto;
-  min-width: 120px; /* Ajusta este valor según tus necesidades */
-  text-align: center;
-  padding: 10px;
-  margin-top: 5px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  background-color: rgb(255, 255, 255);
-  border: 1.5px solid #000000; /* Añadido: borde negro de 1 píxel */
-  font-family: "Poppins", sans-serif;
-}
-
-.custom-dropdown-item {
-  display: block;
-  padding: 10px;
-  color: #333;
-  text-decoration: none;
-  transition: background-color 0.3s;
-}
-
-.custom-dropdown-item:hover {
-  background-color: #ffffff;
-  border-radius: 5px;
 }
 /*-----Nuevo CSS-----------*/
 .dropdown {
@@ -1111,25 +1096,10 @@ body {
 .profile_section h2 {
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: 24px;
-  margin-bottom: 20px;
-}
- 
-/* Contenedor principal del perfil */
-.profile-container {
-  max-height: 80vh;
-  overflow-y: auto;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 10px;
-}
- 
-/* Estilo para cada item del perfil */
-.profile-item {
-  display: flex;
-  flex-wrap: wrap;
-  border-bottom: 1px solid #dee2e6;
-  padding: 10px 0;
+  font-size: 38px;
+  margin: 20px;
+  color: #185F64;
+  
 }
  
 .profile-item:last-child {
@@ -1139,21 +1109,20 @@ body {
 /* Estilo para las etiquetas de los campos */
 .profile-label {
   font-weight: 600;
-  width: 100%;
   margin-bottom: 5px;
   font-size: 14px;
 }
  
-/* Estilo para los valores de los campos */
 .profile-value {
-  width: 100%;
-  font-size: 14px;
-  font-weight: 400;
+  text-align: right;
+  display: flex;
+  align-items: right;
+  justify-content: flex-end;
 }
  
 /* Estilo para las imágenes en los valores */
 .profile-value img {
-  max-width: 19%;
+  max-width: 40%;
   height: auto;
 }
  
@@ -1161,15 +1130,80 @@ body {
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
 }
- 
+/*------------------- estilos tabla------------------------*/
+.profile_section {
+  padding: 2px;
+  background-color: #f8f9fa;
+}
+
+.poppins-bold {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: separate;
+
+}
+
+.custom-table tr {
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.custom-table tr:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+/**/
+.custom-table th, .custom-table td {
+  padding: 5px;
+  vertical-align: middle;
+}
+
+.custom-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #185F64;
+  font-family: 'Poppins', sans-serif;
+}
+
+.custom-table td {
+  text-align: right;
+  color: #185F64;
+  width: 100%;
+  font-family: 'Poppins', sans-serif;
+}
+
+.edit-btn, .save-btn {
+  background-color: #2a7dd5;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-right: 10px;
+}
+
+.edit-btn:hover, .save-btn:hover {
+  background-color: #0056b3;
+}
+
+input[type="email"], input[type="tel"] {
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
 @media (min-width: 768px) {
   .profile-label {
-    width: 30%;
+    width: 40%;
     margin-bottom: 0;
   }
  
   .profile-value {
-    width: 50%;
+    width: 40%;
+   
   }
 }
  
@@ -1177,7 +1211,9 @@ body {
 .modal-title {
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  color: #333;
+  color: white;
+  
+
 }
  
 .modal-body input {
@@ -1234,12 +1270,12 @@ body {
 }
  
 .edit-btn {
-  background-color: #0033A0;
+  background-color: #185F64;
   color: white;
 }
  
 .edit-btn:hover {
-  background-color: #0033A0;
+  background-color: #218293 ;
   transform: translateY(-1px);
   box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
 }
@@ -1281,11 +1317,171 @@ body {
 }
  
 #captcha-image{
- 
   width: 100%;
 }
+.tabla-redimir {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+ 
+}
+/*---estilos historial totalpuntos*/
+.fw-bold1{
+  font-size: 15px;
+  text-align: center;
+  font-weight: bold;
+  font-family: 'Poppins', sans-serif;
+  color: #000000;
 
-
-
+}
+/*--- estilos para el cuadro de los puntos*/
+.custom-badge {
+  display: inline-block; 
+  width: 95%; 
+  height: 25px; 
+  font-size: 20px; 
+  line-height: 35px; 
+  text-align: center; 
+  padding: 0; 
+  background-color: #31C0CA; 
+  color: #ffffff; 
+}
+.custom-badge1 {
+  display: inline-block; 
+  width: 100%; 
+  height: 25px; 
+  font-size: 20px; 
+  line-height: 32px; 
+  text-align: center; 
+  padding: 0; 
+  background-color: #31C0CA; 
+  color: #ffffff; 
+}
+#nav-points{
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 1px;
+}
+.tarjeta {
+  width: 8rem;
+  height: auto; /* Ajusta la altura según lo que necesites */
+  margin: 10px;
+  border: solid 1px #000000;
+  padding: 35px;
+  border-radius: 50%;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   
+
+}
+.tarjeta:hover {
+  transform: scale(1.05); 
+  box-shadow: 0 8px 25px #72b1f5; 
+}
+
+.img-top1 {
+  height: 15rem; 
+  object-fit: cover; 
+}
+.container-fluid1 {
+  width: 96%;
+}
+/* Estilo para pantallas pequeñas (por ejemplo, móviles) */
+@media (max-width: 600px) {
+  .historial {
+      width: 90%;
+      margin: 20px;
+  }
+}
+
+/* Estilo para pantallas medianas (por ejemplo, tablets) */
+@media (min-width: 601px) and (max-width: 1024px) {
+  .historial {
+      width: 90%;
+      margin: 25px;
+  }
+}
+/*----pantalla loading*/
+.redime{
+  text-align: center;
+  margin: 20px;
+  width: 97%;
+  height: 100px;
+}
+/*estilos para el mensaje del nombre*/
+.card {
+  display: flex; 
+  margin-top: 5px, 3px;
   
+ 
+}
+.icon-text-container {
+  display: flex; 
+  align-items: center; 
+  padding-bottom: 5px;
+}
+.fa-circle-user {
+  margin-left: 5px;
+  margin-right: 5px; 
+  color: #74C0FC; 
+  font-size: 1.5rem; 
+  
+}
+/*-- COLORES DEL NAVBAR */
+.navbar-nav .nav-item .nav-link.login-button {
+  border: 2px solid #39E0EC; /* Color del borde */
+  border-radius: 5px; 
+  transition: all 0.3s ease; 
+}
+
+.navbar-nav .nav-item .nav-link.login-button:hover {
+  background-color: #185F64; /* Color de fondo al pasar el mouse */
+  color: white; /* Color del texto al pasar el mouse */
+}
+.modal-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0,25rem;
+}
+
+.modal-footer .btn {
+    min-width: 100px; /* Ajusta este valor según tus preferencias */
+}
+/*cerrar sesion modal*/
+.custom-logout-modal-dialog {
+  max-width: 400px; 
+  margin: 200px auto; 
+  
+}
+
+.modal-header {
+  background-color: #31C0CA; 
+  color: white; 
+  
+}
+
+.modal-title {
+  font-size: 1.25rem; 
+  text-align: center; 
+  font-family: 'Poppins', sans-serif;
+}
+
+.modal-body {
+  text-align: center; 
+
+}
+
+.modal-footer {
+  text-align: center; 
+  font-family: 'Poppins', sans-serif;
+}
+
+.modal-footer .btn {
+  margin: 0 5px; 
+}
+#carouselExampleInterval {
+  background-color: #000000;  /* Fondo negro */
+}

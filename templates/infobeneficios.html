@@ -66,9 +66,6 @@
                     <div class="collapse navbar-collapse" id="navbarSupportedContent">
                         <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
                             <ul class="navbar-nav ">
-                                <li class="nav-item">
-                                    <a class="nav-link" href="/homepuntos">Personas</a>
-                                  </li>
                                 <li class="nav-item ">
                                     <a class="nav-link" href="/quesonpuntos">¿Que son Puntos?</a>
                                 </li>
@@ -104,7 +101,7 @@
                 </nav>
             </div>
         </header>
-        
+
         {% if product %}
         <div class="product-container">
             <div class="row">
@@ -114,97 +111,56 @@
                         <div class="row">
                             <div class="product-card">
                                 <div class="product-image col-md-6">
-                                    <img src="{{ url_for('static', filename=product.image) }}" class="product-img"
-                                        alt="{{ product.nombre }}">
+                                    <img src="{{ product.image_url }}" class="product-img" alt="{{ product.name }}">
                                 </div>
                                 <div class="product-details col-md-6">
-                                    <h1 class="product-title">{{ product.nombre }}</h1>
-                                    <p class="product-price">Precio: ${{ "{:,}".format(product.precio) }} COP</p>
-                                    <p class="product-points">Puntos necesarios: {{ product.puntos }} Puntos Micelu</p>
-                                    <!---<p class="product-description">{{ product.descripcion }}</p>-->
+                                    <h1 class="product-title">{{ product.name }}</h1>
+                                    <p class="product-price">Precio: ${{ "{:,}".format(product.price|float) }} COP</p>
+                                    <p class="product-points">Puntos necesarios: {{ product.points }} Puntos Micelu</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Tabla de descripción -->
                     <div class="row mt-4">
-                        <div class="col-6">
+                        <div class="col-7">
                             <div class="tabla-descripcion">
                                 <h3 class="tabla-titulo">Especificaciones del producto</h3>
                                 <div class="descripcion">
-                                    {% if product.tipo == 'celular' %}
-                                        <div>
-                                            <div class="etiqueta">Tipo de Pantalla:</div>
-                                            <div class="valor">{{ product.tipo_pantalla }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Sistema Operativo:</div>
-                                            <div class="valor">{{ product.sistema_operativo }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Almacenamiento:</div>
-                                            <div class="valor">{{ product.almacenamiento }}</div>
-                                        </div>
-                                    {% elif product.tipo == 'airpods' %}
-                                        <div>
-                                            <div class="etiqueta">Tipo de Conexión:</div>
-                                            <div class="valor">{{ product.tipo_conexion }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Duración de Batería:</div>
-                                            <div class="valor">{{ product.duracion_bateria }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Duración de Batería:</div>
-                                            <div class="valor">{{ product.cancelacion_ruido }}</div>
-                                        </div>
-                                    {% elif product.tipo == 'diadema' %}
-                                        <div>
-                                            <div class="etiqueta">Tipo de Conexión:</div>
-                                            <div class="valor">{{ product.tipo_conexion }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Cancelación de Ruido:</div>
-                                            <div class="valor">{{ product.cancelacion_ruido }}</div>
-                                        </div>
-                                    {% elif product.tipo == 'reloj' %}
-                                        <div>
-                                            <div class="etiqueta">Tipo de Pantalla:</div>
-                                            <div class="valor">{{ product.tipo_pantalla }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Duración de Batería:</div>
-                                            <div class="valor">{{ product.duracion_bateria }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Resistencia al Agua:</div>
-                                            <div class="valor">{{ product.resistencia_agua }}</div>
-                                        </div>
-                                        <div>
-                                            <div class="etiqueta">Funcionalidad:</div>
-                                            <div class="valor">{{ product.funcionalidad }}</div>
-                                        </div>
-                                    {% endif %}
-                                    <div>
-                                        <div class="etiqueta">Color:</div>
-                                        <div class="valor">{{ product.color }}</div>
-                                    </div>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Especificación</th>
+                                                <th>Valor</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if product.attributes %}
+                                            {% for attribute in product.attributes %}
+                                            <tr>
+                                                <td>{{ attribute.name }}:</td>
+                                                <td>{{ attribute.options|join(', ') }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                            {% endif %}
+                                            <!-- Fila para la descripción del producto -->
+                                            <tr>
+                                                <td>Descripción:</td>
+                                                <td>{{ product.description|safe }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Aside -->
-                <aside class="col-md-4">
-                    <div class="description-container">
-                        <h2>Descripción</h2>
-                        <p class="description">{{ product.descripcion }}</p>
-                    </div>
+
+                <div class="col-md-4">
                     <div class="table-container">
                         <div class="container mt-4">
-                            <h3 class="titulo3">¿Como desea hacer la compra? </h3>
+                            <h3 class="titulo3">¿Cómo desea hacer la compra?</h3>
                             <table class="tabla-puntos">
                                 <thead>
                                     <tr>
@@ -219,7 +175,7 @@
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td class="Pun">Puntos actuales : <span id="current-points">{{ total_puntos }}</span></td>
+                                        <td class="Pun">Puntos actuales: <span id="current-points">{{ total_puntos }}</span></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -232,59 +188,58 @@
                             </div>
                         </div>
                     </div>
-                </aside>
+                </div>
+                {% else %}
+                    <p>Producto no encontrado</p>
+                {% endif %}
+
+</body>
+
+</div>
+
+
+<script src="path/to/bootstrap.bundle.min.js"></script> <!-- Bootstrap JS -->
+
+
+
+
+
+
+
+
+<div class="footer">
+    <div class="Principalfooter">
+        <div class="social-icons">
+            <div class="social-item">
+                <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                <p class="text-icono">Comprar</p>
+            </div>
+            <div class="social-item">
+                <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
+                    <i class="fa-brands fa-tiktok"></i>
+                </a>
+                <p class="text-icono">Tiktok</p>
+            </div>
+            <div class="social-item">
+                <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
+                    <i class="fa-brands fa-instagram"></i>
+                </a>
+                <p class="text-icono">Instagram</p>
             </div>
         </div>
-        {% else %}
-        <p>Producto no encontrado</p>
-        {% endif %}
-            
-        </body>
-            
-        </div>
-
-
-        <script src="path/to/bootstrap.bundle.min.js"></script> <!-- Bootstrap JS -->
+    </div>
+    <div class="footer1">
+        <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+    </div>
+</div>
 
 
 
 
-
-
-
-
-        <div class="footer">
-
-            <div class="Principalfooter">
-                <div class="half">
-                    <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </a>
-                    Comprar
-                </div>
-                <div class="social-icons">
-                    <!-- Icono de TikTok -->
-                    <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer"
-                        class="icon-tiktok">
-                        <i class="fa-brands fa-tiktok"></i>
-                    </a>
-                    Tiktok
-                    <!-- Icono de Instagram -->
-                    <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer"
-                        class="icon-instagram">
-                        <i class="fa-brands fa-instagram"></i>
-                    </a>
-                    Instagram
-                </div>
-            </div>
-            <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
-        </div>
-
-
-
-
-        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
 </body>
 
 </html>

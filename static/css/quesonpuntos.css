@@ -2,12 +2,19 @@ body {
     background-color: #f0f4f8;
     font-family: 'Poppins', sans-serif;
   }
- 
+
+  .container.custom-container {
+    padding: 30px; /* Ajusta el padding si es necesario */
+    margin-top: 10px;
+   
+}
+
 .row {
     display: flex;
     justify-content: center;
     align-items: stretch;
     flex-wrap: wrap;
+    gap: 1.rem;
   }
  
   .col {
@@ -16,62 +23,39 @@ body {
  
   .card {
     border: none;
-    border-radius: 15px;
-    overflow: hidden;
+    border-radius: 10px 10px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.3s ease, border-color 0.3s ease;
-    max-width: 100%;
+    width: 100%;
+    margin: auto; /* Centrar las cards */
+    
   }
  
   .card:hover {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2), 0 0 15px rgba(0, 123, 255, 0.5);
-    border-color: #0d6efd;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2), 0 0 15px #31C0CA;
+    border-color: #31C0CA;
   }
  
   .card-img-top {
-    height: 150px;
-    object-fit: cover;
-    border-bottom: 5px solid #000000;
-    transition: filter 0.3s ease;
-  }
- 
-  .card-img-top:hover {
-    filter: brightness(1.1);
-  }
- 
-  .card-title {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #000000;
-    transition: color 0.3s ease;
-  }
- 
-  .card:hover .card-title {
-    color: #0d6efd;
+    height: 180px; 
+    object-fit: cover; 
+    border-top-left-radius: 10px; 
+    border-top-right-radius: 10px;
+    
   }
  
   .card-text {
     font-size: 1rem;
     color: #000000;
     transition: color 0.3s ease;
+    text-align: center;
   }
  
   .card:hover .card-text {
     color: #000000;
   }
  
-  .card-footer {
-    background-color: #000000;
-    color: white;
-    text-align: center;
-    font-size: 0.9rem;
-    padding: 10px;
-    border-top: none;
-  }
- 
-  .text-body-secondary {
-    color: #e9ecef;
-  }
+
  
   @media (max-width: 768px) {
     .card-img-top {

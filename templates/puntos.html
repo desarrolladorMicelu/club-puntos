@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
- 
+
 <head>
   <!-- Basic -->
   <meta charset="utf-8" />
@@ -12,35 +12,38 @@
   <meta name="description" content="" />
   <meta name="author" content="" />
   <meta http-equiv="refresh" content="14400">
- 
+
   <title>¿QUE SON PUNTOS?</title>
-  <link rel="icon" type="image/x-icon" href="/static/images/icon.png">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño.png') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
- 
+
   <!-- slider stylesheet -->
   <link rel="stylesheet" type="text/css"
     href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.1.3/assets/owl.carousel.min.css" />
-   
- 
+
+
   <!-- bootstrap core css -->
- 
+
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
- 
- 
+  <!-- Enlace a los archivos JS de Bootstrap y Popper.js -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+
+
   <!-- fonts style -->
   <link href="https://fonts.googleapis.com/css?family=Poppins:400,700|Roboto:400,700&display=swap" rel="stylesheet">
   <!-- Custom styles for this template -->
- 
+
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/quesonpuntos.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
- 
+
 </head>
- 
+
 <body>
   <div class="hero_area">
     <!-- header section strats -->
@@ -49,7 +52,7 @@
         <nav class="navbar navbar-expand-lg custom_nav-container ">
           <a class="navbar-brand" href="/quesonpuntos">
             <span>
-              Micelu.co
+              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" class="imgcelu">
             </span>
           </a>
           <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
@@ -57,13 +60,10 @@
             aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
- 
+
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
               <ul class="navbar-nav  ">
-                <li class="nav-item">
-                  <a class="nav-link" href="/homepuntos">Personas</a>
-                </li>
                 <li class="nav-item active">
                   <a class="nav-link" href="/quesonpuntos">¿Que son Puntos?</a>
                 </li>
@@ -74,96 +74,119 @@
                   <a class="nav-link" href="/mpuntosprincipal">Canjea Puntos</a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link" href="logout">Cerrar sesion</a>
+                  <a class="nav-link" href="#" id="customLogoutButton">Cerrar sesión</a>
                 </li>
+
                 <li class="nav-item d-flex align-items-center">
                   <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
-                      <span class="fw-bold">Puntos</span>
-                      <span id="nav-points" class="badge bg-primary ms-2">{{ total_puntos }}</span>
+                    <div class="icon-text-container">
+                     <i class="fa-solid fa-user" style="color: #31C0CA"></i>
+                     <span class="fw-bold1"> Hola {{ usuario.nombre|title }}, tienes</span>
+                    </div>
+                    <span id="nav-points" class="badge custom-badge ms-2">{{ total_puntos }} Puntos</span>
                   </div>
-              </li>
+                </li>
               </ul>
             </div>
+            
             <div class="dropdown ms-2">
-                <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
-                  <i class="material-icons custom-icon">account_circle</i>
-                  <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
-                </a>
-                <ul class="dropdown-menu" aria-labelledby="userDropdown">
-                  <li><a class="custom-dropdown-item" href="/miperfil">Mi perfil</a></li>
-                </ul>
-              </div>
+              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
+                <i class="material-icons custom-icon">account_circle</i>
+                <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                <li><a class="custom-dropdown-item" href="/miperfil">Mi perfil</a></li>
+              </ul>
+            </div>
           </div>
- 
+
         </nav>
       </div>
     </header>
- 
+    
+    <div id="carouselExampleInterval" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+      <div class="carousel-inner">
+        <div class="carousel-item active">
+          <img src="{{ url_for('static', filename='images/banner.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='images/banner1.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='images/banner3.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
+        </div>
+      </div>
+    </div>
+    
     <br>
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-      <div class="col">
-        <div class="card h-100">
-          <img src="/static/images/podio.jpg" class="card-img-top" alt="podio">
-          <div class="card-body">
-            <h5 class="card-title">¿Qué Son Los Puntos?</h5>
-            <p class="card-text">Los puntos son tu moneda de recompensa. Gánalos en cada compra y canjéalos por beneficios exclusivos. ¡Acumula y disfruta!</p>
-          </div>
-          <div class="card-footer">
-            <small class="text-body-secondary">Tu llave a grandes recompensas</small>
+    <div class="container custom-container">
+      <div class="row row-cols-1 row-cols-md-3 g-4">
+        <div class="col">
+          <div class="card ">
+            <img src="{{ url_for('static', filename='images/que son los puntos.png') }}" class="card-img" alt="Card Image">
           </div>
         </div>
-      </div>
-      <div class="col">
-        <div class="card h-100">
-          <img src="..." class="card-img-top" alt="...">
-          <div class="card-body">
-            <h5 class="card-title">Beneficios De Los Puntos</h5>
-            <p class="card-text">Canjea tus puntos por descuentos, productos gratis o experiencias exclusivas. ¡Cuantos más puntos, mejores recompensas!.</p>
-          </div>
-          <div class="card-footer">
-            <small class="text-body-secondary">Disfruta De Nuestros Beneficios</small>
+        <div class="col">
+          <div class="card ">
+            <img src="{{ url_for('static', filename='images/beneficios.png') }}" class="card-img" alt="Card Image">
           </div>
         </div>
-      </div>
-      <div class="col">
-        <div class="card h-100">
-          <img src="..." class="card-img-top" alt="...">
-          <div class="card-body">
-            <h5 class="card-title">Obten Niveles De Membresia</h5>
-            <p class="card-text">Descubre nuestros niveles exclusivos: Bronce, Plata y Oro. Sube de nivel acumulando puntos y desbloquea beneficios premium únicos en cada categoría.</p>
-          </div>
-          <div class="card-footer">
-            <small class="text-body-secondary">De Bronce a Oro: ¡Escala en recompensas!</small>
+        <div class="col">
+          <div class="card">
+            <img src="{{ url_for('static', filename='images/niveles.png') }}" class="card-img" alt="Card Image">
           </div>
         </div>
       </div>
     </div>
- 
     <div class="footer">
-        <div class="Principalfooter">
-          <div class="half">
-            <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-                <i class="fa-brands fa-whatsapp"></i>
-            </a>
-            Comprar
-        </div>
-        <div class="social-icons">
-            <!-- Icono de TikTok -->
-            <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
-                <i class="fa-brands fa-tiktok"></i>
-            </a>
-            Tiktok
-            <!-- Icono de Instagram -->
-            <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
-                <i class="fa-brands fa-instagram"></i>
-            </a>
-            Instagram
-        </div>
+      <div class="Principalfooter">
+          <div class="social-icons">
+              <div class="social-item">
+                  <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
+                      <i class="fa-brands fa-whatsapp"></i>
+                  </a>
+                  <p class="text-icono">Comprar</p>
+              </div>
+              <div class="social-item">
+                  <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
+                      <i class="fa-brands fa-tiktok"></i>
+                  </a>
+                  <p class="text-icono">Tiktok</p>
+              </div>
+              <div class="social-item">
+                  <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
+                      <i class="fa-brands fa-instagram"></i>
+                  </a>
+                  <p class="text-icono">Instagram</p>
+              </div>
+          </div>
       </div>
-      <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+      <div class="footer1">
+          <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
       </div>
+  </div>
+</div>
+
+<div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel" aria-hidden="true">
+  <div class="modal-dialog custom-logout-modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="customLogoutModalLabel">Confirmar cierre de sesión</h5>
+      </div>
+      <div class="modal-body">
+        ¿Deseas cerrar esta sesión?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelLogoutButton">No</button>
+        <a href="{{ url_for('logout') }}" class="btn btn-primary">Sí</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
-  </body>
- 
-  </html>
+</body>
+
+</html>

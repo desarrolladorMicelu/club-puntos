@@ -14,40 +14,44 @@ from flask_bcrypt import Bcrypt
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
- 
- 
+import uuid
+import requests
+from sqlalchemy.dialects.postgresql import UUID
 from pytz import UTC
 import sqlalchemy
-
-
+from woocommerce import API
+from sqlalchemy import Float
+from azure.communication.email import EmailClient
+ 
 app = Flask(__name__)
-# Configurar el tiempo de vida de la sesión a 30 minutos
+# Configurar el tiempo de la sesión a 30 minutos
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 #Envio correo recuperar contraseña
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'turneromicelu@gmail.com'
-app.config['MAIL_PASSWORD'] = 'wzif eujk wxpl novr'
-app.config['MAIL_DEFAULT_SENDER'] = 'turneromicelu@gmail.com'
-#cookie session
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
-    'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway'
+    #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
+    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
 }
  
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)  
 mail = Mail(app)
-
+ 
 recovery_codes = {}
-
-
+ 
+wcapi = API(
+    url="http://example.com",
+    consumer_key="ck_24e1d02972506069aec3b589f727cc58636491df",
+    consumer_secret="cs_8bd38a861efefc56403c7899d5303c3351c9e028",
+    version="wc/v3"
+)
+ 
+ 
 #Modelos base de datos Plan de Beneficios
 class Usuario(db.Model):
-    __bind_key__ = 'db2'
+    __bind_key__ = 'db3'
     __tablename__ = 'Usuarios'
     __table_args__ = {'schema': 'plan_beneficios'}
     documento = db.Column(db.String(50), primary_key=True)
@@ -59,18 +63,37 @@ class Usuario(db.Model):
     nombre = db.Column(db.String(50))
     rango = db.Column(db.String(50))
     estado = db.Column(db.Boolean, default=True)
-
+ 
 class Puntos_Clientes(db.Model):
-    __bind_key__ = 'db2'
+    __bind_key__ = 'db3'
     __tablename__ = 'Puntos_Clientes'
     __table_args__ = {'schema': 'plan_beneficios'}
     documento = db.Column(db.String(50), primary_key=True)
     total_puntos = db.Column(db.Integer)
-    #canal_trasanccion = db.Column(db.String(50))
     puntos_redimidos = db.Column(db.String(50))
     fecha_registro = db.Column(db.TIMESTAMP(timezone=True))
-    
-    
+    puntos_disponibles = db.Column(db.Integer)
+   
+class historial_beneficio(db.Model):
+    __bind_key__ = 'db3'
+    __tablename__ = 'historial_beneficio'
+    __table_args__ = {'schema': 'plan_beneficios'}
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    documento = db.Column(db.String(50), primary_key=True)
+    valor_descuento = db.Column(db.Integer)
+    puntos_utilizados = db.Column(db.Integer)
+    fecha_canjeo = db.Column(db.TIMESTAMP(timezone=True))
+    cupon = db.Column(db.String(70))
+    tiempo_expiracion = db.Column(db.TIMESTAMP(timezone=True))
+   
+class maestros(db.Model):
+    __bind_key__= 'db3'
+    __tablename__= 'maestros'
+    __table_args__ = {'schema': 'plan_beneficios'}
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    valordelpunto = db.Column(db.Float)
+    obtener_puntos = db.Column(db.Float)
+   
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -79,18 +102,15 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
+ 
 @app.route('/recuperar_pass', methods=['GET', 'POST'])
 def recuperar_pass():
     if request.method == 'POST':
         documento = request.form.get('documento')
         email = request.form.get('email')
        
-        app.logger.debug(f"Intento de recuperación para documento: {documento}, email: {email}")
-       
         usuario = Usuario.query.filter_by(documento=documento, email=email).first()
         if usuario:
-            app.logger.info(f"Usuario encontrado: {usuario}")
             # Generar código de recuperación
             caracteres = string.ascii_uppercase + string.digits
             codigo = ''.join(secrets.choice(caracteres) for _ in range(6))
@@ -103,10 +123,23 @@ def recuperar_pass():
            
             # Enviar correo
             try:
-                msg = Message("Código de recuperación de contraseña micelu.co",
-                              recipients=[email])
-                msg.body = f"Tu código de recuperación es: {codigo}. Este código expirará en 15 minutos."
-                mail.send(msg)
+                email_client = EmailClient.from_connection_string("endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA==")
+                message = {
+                    "content": {
+                        "subject": "Código de recuperación de contraseña micelu.co",
+                        "plainText": f"Tu código de recuperación es: {codigo}. Este código expirará en 15 minutos."
+                    },
+                    "recipients": {
+                        "to": [
+                            {
+                                "address": email,
+                                "displayName": "Customer Name"
+                            }
+                        ]
+                    },
+                    "senderAddress": "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
+                }
+                poller = email_client.begin_send(message)
                 return jsonify({
                     'success': True,
                     'message': 'Se ha enviado un código de recuperación a tu email. El código expirará en 15 minutos.'
@@ -124,7 +157,7 @@ def recuperar_pass():
                 'message': 'No se encontró un usuario con esos datos. Por favor, verifica la información.'
             })
     return render_template('recuperar_pass.html')
-
+ 
 @app.route('/verificar_codigo', methods=['POST'])
 def verificar_codigo():
     email = request.form.get('email')
@@ -156,22 +189,31 @@ def cambiar_contrasena():
         return jsonify({'success': True, 'message': 'Contraseña cambiada exitosamente.'})
     else:
         return jsonify({'success': False, 'message': 'Usuario no encontrado.'})
- 
+    
 @app.route('/miperfil')
 @login_required
 def miperfil():
     documento_usuario = session.get('user_documento')
+    
+    usuario = Usuario.query.filter_by(documento=documento_usuario).first()
    
-    if documento_usuario:
-        usuario = Usuario.query.filter_by(documento=documento_usuario).first()
-       
-        if usuario:
-            return render_template('miperfil.html', usuario=usuario)
+    if usuario:
+        # Consultar los puntos del usuario
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
+        if puntos_usuario:
+            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
         else:
-            flash('No se encontró el usuario en la base de datos.', 'error')
-            return redirect(url_for('login'))
+            total_puntos = 0
+        
+        # Consultar el último registro de historial_beneficio
+        ultimo_historial = Puntos_Clientes.query.filter_by(documento=documento_usuario).order_by(Puntos_Clientes.fecha_registro.desc()).first()
+        
+        
+        # Pasar los datos a la plantilla
+        return render_template('miperfil.html', usuario=usuario, total_puntos=total_puntos, ultimo_historial=ultimo_historial)
     else:
-        flash('Por favor, inicia sesión para ver tu perfil.', 'error')
+        flash('No se encontró el usuario en la base de datos.', 'error')
         return redirect(url_for('login'))
 #---------------------------------------------------LOGIN-------------------------------------------------
 @app.route('/editar_perfil', methods=['POST'])
@@ -180,7 +222,6 @@ def editar_perfil():
     data = request.json
     field = data.get('field')
     value = data.get('value')
-   
     documento_usuario = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento_usuario).first()
    
@@ -203,16 +244,42 @@ def editar_perfil():
  
 #---------------------------------------------------LOGIN-------------------------------------------------
 def generate_captcha_image():
-    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    image = Image.new('RGB', (200, 100), color = (255, 255, 255))
+    # Generar texto CAPTCHA
+    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k=7))
+    
+    # Crear una imagen
+    image = Image.new('RGB', (220, 110), color = (240, 240, 240))  # Fondo  gris
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("arial.ttf", 26)
-    draw.text((40,30), captcha_text, font=font, fill=(0,0,0))
+    
+    try:
+        font = ImageFont.truetype("arial.ttf", 32)
+    except IOError:
+        font = ImageFont.load_default()
+    
+    # Dibujar el texto con variación en la posición y color
+    for i, char in enumerate(captcha_text):
+        x = 25 + i * 28 + random.randint(-5, 5)
+        y = 35 + random.randint(-5, 5)
+        color = (random.randint(0, 100), random.randint(0, 100), random.randint(0, 100))
+        draw.text((x, y), char, font=font, fill=color)
+    
+    # Añadir ruido de puntos
     for _ in range(1000):
-        draw.point((random.randint(0, 200), random.randint(0, 100)), fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+        x = random.randint(0, 219)
+        y = random.randint(0, 109)
+        draw.point((x, y), fill=(random.randint(150, 255), random.randint(150, 255), random.randint(150, 255)))
+    
+    # Añadir líneas de ruido
+    for _ in range(5):
+        start = (random.randint(0, 220), random.randint(0, 110))
+        end = (random.randint(0, 220), random.randint(0, 110))
+        draw.line([start, end], fill=(random.randint(150, 255), random.randint(150, 255), random.randint(150, 255)), width=2)
+    
+    # Guardar la imagen
     buffered = io.BytesIO()
     image.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode()
+    
     return captcha_text, img_str
  
 @app.before_request
@@ -220,9 +287,7 @@ def make_session_permanent():
     session.permanent = True
 
 
-
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/iniciosesion', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
         captcha_text, captcha_image = generate_captcha_image()
@@ -239,6 +304,10 @@ def login():
        
         user = Usuario.query.filter_by(documento=documento).first()
         if user and user.contraseña and contraseña:
+            # Verificar el estado del usuario
+            if not user.estado:
+                return jsonify({'status': 'error', 'message': 'Usuario inactivo. No fue posible iniciar sesión. Por favor acércate a las oficinas para cambiar tu estado.'})
+           
             try:
                 if bcrypt.check_password_hash(user.contraseña, contraseña):
                     session['user_documento'] = user.documento
@@ -252,6 +321,7 @@ def login():
                 return jsonify({'status': 'error', 'message': 'Error al verificar la contraseña. Por favor, contacta al administrador.'})
         else:
             return jsonify({'status': 'error', 'message': 'Documento o Contraseña Incorrectos. Por favor, intenta de nuevo.'})
+
 
 @app.route('/refresh_captcha', methods=['GET'])
 def refresh_captcha():
@@ -269,6 +339,7 @@ def loginn():
 @login_required
 def mhistorialcompras():
     documento = session.get('user_documento')
+    usuario = Usuario.query.filter_by(documento=documento).first()
    
     if not documento:
         return redirect(url_for('login'))
@@ -280,11 +351,11 @@ def mhistorialcompras():
             "DATABASE=MICELU;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
-            "TrustServerCertificate=yes"    
+            "TrustServerCertificate=yes"
         )
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
- 
+       
         # Verificar si el cliente existe
         check_query = """
         SELECT COUNT(*) as count
@@ -293,12 +364,14 @@ def mhistorialcompras():
         """
         cursor.execute(check_query, documento)
         count = cursor.fetchone().count
+       
         # Consulta principal
         query = """
         SELECT
             m.NOMBRE AS PRODUCTO_NOMBRE,
             m.VLRVENTA,
-            m.FHCOMPRA
+            m.FHCOMPRA,
+            m.TIPODCTO
         FROM
             Clientes c
         JOIN
@@ -308,91 +381,255 @@ def mhistorialcompras():
         WHERE
             c.HABILITADO = 'S'
             AND c.NIT = ?
+            AND m.VLRVENTA > 0
+            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
         ORDER BY
             m.FHCOMPRA DESC;
         """
- 
+       
         cursor.execute(query, documento)
         results = cursor.fetchall()
         historial = []
+        total_puntos_nuevos = 0
         for row in results:
+            venta = float(row.VLRVENTA)
+            fecha_compra = row.FHCOMPRA
+           
+            # Solo sumar puntos para compras a partir del 01/01/2024
+            if fecha_compra >= datetime(2024, 1, 1):
+                obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
+                puntos_venta = int(venta // obtener_puntos)  # 1 punto por cada 1000 pesos
+                total_puntos_nuevos += puntos_venta
+            else:
+                puntos_venta = 0
+           
+            tipo_documento = "Factura Medellín" if row.TIPODCTO == "FM" else "Factura Bogotá" if row.TIPODCTO == "FB" else row.TIPODCTO
             historial.append({
                 "PRODUCTO_NOMBRE": row.PRODUCTO_NOMBRE,
-                "VLRVENTA": float(row.VLRVENTA),
-                "FHCOMPRA": row.FHCOMPRA.strftime('%Y-%m-%d')
+                "VLRVENTA": venta,
+                "FHCOMPRA": fecha_compra.strftime('%Y-%m-%d'),
+                "PUNTOS_GANADOS": puntos_venta,
+                "TIPODCTO": tipo_documento
             })
- 
+       
         cursor.close()
         conn.close()
-        
  
+        # Actualizar puntos en la base de datos
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        if puntos_usuario:
+            puntos_usuario.total_puntos = total_puntos_nuevos
+            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+            total_puntos = total_puntos_nuevos - puntos_redimidos
+            db.session.commit()
+        else:
+            nuevo_usuario = Puntos_Clientes(documento=documento, total_puntos=total_puntos_nuevos, puntos_redimidos='0')
+            db.session.add(nuevo_usuario)
+            db.session.commit()
+            total_puntos = total_puntos_nuevos
        
-        return render_template('mhistorialcompras.html', historial=historial)
- 
-    except pyodbc.Error as e:
-        print("Error al conectarse a la base de datos:", e)
-        flash('Error al obtener el historial de compras. Por favor, intente más tarde.', 'error')
-        return render_template('mhistorialcompras.html', historial=[])
-
+        return render_template('mhistorialcompras.html', historial=historial, total_puntos=total_puntos, usuario=usuario,)
+   
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return "Ha ocurrido un error al procesar su solicitud.", 500
+    
 @app.route('/mpuntosprincipal')
 @login_required
 def mpuntosprincipal():
     # Asumimos que el documento del usuario está en la sesión
     documento = session.get('user_documento')
-    
+    usuario = Usuario.query.filter_by(documento=documento).first()
+   
     total_puntos = 0
+    
     if documento:
         # Consulta a la base de datos para obtener los puntos del usuario
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
-            total_puntos = puntos_usuario.total_puntos
+            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+   
+    # Lista de IDs de productos que queremos mostrar
+    product_ids = [154814, 154809,156814, 154765, 154752, 154613, 154774, 154747, 156547]
+   
+   
+    # Obtener productos de WooCommerce
+    try:
+        wcapi = API(
+            url="https://micelu.co",
+            consumer_key="ck_24e1d02972506069aec3b589f727cc58636491df",
+            consumer_secret="cs_8bd38a861efefc56403c7899d5303c3351c9e028",
+            version="wc/v3",
+            timeout=30
+        )
+       
+        response = wcapi.get("products", params={"include": ",".join(map(str, product_ids))})
+       
+        if response.status_code == 200:
+            wc_products = response.json()
+            products = []
+            for wc_product in wc_products:
+                product = {
+                    'id': wc_product['id'],
+                    'name': wc_product['name']. title(),
+                    'price': wc_product['price'],
+                    'description': wc_product['description'],
+                    'short_description': wc_product['short_description'],
+                    'color': wc_product['attributes'][0]['options'][0] if wc_product['attributes'] else 'N/A',
+                    'image_url': wc_product['images'][0]['src'] if wc_product['images'] else url_for('static', filename='images/placeholder.png'),
+                    'points': int(float(wc_product['price']) /1000),  # Asumiendo que 1 punto = 1% del precio
+                    'slug': wc_product['slug'] 
+                }
+                products.append(product)
+        else:
+            products = []
+    except Exception as e:
+        products = []
     
-    return render_template('mpuntosprincipal.html', total_puntos=total_puntos)
+   
+    return render_template('mpuntosprincipal.html', total_puntos=total_puntos, products=products, usuario=usuario)
 
-#Ruta para manejar el descuento de los puntos
+wcapi = API(
+    url="https://micelu.co",
+    consumer_key="ck_4a0a6ac32a9cbfe9d5f0dd4a029312e0893e22a7",
+    consumer_secret="cs_e7d06f5199b3982b3e02234cc305a8f2d0b71dd0",
+    version="wc/v3"
+)
+
 @app.route('/redimir_puntos', methods=['POST'])
 @login_required
 def redimir_puntos():
     try:
         documento = session.get('user_documento')
-        punto_a_redimir = int(request.json.get('points'))
-       
+        puntos_a_redimir = int(request.json.get('points'))
+        codigo = request.json.get('code')
+        horas_expiracion = int(request.json.get('expiration_hours', 12))
+ 
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        current_points = int(puntos_usuario.total_puntos)
-       
-        if punto_a_redimir > current_points:
+        if not puntos_usuario:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+ 
+        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+        puntos_disponibles = puntos_usuario.total_puntos - puntos_redimidos
+ 
+        if puntos_a_redimir > puntos_disponibles:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
-       
-        new_total = current_points - punto_a_redimir
-        puntos_usuario.total_puntos = str(new_total)
+ 
+        valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
+        descuento = puntos_a_redimir * valor_del_punto
+        tiempo_expiracion = datetime.now() + timedelta(hours=horas_expiracion)
+ 
+        woo_coupon = create_woo_coupon(codigo, descuento, tiempo_expiracion)
+        if not woo_coupon:
+            return jsonify({'success': False, 'message': 'Error al crear el cupón en WooCommerce'}), 500
+ 
+        puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
+        puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
+ 
+        nuevo_historial = historial_beneficio(
+            id=uuid.uuid4(),
+            documento=documento,
+            valor_descuento=descuento,
+            puntos_utilizados=puntos_a_redimir,
+            fecha_canjeo=datetime.now(),
+            cupon=codigo,
+            tiempo_expiracion=tiempo_expiracion
+        )
+ 
+        db.session.add(nuevo_historial)
         db.session.commit()
-       
-        return jsonify({'success': True, 'new_total': new_total}), 200
-   
+ 
+        return jsonify({
+            'success': True,
+            'new_total': puntos_usuario.puntos_disponibles,
+            'codigo': codigo,
+            'descuento': descuento,
+            'tiempo_expiracion': tiempo_expiracion.isoformat()
+        }), 200
+ 
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error: {e}")
+        return jsonify({'success': False, 'message': f'Error al redimir puntos: {str(e)}'}), 500
+    
+ # crear cupones a redimir 
+def create_woo_coupon(code, amount, expiration_time):
+    try:
+        data = {
+            "code": code,
+            "discount_type": "fixed_cart",
+            "amount": str(amount),
+            "individual_use": True,
+            "exclude_sale_items": True,
+            "usage_limit": 1,
+            "date_expires": expiration_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "product_ids": [154814, 154809, 154774, 154765, 154752, 154613, 154765]
+        }
+ 
+        response = wcapi.post("coupons", data)
+        response.raise_for_status()  
+        coupon_data = response.json()
+ 
+        if 'id' in coupon_data:
+            return coupon_data
+        else:
+            print(f"Error al crear cupón: {coupon_data}")
+            return None
+ 
+    except requests.exceptions.RequestException as e:
+        print(f"Error en la solicitud a WooCommerce API: {e}")
+        return None
+    except ValueError as e:
+        print(f"Error al procesar la respuesta JSON: {e}")
+        return None
+    except Exception as e:
+        print(f"Error inesperado al crear cupón en WooCommerce: {e}")
+        return None
+    
+
+@app.route('/ver_ultimo_coupon', methods=['GET'])
+@login_required
+def ultimo_coupon():
+    try:
+        documento = session.get('user_documento')
+        ultimo_historial = historial_beneficio.query.filter_by(documento=documento).order_by(historial_beneficio.fecha_canjeo.desc()).first()
+ 
+        if ultimo_historial:
+            return jsonify({
+                'success': True,
+                'codigo': ultimo_historial.cupon,
+                'descuento': ultimo_historial.valor_descuento,
+                'tiempo_expiracion': ultimo_historial.tiempo_expiracion
+            })
+        else:
+            return jsonify({'success': False, 'message': 'No se encontró ningún cupón'}), 404
+ 
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
+        return jsonify({'success': False, 'message': 'Error al obtener el último cupón'}), 500  
+
+
+#Ruta para manejar el descuento de los puntos
+
+
 
 @app.route('/quesonpuntos')
 @login_required
 def quesonpuntos():
     documento = session.get('user_documento')
+    usuario = Usuario.query.filter_by(documento=documento).first()
     total_puntos = 0
-    puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-    if puntos_usuario:
-            total_puntos = puntos_usuario.total_puntos
-            
-    return render_template('puntos.html', total_puntos=total_puntos)
+    if documento:
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        if puntos_usuario:
+            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+    return render_template('puntos.html',total_puntos=total_puntos, usuario=usuario)
 
 @app.route('/homepuntos')
-@login_required
 def homepuntos():
-    documento = session.get('user_documento')
-    total_puntos = 0
-    puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-    if puntos_usuario:
-            total_puntos = puntos_usuario.total_puntos
-    return render_template('home.html', total_puntos=total_puntos)
+    return render_template('home.html')
 
 
 
@@ -564,63 +801,36 @@ def crear_usuario(cedula, contraseña, habeasdata):
 #------------------funciones para traer informacion del carrusel------------------------------------------------
 
 def get_product_info(product_id):
-    products = {
-        1: {
-            'tipo': 'celular',
-            'nombre': 'Iphone 12',
-            'precio': 1450000,
-            'puntos': 500,
-            'descripcion': 'El Apple iPhone 15 conserva el diseño de la generación anterior pero incorpora el Dynamic Island ',
-            'image': 'images/iphone12.png',
-            #especificaciones
-            'tipo_pantalla': 'pantalla Super Retina XDR de 6.1 pulgadas de tecnología OLED',
-            'sistema_operativo': 'iOS es el sistema operativo móvil más personal y seguro del mundo',
-            'almacenamiento': '128GB, 256GB, 64GB',
-            'color': 'Azul, Lila, Negro, Verde',
-        },
-        2: {
-            'tipo': 'diadema',
-            'nombre': 'Diadema -Smartpods',
-            'precio': 999000,
-            'puntos': 800 ,
-            'descripcion': 'Diadema bluetooth SmartPods Pro A+  con diseño ergonómico, con la posibilidad de adaptarse a la cabeza',
-            'image': 'images/diadema.png',
-            #especificaciones
-            'tipo_conexion': 'Diadema conexion bluetooth',
-            'cancelacion_ruido': 'Si',
-            'almacenamiento': '',
-            'color': 'Gris-plata',
-        },
-        3: {
-            'tipo': 'airpods',
-            'nombre': 'Airpods Pro 2 Alta Calidad (Genéricos 1.1)',
-            'precio': 675000,
-            'puntos': 350 ,
-            'descripcion': '',
-            'image': 'images/airpods.jpg',
-            #especificaciones
-            'tipo_conexion': 'Estuche MagSafe USB-C ',
-            'duracion_bateria': 'hasta 6 horas de batería',
-            'cancelacion_ruido': 'Cancelación activa de ruido/transparencia',
-            'color': 'blanco',
-        },
-        4: {
-            'tipo': 'reloj',
-            'nombre': 'Smartwatch SE',
-            'precio': 950000,
-            'puntos': 800 ,
-            'descripcion': 'APPLE WATCH SE 2 GENERACIÓN 40MM - ORIGINAL',
-            'image': 'images/smartwatch3.png',
-            #especificaciones
-            'tipo_pantalla': 'Pantalla Retina OLED LTPO',
-            'duracion_bateria': 'Batería de iones de litio recargable integrada, Hasta 18 horas',
-            'resistencia_agua': 'Si , hasta 50 metros3',
-            'funcionalidad': 'GPS (L1), GLONASS, Galileo y QZSS, Brújula, Siri, sensor ambiental',
-            'color': 'Blanco',
-        }
-        # Añade más productos aquí
-    }
-    return products.get(product_id)
+    try:
+        wcapi = API(
+            url="https://micelu.co",
+            consumer_key="ck_24e1d02972506069aec3b589f727cc58636491df",
+            consumer_secret="cs_8bd38a861efefc56403c7899d5303c3351c9e028",
+            version="wc/v3",
+            timeout=30
+        )
+        
+        response = wcapi.get(f"products/{product_id}")
+        if response.status_code == 200:
+            wc_product = response.json()
+            product = {
+                'id': wc_product['id'],
+                'name': wc_product['name'],
+                'price': wc_product['price'],
+                'description': wc_product['description'],
+                'short_description': wc_product['short_description'],
+                'color': wc_product['attributes'][0]['options'][0] if wc_product['attributes'] else 'N/A',
+                'image_url': wc_product['images'][0]['src'] if wc_product['images'] else url_for('static', filename='images/placeholder.png'),
+                'points': int(float(wc_product['price']) * 0.01),  # Asumiendo que 1 punto = 1% del precio
+                'attributes': wc_product['attributes']
+            }
+            return product
+        else:
+            print(f"Error al obtener el producto {product_id}: {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error al obtener producto de WooCommerce: {str(e)}")
+        return None
     #----------------------------------- mpuntosprincipal-----------------------------
 @app.route('/infobeneficios/<int:product_id>')
 @login_required
@@ -638,15 +848,49 @@ def infobeneficios(product_id):
     
     return render_template("infobeneficios.html", product=product, total_puntos=total_puntos)
 
+@app.route('/redime_ahora')
+def redime_ahora():
+    documento_usuario = session.get('user_documento')
+    usuario = Usuario.query.filter_by(documento=documento_usuario).first()
+    total_puntos = 0
+    if documento_usuario:
+        usuario = Usuario.query.filter_by(documento=documento_usuario).first()
+       
+        if usuario:
+   
+            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
+            if puntos_usuario:
+                puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+    return render_template("redime_ahora.html",total_puntos=total_puntos, usuario=usuario)
+
 @app.route('/acumulapuntos')
-@login_required
 def acumulapuntos():
     return render_template("acumulapuntos.html")
 
-@app.route('/redimir')
+@app.route('/admin')
 @login_required
+def administrar():
+    return render_template("admin.html")
+
+@app.route('/')
+def inicio():
+    return render_template("home.html")
+
+@app.route('/redimir')
 def redimiendo():
-    return render_template("redimir.html")
+    documento_usuario = session.get('user_documento')
+    total_puntos = 0
+    if documento_usuario:
+        usuario = Usuario.query.filter_by(documento=documento_usuario).first()
+       
+        if usuario:
+            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
+            if puntos_usuario:
+                puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+   
+    return render_template("redimir.html",total_puntos=total_puntos)
     
 
 
