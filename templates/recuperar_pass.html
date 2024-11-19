@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar Contraseña</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño1.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/login.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='js/cambiar_pass.js') }}"></script>
+</head>
+<body class="bodylogin">
+    <a href="{{ url_for('login') }}" class="back-arrow">
+        <i class="fa-solid fa-circle-arrow-left"></i>
+    </a>
+ 
+    <section class="d-flex justify-content-center align-items-center">
+        <div class="panel card shadow col-xs-12 col-sm-6 col-md-6 col-lg-4 p-4">
+            <div class="logo-container text-center mb-4">
+                <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="logo">
+            </div>
+            <div class="title-container">
+                <h4 class="title-text">
+                    ¿Olvidaste tu contraseña?
+                </h4>
+            </div>
+            <div class="mb-1">
+                <form method="POST" id="loginForm">
+                    <div class="mb-4">
+                        <div>
+                            <label for="username" class="label-text"><i class="fa-solid fa-id-card" style="color: black;" ></i> Documento:</label>
+                            <input type="text" class="form-control" name="documento" id="documento" placeholder="Ingrese Su Cedula o Nit" required>
+                            <div class="nombre text-danger"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="email" class="label-text">
+                            <i class="fas fa-envelope" style="color: black; font-size: 17px;"></i> Correo Electrónico:
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="email" id="email" placeholder="Ingrese Su Correo Electrónico" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <button id="botton" type="submit" class="boton1">
+                            <span class="button-text">Recuperar</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+ 
+<!-- menu section -->
+<div class="footer">
+    <div class="Principalfooter">
+        <div class="social-icons">
+            <div class="social-item">
+                <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                <p class="text-icono">Comprar</p>
+            </div>
+            <div class="social-item">
+                <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
+                    <i class="fa-brands fa-tiktok"></i>
+                </a>
+                <p class="text-icono">Tiktok</p>
+            </div>
+            <div class="social-item">
+                <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
+                    <i class="fa-brands fa-instagram"></i>
+                </a>
+                <p class="text-icono">Instagram</p>
+            </div>
+        </div>
+    </div>
+    <div class="footer1">
+        <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+    </div>
+</div>
+ 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+ 
+<div class="modal fade" id="codigoRecuperacionModal" tabindex="-1" aria-labelledby="codigoRecuperacionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="codigoRecuperacionModalLabel">Ingresar código de recuperación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control" id="codigoRecuperacion" placeholder="Ingrese el código de recuperación">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="verificarCodigo">Verificar</button>
+            </div>
+        </div>
+    </div>
+</div>
+ 
+<div class="modal fade" id="cambiarContrasenaModal" tabindex="-1" aria-labelledby="cambiarContrasenaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cambiarContrasenaModalLabel">Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="password" class="form-control" id="nuevaContrasena" placeholder="Ingrese su nueva contraseña">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="cambiarContrasena">Cambiar Contraseña</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

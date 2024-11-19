@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!-- Basic -->
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Mobile Metas -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <!-- Site Metas -->
+  <meta name="keywords" content="" />
+  <meta name="description" content="" />
+  <meta name="author" content="" />
+  <meta http-equiv="refresh" content="14400">
+
+  <title>PUNTOS MICELU</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño.png') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+  <!-- slider stylesheet -->
+  <link rel="stylesheet" type="text/css"
+    href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.1.3/assets/owl.carousel.min.css" />
+
+
+  <!-- bootstrap core css -->
+
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <!-- fonts style -->
+  <link href="https://fonts.googleapis.com/css?family=Poppins:400,700|Roboto:400,700&display=swap" rel="stylesheet">
+  <!-- Custom styles for this template -->
+
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- responsive style -->
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/beneficios.css') }}">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
+
+</head>
+
+<body>
+
+  <div class="hero_area">
+    <!-- header section strats -->
+    <header class="header_section">
+      <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg custom_nav-container ">
+          <a class="navbar-brand" href="/quesonpuntos">
+            <span>
+              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" class="imgcelu">
+            </span>
+          </a>
+          <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+            aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
+              <ul class="navbar-nav  ">
+                <li class="nav-item">
+                  <a class="nav-link" href="/quesonpuntos">¿Que son Puntos?</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="/mhistorialcompras">Compras Realizadas</a>
+                </li>
+                <li class="nav-item active">
+                  <a class="nav-link" href="/mpuntosprincipal">Canjea Puntos</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#" id="customLogoutButton">Cerrar sesión</a>
+                </li>
+
+                <li class="nav-item d-flex align-items-center">
+                  <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
+                    <div class="icon-text-container">
+                      <i class="fa-solid fa-user" style="color: #31C0CA"></i>
+                      <span class="fw-bold1"> Hola {{ usuario.nombre|title }}, tienes</span>
+                    </div>
+                    <span id="nav-points" class="badge custom-badge ms-2">{{ total_puntos }} Puntos</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="dropdown ms-2">
+              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
+                <i class="material-icons custom-icon">account_circle</i>
+                <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                <li><a class="custom-dropdown-item" href="/miperfil">Mi perfil</a></li>
+              </ul>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
+    <!-- end header section -->
+    <!------ inicio carrusel-->
+    <div class="">
+      <img src="{{ url_for('static', filename='images/banner.png') }}" class="imgcelu">
+    </div>
+
+    <div class="carousel-wrapper">
+      <div id="carouselExample" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+        <div class="carousel-indicators indicadores">
+          {% for i in range((products|length / 4)|round(0, 'ceil')|int) %}
+          <button type="button" data-bs-target="#carouselExample" data-bs-slide-to="{{ i }}"
+            class="{% if loop.first %}active{% endif %}" aria-current="{% if loop.first %}true{% endif %}"
+            aria-label="Slide {{ i + 1 }}"></button>
+          {% endfor %}
+        </div>
+        <div class="carousel-inner">
+          {% for chunk in products|batch(4) %}
+          <div class="carousel-item {% if loop.first %}active{% endif %}">
+            <div class="row">
+              {% for product in chunk %}
+              <div class="col-md-3 mb-3">
+                <div class="card h-100 custom-card-border">
+                  <a href="https://micelu.co/producto/{{ product.slug }}/" target="_blank">
+                    <img src="{{ product.image_url or url_for('static', filename='images/placeholder.png') }}"
+                      class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body">
+                      <h5 class="card-title">{{ product.name }}</h5>
+                      {% if product.price %}
+                      <p class="card-text">Precio: ${{ '{:,.0f}'.format(product.price|float).replace(',', '.') }} COP
+                      </p>
+                      {% endif %}
+                      {% if product.color %}
+                      <p class="card-text">Color: {{ product.color }}</p>
+                      {% endif %}
+                    <!---{% if product.points %}
+                      <p class="card-text1">Compra <br>Y <br>Acumula <br> {{ product.points }} Puntos</p>
+
+                      {% endif %}-->
+                    </div>
+                  </a>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Next</span>
+        </button>
+      </div>
+    </div>
+    <div class="redime">
+      <a href="{{ url_for('redime_ahora') }}" class="btn btn-lg btn-rdm">Redimir ahora</a>
+    </div>
+
+    <section>
+    </section>
+    <!-- menu section -->
+    <div class="footer">
+      <div class="Principalfooter">
+        <div class="social-icons">
+          <div class="social-item">
+            <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
+              <i class="fa-brands fa-whatsapp"></i>
+            </a>
+            <p class="text-icono">Comprar</p>
+          </div>
+          <div class="social-item">
+            <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
+              <i class="fa-brands fa-tiktok"></i>
+            </a>
+            <p class="text-icono">Tiktok</p>
+          </div>
+          <div class="social-item">
+            <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer"
+              class="icon-instagram">
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+            <p class="text-icono">Instagram</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer1">
+        <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+      </div>
+    </div>
+
+    <div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel" aria-hidden="true">
+      <div class="modal-dialog custom-logout-modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="customLogoutModalLabel">Confirmar cierre de sesión</h5>
+          </div>
+          <div class="modal-body">
+            ¿Deseas cerrar esta sesión?
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelLogoutButton">No</button>
+            <a href="{{ url_for('logout') }}" class="btn btn-primary">Sí</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/puntos.js') }}"></script>
+</body>
+
+</html>
