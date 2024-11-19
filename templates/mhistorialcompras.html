@@ -116,6 +116,8 @@
             <th>Producto</th>
             <th>Valor</th>
             <th>Tipo de Documento</th>
+            <th>Factura</th>
+            <th>MDPago</th>
           </tr>
         </thead>
         <tbody>
@@ -125,6 +127,9 @@
             <td>{{ item.PRODUCTO_NOMBRE }}</td>
             <td>{{ "$ {:,.0f}".format(item.VLRVENTA) }}</td>
             <td>{{ item.TIPODCTO }}</td>
+            <td>{{ item.NRODCTO }}</td>
+            <td>{{ item.MEDIOPAG }}</td>
+            
           </tr>
           {% endfor %}
         </tbody>
