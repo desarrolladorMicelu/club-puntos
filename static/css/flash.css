@@ -1,0 +1,40 @@
+.flash-messages {
+  position: fixed;
+  top: 5%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  width: 90%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+ 
+.flash {
+  padding: 20px 30px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  background-color: #f8d7da;
+  color: #000000;
+  position: relative;
+  width: 100%;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+.flash.success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+ 
+  .flash.danger {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+ 
+  .flash.warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+ 
