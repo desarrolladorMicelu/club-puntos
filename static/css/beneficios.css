@@ -15,6 +15,7 @@
     margin: 0 auto;
     
 }
+.carousel-control-prev-icon, 
 .carousel-control-next-icon {
     background-color: #185F64;
     width: 30px;
