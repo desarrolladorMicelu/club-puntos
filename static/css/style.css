@@ -1418,8 +1418,8 @@ input[type="email"], input[type="tel"] {
  
 }
 .icon-text-container {
-  display: flex; 
-  align-items: center; 
+  display: flex; /* Alinea el icono y el texto en una fila */
+  align-items: center; /* Alinea el icono y el texto verticalmente al centro */
   padding-bottom: 5px;
 }
 .fa-circle-user {
@@ -1451,10 +1451,27 @@ input[type="email"], input[type="tel"] {
     min-width: 100px; /* Ajusta este valor según tus preferencias */
 }
 /*cerrar sesion modal*/
+
 .custom-logout-modal-dialog {
-  max-width: 400px; 
-  margin: 200px auto; 
-  
+  max-width: 400px;
+  margin: 0 auto;
+  z-index: 10000;
+  position: fixed;
+  top: 30%; /* Centrado vertical */
+  left: 40%;
+ 
+}
+@media (max-width: 600px) and (max-width: 1024px){
+  .custom-logout-modal-dialog{
+    max-width: 90%; 
+    max-height: 90vh;
+    height: auto; 
+    top: 50%; 
+    left: 10%; 
+    transform: translate(-50%, -50%); 
+    z-index: 9999;
+  }
+ 
 }
 
 .modal-header {
@@ -1481,7 +1498,4 @@ input[type="email"], input[type="tel"] {
 
 .modal-footer .btn {
   margin: 0 5px; 
-}
-#carouselExampleInterval {
-  background-color: #000000;  /* Fondo negro */
 }

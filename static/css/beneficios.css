@@ -27,12 +27,12 @@
 }
 
 .carousel-control-prev {
-    left: -15%;
+    left: -13%;
     /* Mueve la flecha hacia la izquierda */
 }
 
 .carousel-control-next {
-    right: -15%;
+    right: -13%;
     /* Mueve la flecha hacia la derecha */
 }
 
@@ -40,6 +40,20 @@
 .carousel-inner {
     height: 500px;
     /* altura de los indicadores */
+}
+
+@media (max-width: 600px) {
+    .carousel-control-prev,
+    .carousel-control-next {
+        display: none;
+    }
+}
+/* Ocultar las flechas en pantallas medianas (entre 600px y 1024px) */
+@media (min-width: 600px) and (max-width: 1024px) {
+    .carousel-control-prev,
+    .carousel-control-next {
+        display: none;
+    }
 }
 
 /*----------------------estilos para las cards-----------------------------*/
