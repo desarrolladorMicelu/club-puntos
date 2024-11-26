@@ -13,9 +13,9 @@
 #carouselExample {
     max-width: 1100px;
     margin: 0 auto;
-    
 }
-.carousel-control-prev-icon, 
+
+.carousel-control-prev-icon,
 .carousel-control-next-icon {
     background-color: #185F64;
     width: 30px;
@@ -27,12 +27,12 @@
 }
 
 .carousel-control-prev {
-    left: -13%;
+    left: -15%;
     /* Mueve la flecha hacia la izquierda */
 }
 
 .carousel-control-next {
-    right: -13%;
+    right: -15%;
     /* Mueve la flecha hacia la derecha */
 }
 
@@ -345,7 +345,7 @@
     text-align: center;
     font-family: 'Poppins', sans-serif;
     font-weight: bold;
-    color: #185F64;
+    color: #39EDEC;
     margin: 20px;
 }
 
@@ -367,7 +367,6 @@
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     text-align: center;
-    
 }
 
 /*------estilos para los botones en las cards--------*/
@@ -471,6 +470,7 @@
     .modal-content {
         height: auto;
         max-height: 90vh;
+        z-index: 9999;
     }
 
     .modal-title {
@@ -509,7 +509,7 @@
 
     .checkbox-button {
         font-size: 14px;
-
+        /* Ajusta el tamaño de la fuente del botón */
         padding: 8px 16px;
         /* Reduce el padding del botón */
     }
