@@ -79,7 +79,7 @@
                       <i class="fa-solid fa-user" style="color: #31C0CA"></i>
                       <span class="fw-bold1"> Hola {{ usuario.nombre|title }}, tienes</span>
                     </div>
-                    <span id="nav-points" class="badge custom-badge ms-2">{{ total_puntos }} Puntos</span>
+                    <span id="nav-points" class="badge custom-badge ms-2">{{ "{:,.0f}".format(total_puntos) }} Puntos</span>
                   </div>
                 </li>
               </ul>
@@ -105,7 +105,7 @@
 
       <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
         <span class="fw-bold1">Total de puntos Micelu</span>
-        <span id="nav-points3" class="badge custom-badge1">{{ total_puntos }}</span>
+        <span id="nav-points3" class="badge custom-badge1">{{ "{:,.0f}".format(total_puntos) }}</span>
       </div>
 
       {% if historial %}
@@ -116,8 +116,8 @@
             <th>Producto</th>
             <th>Valor</th>
             <th>Tipo de Documento</th>
-            <th>Factura</th>
-            <th>MDPago</th>
+            <th>Puntos obtenidos</th>
+
           </tr>
         </thead>
         <tbody>
@@ -127,8 +127,7 @@
             <td>{{ item.PRODUCTO_NOMBRE }}</td>
             <td>{{ "$ {:,.0f}".format(item.VLRVENTA) }}</td>
             <td>{{ item.TIPODCTO }}</td>
-            <td>{{ item.NRODCTO }}</td>
-            <td>{{ item.MEDIOPAG }}</td>
+            <td>{{ "$ {:,.0f}".format(item.PUNTOS_GANADOS) }}</td>
             
           </tr>
           {% endfor %}
@@ -187,6 +186,7 @@
     <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+
 
 </body>
 

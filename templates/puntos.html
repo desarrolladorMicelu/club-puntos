@@ -83,7 +83,7 @@
                      <i class="fa-solid fa-user" style="color: #31C0CA"></i>
                      <span class="fw-bold1"> Hola {{ usuario.nombre|title }}, tienes</span>
                     </div>
-                    <span id="nav-points" class="badge custom-badge ms-2">{{ total_puntos }} Puntos</span>
+                    <span id="nav-points" class="badge custom-badge ms-2">{{ "{:,.0f}".format(total_puntos) }} Puntos</span>
                   </div>
                 </li>
               </ul>

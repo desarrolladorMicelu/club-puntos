@@ -6,7 +6,6 @@ import random
 import secrets
 import string
 from time import timezone
-from tkinter import Message
 from flask import Flask, flash, jsonify, logging, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 import pyodbc
@@ -455,7 +454,7 @@ def mhistorialcompras():
             if fecha_compra >= datetime(2024, 1, 1):
                 obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
                 # Calculamos los puntos para toda la factura
-                puntos_factura = int((total_venta_factura // obtener_puntos) * 0.8)
+                puntos_factura = int((total_venta_factura // obtener_puntos))
                
                 #Solo multiplicar puntos para compras desde el 25/11/2024
                 if fecha_compra >= datetime(2024, 11, 25):
@@ -552,9 +551,7 @@ def mpuntosprincipal():
                         'price': wc_product.get('price', '0'),
                         'description': wc_product.get('description', ''),
                         'short_description': wc_product.get('short_description', ''),
-                        'color': wc_product.get('attributes', [{}])[0].get('options', ['N/A'])[0],
                         'image_url': wc_product.get('images', [{'src': url_for('static', filename='images/placeholder.png')}])[0]['src'],
-                        'points': max(1, int(float(wc_product.get('price', '0')) / 1000)),  # Minimum 1 point
                         'slug': wc_product.get('slug', '')
                     }
                     products.append(product)
@@ -575,6 +572,7 @@ wcapi = API(
     consumer_secret="cs_e7d06f5199b3982b3e02234cc305a8f2d0b71dd0",
     version="wc/v3"
 )
+
 
 
 @app.route('/redimir_puntos', methods=['POST'])
