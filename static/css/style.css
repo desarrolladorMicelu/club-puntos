@@ -1457,7 +1457,7 @@ input[type="email"], input[type="tel"] {
   margin: 0 auto;
   z-index: 10000;
   position: fixed;
-  top: 30%; /* Centrado vertical */
+  top: 35%; /* Centrado vertical */
   left: 40%;
  
 }
@@ -1465,7 +1465,8 @@ input[type="email"], input[type="tel"] {
   .custom-logout-modal-dialog{
     max-width: 90%; 
     max-height: 90vh;
-    height: auto; 
+    height: auto;
+    margin-top: 5px;
     top: 50%; 
     left: 10%; 
     transform: translate(-50%, -50%); 
