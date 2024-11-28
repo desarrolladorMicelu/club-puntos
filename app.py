@@ -71,6 +71,7 @@ class Puntos_Clientes(db.Model):
     puntos_redimidos = db.Column(db.String(50))
     fecha_registro = db.Column(db.TIMESTAMP(timezone=True))
     puntos_disponibles = db.Column(db.Integer)
+    puntos_regalo = db.Column(db.Integer)
    
 class historial_beneficio(db.Model):
     __bind_key__ = 'db3'
@@ -213,7 +214,8 @@ def miperfil():
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  # Aseguramos que puntos_regalo esté presente
+            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
         else:
             total_puntos = 0
        
@@ -377,10 +379,6 @@ def mhistorialcompras():
         WHERE c.HABILITADO = 'S' AND c.NIT = ?
         """
         cursor.execute(check_query, documento)
-        count = cursor.fetchone().count
-        
-        if count == 0:
-            return "Cliente no habilitado.", 403
         
         # Consulta de facturas
         query = """
@@ -465,36 +463,22 @@ def mhistorialcompras():
             puntos_factura = 0
             if fecha_compra >= datetime(2024, 1, 1):
                 obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
-                # Calculamos los puntos para toda la factura
                 puntos_factura = int((total_venta_factura // obtener_puntos))
                 
-                #Solo multiplicar puntos para compras desde el 25/11/2024
                 if fecha_compra >= datetime(2024, 11, 25):
                     if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
                         aplicar_multiplicador = True
-                        print(f"Multiplicador aplicado por líneas en factura {factura_key}")
                     if medio_pago_valido and es_individual:
                         aplicar_multiplicador = True
-                        print(f"Multiplicador aplicado por medio de pago {mediopag} en factura individual {factura_key}")
                     
                     if aplicar_multiplicador:
                         puntos_factura *= 2
-                        print(f"Puntos calculados para factura {factura_key}: {puntos_factura} (con multiplicador x2)")
-                    else:
-                        print(f"Puntos calculados para factura {factura_key}: {puntos_factura}")
-                else:
-                    print(f"Puntos calculados para factura {factura_key}: {puntos_factura} (sin multiplicador)")
-                
-                total_puntos_nuevos += puntos_factura 
-                
+                total_puntos_nuevos += puntos_factura
 
-            # Distribuir los puntos proporcionalmente entre los productos
             for row in factura_info['items']:
                 venta_item = float(row.VLRVENTA)
-                # Calcular la proporción de puntos que corresponde a este ítem
                 proporcion = venta_item / total_venta_factura if total_venta_factura > 0 else 0
                 puntos_item = int(puntos_factura * proporcion)
-                
                 tipo_documento = "Factura Medellín" if row.TIPODCTO == "FM" else "Factura Bogotá" if row.TIPODCTO == "FB" else row.TIPODCTO
                 historial.append({
                     "PRODUCTO_NOMBRE": row.PRODUCTO_NOMBRE,
@@ -511,14 +495,10 @@ def mhistorialcompras():
         cursor.close()
         conn.close()
         
-        # Consultar referidos y sumar sus puntos
         referidos = Referidos.query.filter_by(documento_referido=documento).all()
         total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
-        
-        # Sumar los puntos de referidos al total de puntos nuevos
         total_puntos_nuevos += total_referidos_puntos
 
-        # Agregar referidos al historial
         for referido in referidos:
             historial.append({
                 "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
@@ -531,27 +511,39 @@ def mhistorialcompras():
                 "MEDIOPAG": ""
             })
         
-        # Actualizar puntos en la base de datos
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
+            puntos_regalo = puntos_usuario.puntos_regalo or 0
             puntos_usuario.total_puntos = total_puntos_nuevos
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            total_puntos = total_puntos_nuevos - puntos_redimidos
+            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
+            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
             db.session.commit()
         else:
-            nuevo_usuario = Puntos_Clientes(documento=documento, total_puntos=total_puntos_nuevos, puntos_redimidos='0')
+            nuevo_usuario = Puntos_Clientes(
+                documento=documento,
+                total_puntos=total_puntos_nuevos,
+                puntos_redimidos='0',
+                puntos_regalo=0
+            )
             db.session.add(nuevo_usuario)
             db.session.commit()
             total_puntos = total_puntos_nuevos
         
-        # Ordenar el historial por fecha
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
         
-        return render_template('mhistorialcompras.html', historial=historial, total_puntos=total_puntos, usuario=usuario)
+        return render_template(
+            'mhistorialcompras.html',
+            historial=historial,
+            total_puntos=total_puntos,
+            usuario=usuario,
+            puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
+        )
     
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return "Ha ocurrido un error al procesar su solicitud.", 500
+        print(f"Error: {e}")
+        return redirect(url_for('error_page'))
+
 
     
 @app.route('/mpuntosprincipal')
@@ -566,7 +558,8 @@ def mpuntosprincipal():
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+            puntos_regalo = int(puntos_usuario.puntos_regalo or '0') 
+            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
     
     try:
         wcapi = API(
@@ -636,7 +629,8 @@ def redimir_puntos():
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
 
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_disponibles = puntos_usuario.total_puntos - puntos_redimidos
+        puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
+        puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
 
         if puntos_a_redimir > puntos_disponibles:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
@@ -744,8 +738,10 @@ def quesonpuntos():
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  # Aseguramos que puntos_regalo esté presente
+            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
     return render_template('puntos.html',total_puntos=total_puntos, usuario=usuario)
+ 
 
 @app.route('/homepuntos')
 def homepuntos():
@@ -970,18 +966,18 @@ def infobeneficios(product_id):
 @app.route('/redime_ahora')
 def redime_ahora():
     documento_usuario = session.get('user_documento')
-    usuario = Usuario.query.filter_by(documento=documento_usuario).first()
     total_puntos = 0
     if documento_usuario:
         usuario = Usuario.query.filter_by(documento=documento_usuario).first()
        
         if usuario:
-   
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
             if puntos_usuario:
                 puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
-    return render_template("redime_ahora.html",total_puntos=total_puntos, usuario=usuario)
+                puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  
+                total_puntos = puntos_usuario.total_puntos + puntos_regalo  - puntos_redimidos
+   
+    return render_template("redime_ahora.html",total_puntos=total_puntos,usuario=usuario)
 
 @app.route('/acumulapuntos')
 def acumulapuntos():
@@ -1007,7 +1003,8 @@ def redimiendo():
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
             if puntos_usuario:
                 puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+                puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  
+                total_puntos = puntos_usuario.total_puntos + puntos_regalo  - puntos_redimidos
    
     return render_template("redimir.html",total_puntos=total_puntos)
     
