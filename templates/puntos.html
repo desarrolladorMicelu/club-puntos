@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-
+ 
 <head>
   <!-- Basic -->
   <meta charset="utf-8" />
@@ -12,38 +12,38 @@
   <meta name="description" content="" />
   <meta name="author" content="" />
   <meta http-equiv="refresh" content="14400">
-
+ 
   <title>¿QUE SON PUNTOS?</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño.png') }}">
+  <link rel="icon" type="image/x-icon" href="/static/images/icon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
+ 
   <!-- slider stylesheet -->
   <link rel="stylesheet" type="text/css"
     href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.1.3/assets/owl.carousel.min.css" />
-
-
+ 
+ 
   <!-- bootstrap core css -->
-
+ 
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
   <!-- Enlace a los archivos JS de Bootstrap y Popper.js -->
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
-
-
+ 
+ 
   <!-- fonts style -->
   <link href="https://fonts.googleapis.com/css?family=Poppins:400,700|Roboto:400,700&display=swap" rel="stylesheet">
   <!-- Custom styles for this template -->
-
+ 
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/quesonpuntos.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
-
+ 
 </head>
-
+ 
 <body>
   <div class="hero_area">
     <!-- header section strats -->
@@ -60,7 +60,7 @@
             aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
-
+ 
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <div class="d-flex mx-auto flex-column flex-lg-row align-items-center">
               <ul class="navbar-nav  ">
@@ -76,7 +76,7 @@
                 <li class="nav-item">
                   <a class="nav-link" href="#" id="customLogoutButton">Cerrar sesión</a>
                 </li>
-
+ 
                 <li class="nav-item d-flex align-items-center">
                   <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
                     <div class="icon-text-container">
@@ -88,7 +88,7 @@
                 </li>
               </ul>
             </div>
-            
+           
             <div class="dropdown ms-2">
               <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
                 <i class="material-icons custom-icon">account_circle</i>
@@ -99,25 +99,21 @@
               </ul>
             </div>
           </div>
-
+ 
         </nav>
       </div>
     </header>
-    
+   
     <div id="carouselExampleInterval" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
       <div class="carousel-inner">
         <div class="carousel-item active">
           <img src="{{ url_for('static', filename='images/banner.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
         </div>
         <div class="carousel-item">
-          <img src="{{ url_for('static', filename='images/banner1.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
-        </div>
-        <div class="carousel-item">
-          <img src="{{ url_for('static', filename='images/banner3.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
+          <img src="{{ url_for('static', filename='images/flayer.png') }}" class="d-block w-100 h-100 object-fit-cover" alt="...">
         </div>
       </div>
     </div>
-    
     <br>
     <div class="container custom-container">
       <div class="row row-cols-1 row-cols-md-3 g-4">
@@ -166,7 +162,7 @@
       </div>
   </div>
 </div>
-
+ 
 <div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel" aria-hidden="true">
   <div class="modal-dialog custom-logout-modal-dialog" role="document">
     <div class="modal-content">
@@ -183,10 +179,10 @@
     </div>
   </div>
 </div>
-
+ 
   <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
 </body>
-
+ 
 </html>

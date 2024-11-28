@@ -33,7 +33,7 @@ app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
     'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
 }
- 
+
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)  
 mail = Mail(app)
@@ -46,8 +46,7 @@ wcapi = API(
     consumer_secret="cs_8bd38a861efefc56403c7899d5303c3351c9e028",
     version="wc/v3"
 )
- 
- 
+
 #Modelos base de datos Plan de Beneficios
 class Usuario(db.Model):
     __bind_key__ = 'db3'
@@ -92,7 +91,21 @@ class maestros(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     valordelpunto = db.Column(db.Float)
     obtener_puntos = db.Column(db.Float)
-   
+
+class Referidos(db.Model):
+    __bind_key__ = 'db3'
+    __tablename__ = 'referidos'
+    __table_args__ = {'schema': 'plan_beneficios'}
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    documento_cliente = db.Column(db.String, nullable=False)
+    puntos_obtenidos = db.Column(db.Integer)
+    fecha_referido = db.Column(db.DateTime, default=datetime.now)
+    documento_referido = db.Column(db.String, nullable=False)
+    nombre_referido = db.Column(db.String, nullable=False)
+    nombre_cliente = db.Column(db.String, nullable = False)
+    estado = db.Column(db.Boolean)
+    fecha_actualizacion = db.Column(db.DateTime)
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -107,10 +120,9 @@ def recuperar_pass():
     if request.method == 'POST':
         documento = request.form.get('documento')
         email = request.form.get('email')
-       
+              
         usuario = Usuario.query.filter_by(documento=documento, email=email).first()
         if usuario:
-            # Generar código de recuperación
             caracteres = string.ascii_uppercase + string.digits
             codigo = ''.join(secrets.choice(caracteres) for _ in range(6))
            
@@ -193,7 +205,7 @@ def cambiar_contrasena():
 @login_required
 def miperfil():
     documento_usuario = session.get('user_documento')
-    
+   
     usuario = Usuario.query.filter_by(documento=documento_usuario).first()
    
     if usuario:
@@ -204,11 +216,11 @@ def miperfil():
             total_puntos = puntos_usuario.total_puntos - puntos_redimidos
         else:
             total_puntos = 0
-        
+       
         # Consultar el último registro de historial_beneficio
         ultimo_historial = Puntos_Clientes.query.filter_by(documento=documento_usuario).order_by(Puntos_Clientes.fecha_registro.desc()).first()
-        
-        
+       
+       
         # Pasar los datos a la plantilla
         return render_template('miperfil.html', usuario=usuario, total_puntos=total_puntos, ultimo_historial=ultimo_historial)
     else:
@@ -306,10 +318,10 @@ def login():
             # Verificar el estado del usuario
             if not user.estado:
                 return jsonify({'status': 'error', 'message': 'Usuario inactivo. No fue posible iniciar sesión. Por favor acércate a las oficinas para cambiar tu estado.'})
-            
+           
             # Verificar que el rango sea Plata u Oro
             if user.rango.lower().strip() not in ['plata', 'oro']:
-                return jsonify({'status': 'error', 'message': 'Acceso denegado. No fue posible iniciar sesión.'})
+                return jsonify({'status': 'error', 'message': 'Acceso denegado. Estas fuera de la fase beta'})
            
             try:
                 if bcrypt.check_password_hash(user.contraseña, contraseña):
@@ -342,10 +354,10 @@ def loginn():
 def mhistorialcompras():
     documento = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento).first()
-   
+    
     if not documento:
         return redirect(url_for('login'))
-   
+    
     try:
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
@@ -357,7 +369,7 @@ def mhistorialcompras():
         )
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
-       
+        
         # Verificar si el cliente existe
         check_query = """
         SELECT COUNT(*) as count
@@ -366,13 +378,13 @@ def mhistorialcompras():
         """
         cursor.execute(check_query, documento)
         count = cursor.fetchone().count
-       
+        
         if count == 0:
             return "Cliente no habilitado.", 403
-       
+        
         # Consulta de facturas
         query = """
-        SELECT
+        SELECT 
          m.NOMBRE AS PRODUCTO_NOMBRE,
          m.VLRVENTA,
          m.FHCOMPRA,
@@ -380,18 +392,18 @@ def mhistorialcompras():
          m.NRODCTO,
          STRING_AGG(mt.CODLINEA, ',') AS LINEAS_FACTURA,
          mt.CODLINEA AS LINEA,
-         vv.MEDIOPAG
-        FROM
+         vv.MEDIOPAG 
+        FROM 
             Clientes c
-        JOIN
+        JOIN 
             V_CLIENTES_FAC vc ON c.NOMBRE = vc.NOMBRE
-        JOIN
+        JOIN 
             Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
-        JOIN
+        JOIN 
             MtMercia mt ON mt.CODIGO=m.PRODUCTO
-        LEFT JOIN
+        LEFT JOIN 
             v_ventas vv ON vv.TipoDcto = m.Tipodcto AND vv.nrodcto = m.NRODCTO
-        WHERE
+        WHERE 
             c.HABILITADO = 'S'
             AND c.NIT = ?
             AND m.VLRVENTA > 0
@@ -404,15 +416,15 @@ def mhistorialcompras():
             m.NRODCTO,
             mt.CODLINEA,
             vv.MEDIOPAG
-        ORDER BY
+        ORDER BY 
             m.FHCOMPRA DESC;
         """
-       
+        
         cursor.execute(query, documento)
         results = cursor.fetchall()
         historial = []
         total_puntos_nuevos = 0
- 
+
         # Agrupamos por factura primero
         facturas_dict = {}
         for row in results:
@@ -429,7 +441,7 @@ def mhistorialcompras():
             facturas_dict[key]['total_venta'] += float(row.VLRVENTA)
             if row.LINEA:
                 facturas_dict[key]['lineas'].add(row.LINEA.upper())
- 
+
         # Procesamos cada factura
         for factura_key, factura_info in facturas_dict.items():
             lineas = factura_info['lineas']
@@ -437,44 +449,52 @@ def mhistorialcompras():
             es_individual = len(factura_info['items']) == 1
             fecha_compra = factura_info['fecha_compra']
             total_venta_factura = factura_info['total_venta']
-           
+            
             # Condición 1: Líneas específicas
             tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
             tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
             solo_gdgt_acce = all('GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
-           
+            
             # Condición 2: Medio de pago y factura individual
             medio_pago_valido = mediopag in ['01', '02']
-           
+            
             # Determinar si aplicar multiplicador
             aplicar_multiplicador = False
-           
+            
             # Calcular puntos para toda la factura
             puntos_factura = 0
             if fecha_compra >= datetime(2024, 1, 1):
                 obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
                 # Calculamos los puntos para toda la factura
                 puntos_factura = int((total_venta_factura // obtener_puntos))
-               
+                
                 #Solo multiplicar puntos para compras desde el 25/11/2024
                 if fecha_compra >= datetime(2024, 11, 25):
                     if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
                         aplicar_multiplicador = True
+                        print(f"Multiplicador aplicado por líneas en factura {factura_key}")
                     if medio_pago_valido and es_individual:
                         aplicar_multiplicador = True
-                   
+                        print(f"Multiplicador aplicado por medio de pago {mediopag} en factura individual {factura_key}")
+                    
                     if aplicar_multiplicador:
-                        puntos_factura *= 2 
-               
-                total_puntos_nuevos += puntos_factura
- 
+                        puntos_factura *= 2
+                        print(f"Puntos calculados para factura {factura_key}: {puntos_factura} (con multiplicador x2)")
+                    else:
+                        print(f"Puntos calculados para factura {factura_key}: {puntos_factura}")
+                else:
+                    print(f"Puntos calculados para factura {factura_key}: {puntos_factura} (sin multiplicador)")
+                
+                total_puntos_nuevos += puntos_factura 
+                
+
             # Distribuir los puntos proporcionalmente entre los productos
             for row in factura_info['items']:
                 venta_item = float(row.VLRVENTA)
                 # Calcular la proporción de puntos que corresponde a este ítem
                 proporcion = venta_item / total_venta_factura if total_venta_factura > 0 else 0
                 puntos_item = int(puntos_factura * proporcion)
-               
+                
                 tipo_documento = "Factura Medellín" if row.TIPODCTO == "FM" else "Factura Bogotá" if row.TIPODCTO == "FB" else row.TIPODCTO
                 historial.append({
                     "PRODUCTO_NOMBRE": row.PRODUCTO_NOMBRE,
@@ -484,12 +504,33 @@ def mhistorialcompras():
                     "TIPODCTO": tipo_documento,
                     "NRODCTO": row.NRODCTO,
                     "LINEA": row.LINEA,
-                    "MEDIOPAG": row.MEDIOPAG        
+                    "MEDIOPAG": row.MEDIOPAG,
+                    "TIPO_REGISTRO": "COMPRA"
                 })
- 
+
         cursor.close()
         conn.close()
-       
+        
+        # Consultar referidos y sumar sus puntos
+        referidos = Referidos.query.filter_by(documento_referido=documento).all()
+        total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
+        
+        # Sumar los puntos de referidos al total de puntos nuevos
+        total_puntos_nuevos += total_referidos_puntos
+
+        # Agregar referidos al historial
+        for referido in referidos:
+            historial.append({
+                "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
+                "PRODUCTO_NOMBRE": f"Referido: {referido.nombre_cliente}",
+                "VLRVENTA": referido.puntos_obtenidos * 100,
+                "TIPODCTO": "Referido",
+                "NRODCTO": str(referido.id),
+                "PUNTOS_GANADOS": referido.puntos_obtenidos,
+                "LINEA": "REFERIDO",
+                "MEDIOPAG": ""
+            })
+        
         # Actualizar puntos en la base de datos
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
@@ -502,27 +543,31 @@ def mhistorialcompras():
             db.session.add(nuevo_usuario)
             db.session.commit()
             total_puntos = total_puntos_nuevos
-       
+        
+        # Ordenar el historial por fecha
+        historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
+        
         return render_template('mhistorialcompras.html', historial=historial, total_puntos=total_puntos, usuario=usuario)
-   
+    
     except Exception as e:
         print(f"Error: {str(e)}")
         return "Ha ocurrido un error al procesar su solicitud.", 500
+
     
 @app.route('/mpuntosprincipal')
 @login_required
 def mpuntosprincipal():
     documento = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento).first()
-   
+    
     total_puntos = 0
-   
+    
     if documento:
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
             total_puntos = puntos_usuario.total_puntos - puntos_redimidos
-   
+    
     try:
         wcapi = API(
             url="https://micelu.co",
@@ -531,17 +576,17 @@ def mpuntosprincipal():
             version="wc/v3",
             timeout=30
         )
-       
+        
         response = wcapi.get("products", params={
-            "per_page": 12,  # Increased to ensure enough products
+            "per_page": 12,
             "orderby": "date",
             "order": "desc",
-            "status": "publish"  # Only published products
+            "status": "publish"
         })
-       
+        
         if response.status_code == 200:
             wc_products = response.json()
-           
+            
             products = []
             for wc_product in wc_products:
                 try:
@@ -552,6 +597,7 @@ def mpuntosprincipal():
                         'description': wc_product.get('description', ''),
                         'short_description': wc_product.get('short_description', ''),
                         'image_url': wc_product.get('images', [{'src': url_for('static', filename='images/placeholder.png')}])[0]['src'],
+                        'points': max(1, int(float(wc_product.get('price', '0')) / 1000)),  # Minimum 1 point
                         'slug': wc_product.get('slug', '')
                     }
                     products.append(product)
@@ -559,21 +605,22 @@ def mpuntosprincipal():
                     print(f"Error processing product: {product_error}")
         else:
             products = []
-   
+    
     except Exception as e:
         print(f"Error fetching products: {e}")
         products = []
-   
-    return render_template('mpuntosprincipal.html', total_puntos=total_puntos, products=products, usuario=usuario)
- 
+    
+    return render_template('mpuntosprincipal.html', 
+                           total_puntos=total_puntos, 
+                           products=products, 
+                           usuario=usuario)
+
 wcapi = API(
     url="https://micelu.co",
     consumer_key="ck_4a0a6ac32a9cbfe9d5f0dd4a029312e0893e22a7",
     consumer_secret="cs_e7d06f5199b3982b3e02234cc305a8f2d0b71dd0",
     version="wc/v3"
 )
-
-
 
 @app.route('/redimir_puntos', methods=['POST'])
 @login_required
@@ -583,28 +630,28 @@ def redimir_puntos():
         puntos_a_redimir = int(request.json.get('points'))
         codigo = request.json.get('code')
         horas_expiracion = int(request.json.get('expiration_hours', 12))
- 
+
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if not puntos_usuario:
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
- 
+
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
         puntos_disponibles = puntos_usuario.total_puntos - puntos_redimidos
- 
+
         if puntos_a_redimir > puntos_disponibles:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
- 
+
         valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
         descuento = puntos_a_redimir * valor_del_punto
         tiempo_expiracion = datetime.now() + timedelta(hours=horas_expiracion)
- 
+
         woo_coupon = create_woo_coupon(codigo, descuento, tiempo_expiracion)
         if not woo_coupon:
             return jsonify({'success': False, 'message': 'Error al crear el cupón en WooCommerce'}), 500
- 
+
         puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
         puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
- 
+
         nuevo_historial = historial_beneficio(
             id=uuid.uuid4(),
             documento=documento,
@@ -614,10 +661,10 @@ def redimir_puntos():
             cupon=codigo,
             tiempo_expiracion=tiempo_expiracion
         )
- 
+
         db.session.add(nuevo_historial)
         db.session.commit()
- 
+
         return jsonify({
             'success': True,
             'new_total': puntos_usuario.puntos_disponibles,
@@ -625,7 +672,7 @@ def redimir_puntos():
             'descuento': descuento,
             'tiempo_expiracion': tiempo_expiracion.isoformat()
         }), 200
- 
+
     except Exception as e:
         db.session.rollback()
         print(f"Error: {e}")
@@ -641,7 +688,7 @@ def create_woo_coupon(code, amount, expiration_time):
             "individual_use": True,
             "exclude_sale_items": True,
             "usage_limit": 1,
-            "date_expires": expiration_time.strftime("%Y-%m-%dT%H:%M:%S")
+            "date_expires": expiration_time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
  
         response = wcapi.post("coupons", data)
@@ -685,10 +732,6 @@ def ultimo_coupon():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({'success': False, 'message': 'Error al obtener el último cupón'}), 500  
-
-
-#Ruta para manejar el descuento de los puntos
-
 
 
 @app.route('/quesonpuntos')
@@ -816,7 +859,6 @@ def crear_usuario(cedula, contraseña, habeasdata):
             MtMercia mt ON m.PRODUCTO=mt.CODIGO
         WHERE
             c.HABILITADO = 'S'
-            AND c.CIUDAD IN ('05001', '11001')
             AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB')
             AND m.VLRVENTA>0
             AND c.NIT = ?
@@ -969,7 +1011,5 @@ def redimiendo():
    
     return render_template("redimir.html",total_puntos=total_puntos)
     
-
-
 if __name__ == '__app__':
     app.run(port=os.getenv("PORT", default=5000))

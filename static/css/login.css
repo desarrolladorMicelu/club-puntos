@@ -1,9 +1,9 @@
 
 .panel {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
-  padding: 2rem; 
-  border-radius: 20px; 
-  background-color: white; 
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra de la tarjeta */
+  padding: 2rem; /* Espaciado interno */
+  border-radius: 20px; /* Bordes redondeados */
+  background-color: white; /* Fondo blanco */
   margin-top: 50px;
   margin-bottom: 10px;
 }
@@ -28,7 +28,7 @@
   font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 0.5rem; 
+  gap: 0.5rem; /* Espacio entre el icono y el texto */
   margin-bottom: 0.5rem;
   color: #185F64;
   font-family: 'Poppins', sans-serif;
@@ -36,7 +36,7 @@
 
 /* Estilo para los inputs */
 .form-control {
-  border: 1px solid #185F64; 
+  border: 1px solid #185F64; /* Bordes ligeros */
   border-radius: 15px;
   padding: 0.5rem;
   font-size: 1rem;
@@ -137,7 +137,7 @@
 }
 .boton1 {
   background-color: #000000; /* Color de fondo azul */
-  color: white; 
+  color: white; /* Color del texto blanco */
   padding: 0.75rem; 
   border: none; 
   border-radius: 20px; 
