@@ -1500,3 +1500,6 @@ input[type="email"], input[type="tel"] {
 .modal-footer .btn {
   margin: 0 5px; 
 }
+#carouselExampleInterval {
+  background-color: #000000; 
+}
