@@ -39,7 +39,7 @@ bcrypt = Bcrypt(app)
 mail = Mail(app)
  
 recovery_codes = {}
- 
+
 wcapi = API(
     url="http://example.com",
     consumer_key="ck_24e1d02972506069aec3b589f727cc58636491df",
@@ -84,6 +84,8 @@ class historial_beneficio(db.Model):
     fecha_canjeo = db.Column(db.TIMESTAMP(timezone=True))
     cupon = db.Column(db.String(70))
     tiempo_expiracion = db.Column(db.TIMESTAMP(timezone=True))
+    cupon_fisico = db.Column(db.String(70))
+    estado = db.Column(db.Boolean, default=False)
    
 class maestros(db.Model):
     __bind_key__= 'db3'
@@ -738,7 +740,7 @@ def quesonpuntos():
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  # Aseguramos que puntos_regalo esté presente
+            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  
             total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
     return render_template('puntos.html',total_puntos=total_puntos, usuario=usuario)
  
@@ -1007,6 +1009,132 @@ def redimiendo():
                 total_puntos = puntos_usuario.total_puntos + puntos_regalo  - puntos_redimidos
    
     return render_template("redimir.html",total_puntos=total_puntos)
+
+#--------------------------------- Cupon Tienda fisica------------------------------------
+@app.route('/redimir_puntos_fisicos', methods=['POST'])
+@login_required
+def redimir_puntos_fisicos():
+    try:
+        documento = session.get('user_documento')
+        puntos_a_redimir = int(request.json.get('points'))
+        codigo = request.json.get('code')
+        horas_expiracion = request.json.get('expiration_minutes', 60)
+ 
+        # Actualizar TODOS los cupones expirados antes de procesar
+        cupones_expirados = historial_beneficio.query.filter(
+            historial_beneficio.estado == False,
+            historial_beneficio.tiempo_expiracion < datetime.now()
+        ).all()
+ 
+        for cupon in cupones_expirados:
+            cupon.estado = True
+ 
+        db.session.commit()
+ 
+        # Verificar si el cupón ya existe y no ha sido redimido
+        cupon_existente = historial_beneficio.query.filter_by(
+            cupon_fisico=codigo,
+            documento=documento,
+            estado=False  # Solo buscar cupones no redimidos
+        ).first()
+ 
+        if cupon_existente:
+            # Verificar si el cupón ha expirado
+            if datetime.now() > cupon_existente.tiempo_expiracion:
+                # Marcar como expirado - importante poner estado en True
+                cupon_existente.estado = True
+                db.session.commit()
+                return jsonify({
+                    'success': False,
+                    'message': 'El cupón ha expirado'
+                }), 400
+ 
+            # Si el cupón existe y no ha expirado, continuar con la redención
+            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+            if not puntos_usuario:
+                return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+ 
+            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+            puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
+            puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+ 
+            if puntos_a_redimir > puntos_disponibles:
+                return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
+ 
+            valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
+            descuento = puntos_a_redimir * valor_del_punto
+            tiempo_expiracion = datetime.now() + timedelta(hours=horas_expiracion)
+ 
+            # Actualizar puntos del usuario
+            puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
+            puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
+ 
+            # Marcar cupón como redimido - CAMBIADO A TRUE
+            cupon_existente.estado = True
+            cupon_existente.valor_descuento = descuento
+            cupon_existente.puntos_utilizados = puntos_a_redimir
+            cupon_existente.fecha_canjeo = datetime.now()
+ 
+            db.session.commit()
+ 
+            return jsonify({
+                'success': True,
+                'new_total': puntos_usuario.puntos_disponibles,
+                'codigo': codigo,
+                'descuento': descuento,
+                'tiempo_expiracion': tiempo_expiracion.isoformat(),
+                'estado': cupon_existente.estado  
+            }), 200
+ 
+        # Si no existe un cupón previo, crear uno nuevo
+        valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
+        descuento = puntos_a_redimir * valor_del_punto
+        tiempo_expiracion = datetime.now() + timedelta(seconds=horas_expiracion)
+ 
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        if not puntos_usuario:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+ 
+        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+        puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
+        puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+ 
+        if puntos_a_redimir > puntos_disponibles:
+            return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
+ 
+        # Actualizar puntos del usuario
+        puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
+        puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
+ 
+        # Crear nuevo historial de beneficio
+        nuevo_historial = historial_beneficio(
+            id=uuid.uuid4(),
+            documento=documento,
+            valor_descuento=descuento,
+            puntos_utilizados=puntos_a_redimir,
+            fecha_canjeo=datetime.now(),
+            cupon='',
+            cupon_fisico=codigo,
+            tiempo_expiracion=tiempo_expiracion,
+            estado=False 
+        )
+ 
+        db.session.add(nuevo_historial)
+        db.session.commit()
+ 
+        return jsonify({
+            'success': True,
+            'new_total': puntos_usuario.puntos_disponibles,
+            'codigo': codigo,
+            'descuento': descuento,
+            'tiempo_expiracion': tiempo_expiracion.isoformat(),
+            'estado': False  # Confirmación de estado inicial
+        }), 200
+ 
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error: {e}")
+        return jsonify({'success': False, 'message': f'Error al redimir puntos: {str(e)}'}), 500
     
 if __name__ == '__app__':
     app.run(port=os.getenv("PORT", default=5000))
