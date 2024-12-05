@@ -1,14 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     const redeemButton1 = document.getElementById('redeem-button1');
     const pointsInput1 = document.getElementById('points-input1');
-    const redemptionModal1 = new bootstrap.Modal(document.getElementById('redemptionModal1'), {
-        backdrop: 'static',
-        keyboard: false
-    });
+    const redemptionModal1 = new bootstrap.Modal(document.getElementById('redemptionModal1'));
     const redemptionCodeElement1 = document.getElementById('redemptionCode1');
     const redemptionDiscountElement1 = document.getElementById('redemptionDiscount1');
     const redemptionExpirationElement1 = document.getElementById('redemptionExpiration1');
     const closeModalButton1 = document.getElementById('closeModalButton1');
+ 
+    closeModalButton1.addEventListener('click', function() {
+        redemptionModal1.hide();
+    });
  
     function generateRandomCode() {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -37,20 +38,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     points: points,
-                    code: code,
-                    expiration_minutes: 1
+                    code: code
                 })
             });
            
             const data = await response.json();
            
             if (data.success) {
-                // Guardar el cupón en localStorage con su estado actual
                 localStorage.setItem('lastPhysicalCoupon', JSON.stringify({
                     codigo: data.codigo,
                     descuento: data.descuento,
-                    expiracion: data.tiempo_expiracion,
-                    estado: data.estado  // Guardar el estado correcto
+                    expiracion: data.tiempo_expiracion
                 }));
  
                 redemptionCodeElement1.textContent = data.codigo;
@@ -61,7 +59,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }).format(data.descuento);
                 redemptionExpirationElement1.textContent = new Date(data.tiempo_expiracion).toLocaleString();
  
-                // Mostrar el modal
                 redemptionModal1.show();
                 pointsInput1.value = '';
             } else {
@@ -73,38 +70,88 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
  
-    closeModalButton1.addEventListener('click', function() {
-        redemptionModal1.hide();
-    });
- 
-    document.getElementById('ver-cupon1').addEventListener('click', function() {
+    document.getElementById('ver-cupon1').addEventListener('click', async function() {
         const storedCouponData = localStorage.getItem('lastPhysicalCoupon');
        
         if (!storedCouponData) {
             alert('No hay cupón generado recientemente');
             return;
         }
+       
         try {
-            const { codigo, descuento, expiracion, estado } = JSON.parse(storedCouponData);
-            redemptionCodeElement1.textContent = codigo;
+            const { codigo } = JSON.parse(storedCouponData);
+           
+            const response = await fetch('/check_coupon_status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code: codigo })
+            });
+           
+            const data = await response.json();
+           
+            if (!data.valid) {
+                alert('El cupón ha expirado');
+                localStorage.removeItem('lastPhysicalCoupon');
+                return;
+            }
+           
+            redemptionCodeElement1.textContent = data.codigo;
             redemptionDiscountElement1.textContent = new Intl.NumberFormat('es-CO', {
                 style: 'currency',
                 currency: 'COP',
                 minimumFractionDigits: 0
-            }).format(descuento);
-            redemptionExpirationElement1.textContent = new Date(expiracion).toLocaleString();
+            }).format(data.descuento);
+            redemptionExpirationElement1.textContent = new Date(data.expiracion).toLocaleString();
+           
             redemptionModal1.show();
         } catch (error) {
-            console.error('Error al procesar el cupón almacenado:', error);
-            alert('Error al mostrar el cupón');
+            console.error('Error:', error);
+            alert('Error al verificar el cupón');
         }
     });
-});
-document.getElementById('copyCodeButton1').addEventListener('click', function () {
-    const code = document.getElementById('redemptionCode1').textContent;
-    navigator.clipboard.writeText(code).then(() => {
-        alert('¡Código copiado al portapapeles!');
-    });
+ 
+    // Verificación de expiración al cargar la página
+    function checkCouponExpiration() {
+        const storedCouponData = localStorage.getItem('lastPhysicalCoupon');
+        if (storedCouponData) {
+            const { codigo, expiracion } = JSON.parse(storedCouponData);
+            const currentTime = new Date();
+            const expirationTime = new Date(expiracion);
+           
+            if (currentTime > expirationTime) {
+                fetch('/check_coupon_status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: codigo })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Opcional: Puedes añadir lógica adicional aquí si es necesario
+                    localStorage.removeItem('lastPhysicalCoupon');
+                    redemptionModal1.hide();
+                    alert('El cupón ha expirado');
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+    }
+ 
+    // Verificar expiración cada 5 minutos
+    setInterval(checkCouponExpiration, 60 * 1000);
+ 
+    // Verificar expiración al cargar la página
+    checkCouponExpiration();
+ 
+    if (document.getElementById('copyCodeButton1')) {
+        document.getElementById('copyCodeButton1').addEventListener('click', function() {
+            const code = document.getElementById('redemptionCode1').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('¡Código copiado al portapapeles!');
+            });
+        });
+    }
 });
  
 // para la tabla de puntos
