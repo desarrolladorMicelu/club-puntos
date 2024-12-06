@@ -401,7 +401,7 @@ def mhistorialcompras():
             v_ventas vv ON vv.TipoDcto = m.Tipodcto AND vv.nrodcto = m.NRODCTO
         WHERE 
             c.HABILITADO = 'S'
-            AND c.NIT = ?
+            AND (c.NIT = ? OR c.NIT LIKE ?)
             AND m.VLRVENTA > 0
             AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
         GROUP BY
@@ -416,7 +416,7 @@ def mhistorialcompras():
             m.FHCOMPRA DESC;
         """
         
-        cursor.execute(query, documento)
+        cursor.execute(query, (documento, f"{documento}%"))
         results = cursor.fetchall()
         historial = []
         total_puntos_nuevos = 0
@@ -820,6 +820,9 @@ def crear_pass():
 
 def crear_usuario(cedula, contraseña, habeasdata):
     try:
+        # Extraer solo los primeros dígitos antes del guion o espacios
+        documento = cedula.split('-')[0].split()[0]
+
         # Conexión a la base de datos
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
@@ -832,7 +835,7 @@ def crear_usuario(cedula, contraseña, habeasdata):
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
 
-        # Consulta SQL con parámetro
+        # Consulta SQL modificada para usar los primeros dígitos
         query = """
         SELECT DISTINCT
             c.NOMBRE AS CLIENTE_NOMBRE,
@@ -855,13 +858,14 @@ def crear_usuario(cedula, contraseña, habeasdata):
             c.HABILITADO = 'S'
             AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB')
             AND m.VLRVENTA>0
-            AND c.NIT = ?
+            AND (c.NIT = ? OR c.NIT LIKE ?)
         ORDER BY
             c.NOMBRE;
         """
 
-        # Ejecutar la consulta con el parámetro de cédula
-        cursor.execute(query, (cedula,))
+        # Ejecutar la consulta con el parámetro de cédula limpia
+        cursor.execute(query, (documento, f"{documento}%"))
+
 
         # Obtener todos los resultados
         results = cursor.fetchall()
@@ -884,12 +888,10 @@ def crear_usuario(cedula, contraseña, habeasdata):
                     else:
                         ciudad = 'No identificado'
 
-                    clave=bcrypt.generate_password_hash(contraseña).decode('utf-8')
+                    clave = bcrypt.generate_password_hash(contraseña).decode('utf-8')
                     
-                    
-
                     nuevo_usuario = Usuario(
-                        documento=row.NIT.strip() if row.NIT else None,
+                        documento=documento,  
                         email=row.EMAIL.strip() if row.EMAIL else None,
                         telefono=row.telefono.strip() if row.telefono else None,
                         contraseña=clave,
