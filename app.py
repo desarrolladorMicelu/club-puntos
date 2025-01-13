@@ -354,10 +354,8 @@ def loginn():
 def mhistorialcompras():
     documento = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento).first()
-    
     if not documento:
         return redirect(url_for('login'))
-    
     try:
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
@@ -369,7 +367,6 @@ def mhistorialcompras():
         )
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
-        
         # Verificar si el cliente existe
         check_query = """
         SELECT COUNT(*) as count
@@ -377,67 +374,58 @@ def mhistorialcompras():
         WHERE c.HABILITADO = 'S' AND c.NIT = ?
         """
         cursor.execute(check_query, documento)
-        
-        # Consulta de facturas
+        # Consulta de facturas modificada para evitar duplicados
         query = """
-        SELECT 
+        SELECT DISTINCT
          m.NOMBRE AS PRODUCTO_NOMBRE,
          m.VLRVENTA,
          m.FHCOMPRA,
          m.TIPODCTO,
          m.NRODCTO,
-         STRING_AGG(mt.CODLINEA, ',') AS LINEAS_FACTURA,
          mt.CODLINEA AS LINEA,
-         vv.MEDIOPAG 
-        FROM 
+         vv.MEDIOPAG,
+         m.PRODUCTO
+        FROM
             Clientes c
-        JOIN 
+        JOIN
             V_CLIENTES_FAC vc ON c.NOMBRE = vc.NOMBRE
-        JOIN 
+        JOIN
             Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
-        JOIN 
-            MtMercia mt ON mt.CODIGO=m.PRODUCTO
-        LEFT JOIN 
+        JOIN
+            MtMercia mt ON mt.CODIGO = m.PRODUCTO
+        LEFT JOIN
             v_ventas vv ON vv.TipoDcto = m.Tipodcto AND vv.nrodcto = m.NRODCTO
-        WHERE 
+        WHERE
             c.HABILITADO = 'S'
             AND (c.NIT = ? OR c.NIT LIKE ?)
             AND m.VLRVENTA > 0
             AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
-        GROUP BY
-            m.NOMBRE,
-            m.VLRVENTA,
-            m.FHCOMPRA,
-            m.TIPODCTO,
-            m.NRODCTO,
-            mt.CODLINEA,
-            vv.MEDIOPAG
-        ORDER BY 
+        ORDER BY
             m.FHCOMPRA DESC;
         """
-        
         cursor.execute(query, (documento, f"{documento}%"))
         results = cursor.fetchall()
         historial = []
         total_puntos_nuevos = 0
-
-        # Agrupamos por factura primero
+        # Agrupamos por factura usando un identificador único para cada producto
         facturas_dict = {}
         for row in results:
             key = f"{row.TIPODCTO}-{row.NRODCTO}"
+            producto_key = f"{key}-{row.PRODUCTO}"  # Identificador único por producto
             if key not in facturas_dict:
                 facturas_dict[key] = {
-                    'items': [],
+                    'items': {},  # Cambiado a diccionario para evitar duplicados
                     'lineas': set(),
                     'mediopag': row.MEDIOPAG.strip() if row.MEDIOPAG else '',
                     'total_venta': 0,
                     'fecha_compra': row.FHCOMPRA
                 }
-            facturas_dict[key]['items'].append(row)
-            facturas_dict[key]['total_venta'] += float(row.VLRVENTA)
-            if row.LINEA:
-                facturas_dict[key]['lineas'].add(row.LINEA.upper())
-
+            # Solo agregar el producto si no existe
+            if producto_key not in facturas_dict[key]['items']:
+                facturas_dict[key]['items'][producto_key] = row
+                facturas_dict[key]['total_venta'] += float(row.VLRVENTA)
+                if row.LINEA:
+                    facturas_dict[key]['lineas'].add(row.LINEA.upper())
         # Procesamos cada factura
         for factura_key, factura_info in facturas_dict.items():
             lineas = factura_info['lineas']
@@ -445,35 +433,43 @@ def mhistorialcompras():
             es_individual = len(factura_info['items']) == 1
             fecha_compra = factura_info['fecha_compra']
             total_venta_factura = factura_info['total_venta']
-            
             # Condición 1: Líneas específicas
             tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
             tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
             solo_gdgt_acce = all('GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
-            
             # Condición 2: Medio de pago y factura individual
             medio_pago_valido = mediopag in ['01', '02']
-            
             # Determinar si aplicar multiplicador
             aplicar_multiplicador = False
-            
             # Calcular puntos para toda la factura
             puntos_factura = 0
-            if fecha_compra >= datetime(2024, 1, 1):
-                obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
-                puntos_factura = int((total_venta_factura // obtener_puntos))
-                
+            # Obtener el valor base para el cálculo de puntos
+            obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
+            # Diferentes cálculos según el año
+            if fecha_compra.year == 2024:
+                # Para 2024, dividir los puntos entre 2
+                puntos_factura = int((total_venta_factura // obtener_puntos) / 2)
+                # Aplicar multiplicador x2 si cumple las condiciones después del 25 de noviembre
                 if fecha_compra >= datetime(2024, 11, 25):
                     if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
                         aplicar_multiplicador = True
                     if medio_pago_valido and es_individual:
                         aplicar_multiplicador = True
-                    
                     if aplicar_multiplicador:
                         puntos_factura *= 2
-                total_puntos_nuevos += puntos_factura
-
-            for row in factura_info['items']:
+            elif fecha_compra.year == 2025:
+                # Para 2025, cálculo normal sin división
+                puntos_factura = int(total_venta_factura // obtener_puntos)
+                # Aplicar multiplicador x2 si cumple las condiciones
+                if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
+                    aplicar_multiplicador = True
+                if medio_pago_valido and es_individual:
+                    aplicar_multiplicador = True
+                if aplicar_multiplicador:
+                    puntos_factura *= 2
+            total_puntos_nuevos += puntos_factura
+            # Procesar cada item único de la factura
+            for producto_key, row in factura_info['items'].items():
                 venta_item = float(row.VLRVENTA)
                 proporcion = venta_item / total_venta_factura if total_venta_factura > 0 else 0
                 puntos_item = int(puntos_factura * proporcion)
@@ -489,14 +485,11 @@ def mhistorialcompras():
                     "MEDIOPAG": row.MEDIOPAG,
                     "TIPO_REGISTRO": "COMPRA"
                 })
-
         cursor.close()
         conn.close()
-        
         referidos = Referidos.query.filter_by(documento_referido=documento).all()
         total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
         total_puntos_nuevos += total_referidos_puntos
-
         for referido in referidos:
             historial.append({
                 "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
@@ -508,7 +501,6 @@ def mhistorialcompras():
                 "LINEA": "REFERIDO",
                 "MEDIOPAG": ""
             })
-        
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_regalo = puntos_usuario.puntos_regalo or 0
@@ -527,9 +519,7 @@ def mhistorialcompras():
             db.session.add(nuevo_usuario)
             db.session.commit()
             total_puntos = total_puntos_nuevos
-        
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
-        
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
@@ -537,7 +527,6 @@ def mhistorialcompras():
             usuario=usuario,
             puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
         )
-    
     except Exception as e:
         print(f"Error: {e}")
         return redirect(url_for('error_page'))
