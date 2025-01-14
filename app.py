@@ -1138,9 +1138,11 @@ def check_coupon_status():
 #inicio de la cobertura
     
 def obtener_conexion_bd():
-
-    conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=20.109.21.246;DATABASE=MICELU;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
-
+    conn = pyodbc.connect('''DRIVER={SQL Server};
+                            SERVER=20.109.21.246;
+                            DATABASE=MICELU;
+                            UID=db_read;
+                            PWD=mHRL_<='(],#aZ)T"A3QeD''')
     return conn
 
 def buscar_por_imei(imei):
