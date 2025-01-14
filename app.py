@@ -21,6 +21,7 @@ import sqlalchemy
 from woocommerce import API
 from sqlalchemy import Float
 from azure.communication.email import EmailClient
+
  
 app = Flask(__name__)
 # Configurar el tiempo de la sesión a 30 minutos
@@ -33,20 +34,21 @@ app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
     'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
 }
-
+ 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)  
 mail = Mail(app)
  
 recovery_codes = {}
-
+ 
 wcapi = API(
     url="http://example.com",
     consumer_key="ck_24e1d02972506069aec3b589f727cc58636491df",
     consumer_secret="cs_8bd38a861efefc56403c7899d5303c3351c9e028",
     version="wc/v3"
 )
-
+ 
+ 
 #Modelos base de datos Plan de Beneficios
 class Usuario(db.Model):
     __bind_key__ = 'db3'
@@ -349,6 +351,7 @@ def loginn():
     return render_template('login.html')
 
 #--------------------RUTA HISTORIAL --------------------------------------------------
+
 @app.route('/mhistorialcompras')
 @login_required
 def mhistorialcompras():
@@ -530,24 +533,21 @@ def mhistorialcompras():
     except Exception as e:
         print(f"Error: {e}")
         return redirect(url_for('error_page'))
-
-
     
 @app.route('/mpuntosprincipal')
 @login_required
 def mpuntosprincipal():
     documento = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento).first()
-    
+   
     total_puntos = 0
-    
+   
     if documento:
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or '0') 
-            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
-    
+            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+   
     try:
         wcapi = API(
             url="https://micelu.co",
@@ -556,17 +556,17 @@ def mpuntosprincipal():
             version="wc/v3",
             timeout=30
         )
-        
+       
         response = wcapi.get("products", params={
-            "per_page": 12,
+            "per_page": 12,  
             "orderby": "date",
             "order": "desc",
-            "status": "publish"
+            "status": "publish"  
         })
-        
+       
         if response.status_code == 200:
             wc_products = response.json()
-            
+           
             products = []
             for wc_product in wc_products:
                 try:
@@ -577,7 +577,6 @@ def mpuntosprincipal():
                         'description': wc_product.get('description', ''),
                         'short_description': wc_product.get('short_description', ''),
                         'image_url': wc_product.get('images', [{'src': url_for('static', filename='images/placeholder.png')}])[0]['src'],
-                        'points': max(1, int(float(wc_product.get('price', '0')) / 1000)),  # Minimum 1 point
                         'slug': wc_product.get('slug', '')
                     }
                     products.append(product)
@@ -585,22 +584,21 @@ def mpuntosprincipal():
                     print(f"Error processing product: {product_error}")
         else:
             products = []
-    
+   
     except Exception as e:
         print(f"Error fetching products: {e}")
         products = []
-    
-    return render_template('mpuntosprincipal.html', 
-                           total_puntos=total_puntos, 
-                           products=products, 
-                           usuario=usuario)
-
+   
+    return render_template('mpuntosprincipal.html', total_puntos=total_puntos, products=products, usuario=usuario)
+ 
 wcapi = API(
     url="https://micelu.co",
     consumer_key="ck_4a0a6ac32a9cbfe9d5f0dd4a029312e0893e22a7",
     consumer_secret="cs_e7d06f5199b3982b3e02234cc305a8f2d0b71dd0",
     version="wc/v3"
 )
+
+
 
 @app.route('/redimir_puntos', methods=['POST'])
 @login_required
@@ -610,29 +608,29 @@ def redimir_puntos():
         puntos_a_redimir = int(request.json.get('points'))
         codigo = request.json.get('code')
         horas_expiracion = int(request.json.get('expiration_hours', 12))
-
+ 
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if not puntos_usuario:
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
-
+ 
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
+        puntos_regalo= int(puntos_usuario.puntos_regalo or "0")
         puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
-
+ 
         if puntos_a_redimir > puntos_disponibles:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
-
+ 
         valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
         descuento = puntos_a_redimir * valor_del_punto
         tiempo_expiracion = datetime.now() + timedelta(hours=horas_expiracion)
-
+ 
         woo_coupon = create_woo_coupon(codigo, descuento, tiempo_expiracion)
         if not woo_coupon:
             return jsonify({'success': False, 'message': 'Error al crear el cupón en WooCommerce'}), 500
-
+ 
         puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
         puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
-
+ 
         nuevo_historial = historial_beneficio(
             id=uuid.uuid4(),
             documento=documento,
@@ -642,10 +640,10 @@ def redimir_puntos():
             cupon=codigo,
             tiempo_expiracion=tiempo_expiracion
         )
-
+ 
         db.session.add(nuevo_historial)
         db.session.commit()
-
+ 
         return jsonify({
             'success': True,
             'new_total': puntos_usuario.puntos_disponibles,
@@ -653,7 +651,7 @@ def redimir_puntos():
             'descuento': descuento,
             'tiempo_expiracion': tiempo_expiracion.isoformat()
         }), 200
-
+ 
     except Exception as e:
         db.session.rollback()
         print(f"Error: {e}")
@@ -669,7 +667,7 @@ def create_woo_coupon(code, amount, expiration_time):
             "individual_use": True,
             "exclude_sale_items": True,
             "usage_limit": 1,
-            "date_expires": expiration_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "date_expires": expiration_time.strftime("%Y-%m-%dT%H:%M:%S")
         }
  
         response = wcapi.post("coupons", data)
@@ -715,6 +713,10 @@ def ultimo_coupon():
         return jsonify({'success': False, 'message': 'Error al obtener el último cupón'}), 500  
 
 
+#Ruta para manejar el descuento de los puntos
+
+
+
 @app.route('/quesonpuntos')
 @login_required
 def quesonpuntos():
@@ -725,10 +727,8 @@ def quesonpuntos():
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  
-            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
     return render_template('puntos.html',total_puntos=total_puntos, usuario=usuario)
- 
 
 @app.route('/homepuntos')
 def homepuntos():
@@ -805,13 +805,13 @@ def crear_pass():
         return redirect(url_for('crear_pass'))
    
     return render_template('crear_pass.html')
-
-
+ 
+ 
 def crear_usuario(cedula, contraseña, habeasdata):
     try:
         # Extraer solo los primeros dígitos antes del guion o espacios
         documento = cedula.split('-')[0].split()[0]
-
+ 
         # Conexión a la base de datos
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
@@ -823,7 +823,7 @@ def crear_usuario(cedula, contraseña, habeasdata):
         )
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
-
+ 
         # Consulta SQL modificada para usar los primeros dígitos
         query = """
         SELECT DISTINCT
@@ -851,22 +851,22 @@ def crear_usuario(cedula, contraseña, habeasdata):
         ORDER BY
             c.NOMBRE;
         """
-
+ 
         # Ejecutar la consulta con el parámetro de cédula limpia
         cursor.execute(query, (documento, f"{documento}%"))
-
-
+ 
+ 
         # Obtener todos los resultados
         results = cursor.fetchall()
-
+ 
         # Cerrar la conexión
         cursor.close()
         conn.close()
-
+ 
         # Si no hay resultados, la cédula no está registrada
         if not results:
             return False
-
+ 
         with app.app_context():
             with db.session.begin():
                 for row in results:
@@ -876,9 +876,9 @@ def crear_usuario(cedula, contraseña, habeasdata):
                         ciudad = 'Bogota'
                     else:
                         ciudad = 'No identificado'
-
+ 
                     clave = bcrypt.generate_password_hash(contraseña).decode('utf-8')
-                    
+                   
                     nuevo_usuario = Usuario(
                         documento=documento,  
                         email=row.EMAIL.strip() if row.EMAIL else None,
@@ -892,9 +892,9 @@ def crear_usuario(cedula, contraseña, habeasdata):
                     )
                     db.session.add(nuevo_usuario)
                     db.session.commit()
-
+ 
         return True
-
+ 
     except pyodbc.Error as e:
         print("Error al conectarse a la base de datos:", e)
         raise e
@@ -955,18 +955,18 @@ def infobeneficios(product_id):
 @app.route('/redime_ahora')
 def redime_ahora():
     documento_usuario = session.get('user_documento')
+    usuario = Usuario.query.filter_by(documento=documento_usuario).first()
     total_puntos = 0
     if documento_usuario:
         usuario = Usuario.query.filter_by(documento=documento_usuario).first()
        
         if usuario:
+   
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
             if puntos_usuario:
                 puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  
-                total_puntos = puntos_usuario.total_puntos + puntos_regalo  - puntos_redimidos
-   
-    return render_template("redime_ahora.html",total_puntos=total_puntos,usuario=usuario)
+                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+    return render_template("redime_ahora.html",total_puntos=total_puntos, usuario=usuario)
 
 @app.route('/acumulapuntos')
 def acumulapuntos():
@@ -992,12 +992,12 @@ def redimiendo():
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
             if puntos_usuario:
                 puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  
-                total_puntos = puntos_usuario.total_puntos + puntos_regalo  - puntos_redimidos
+                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
    
     return render_template("redimir.html",total_puntos=total_puntos)
-
+    
 #--------------------------------- Cupon Tienda fisica------------------------------------
+
 @app.route('/redimir_puntos_fisicos', methods=['POST'])
 @login_required
 def redimir_puntos_fisicos():
@@ -1005,13 +1005,13 @@ def redimir_puntos_fisicos():
         documento = session.get('user_documento')
         puntos_a_redimir = int(request.json.get('points'))
         codigo = request.json.get('code')
-       
+        
        
         tiempo_expiracion = datetime.now() + timedelta(hours=12)
- 
+
         # Verificar si el cupón ya existe y no ha expirado
         cupon_existente = historial_beneficio.query.filter_by(cupon_fisico=codigo, documento=documento, estado=False).first()
- 
+
         if cupon_existente:
             # Verificar si el cupón ha expirado
             if datetime.now() > cupon_existente.tiempo_expiracion:
@@ -1019,34 +1019,34 @@ def redimir_puntos_fisicos():
                 cupon_existente.estado = True
                 db.session.commit()
                 return jsonify({
-                    'success': False,
+                    'success': False, 
                     'message': 'El cupón ha expirado'
                 }), 400
- 
+
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
             if not puntos_usuario:
                 return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
- 
+
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
             puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
             puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
- 
+
             if puntos_a_redimir > puntos_disponibles:
                 return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
- 
+
             valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
             descuento = puntos_a_redimir * valor_del_punto
- 
+
             puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
             puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
- 
+
             cupon_existente.estado = True
             cupon_existente.valor_descuento = descuento
             cupon_existente.puntos_utilizados = puntos_a_redimir
             cupon_existente.fecha_canjeo = datetime.now()
- 
+
             db.session.commit()
- 
+
             return jsonify({
                 'success': True,
                 'new_total': puntos_usuario.puntos_disponibles,
@@ -1054,25 +1054,25 @@ def redimir_puntos_fisicos():
                 'descuento': descuento,
                 'tiempo_expiracion': tiempo_expiracion.isoformat()
             }), 200
- 
+
         # Si no existe un cupón previo, crear uno nuevo
         valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
         descuento = puntos_a_redimir * valor_del_punto
- 
+
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if not puntos_usuario:
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
- 
+
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
         puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
         puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
- 
+
         if puntos_a_redimir > puntos_disponibles:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
- 
+
         puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
         puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
- 
+
         nuevo_historial = historial_beneficio(
             id=uuid.uuid4(),
             documento=documento,
@@ -1084,10 +1084,10 @@ def redimir_puntos_fisicos():
             tiempo_expiracion=tiempo_expiracion,
             estado=False
         )
- 
+
         db.session.add(nuevo_historial)
         db.session.commit()
- 
+
         return jsonify({
             'success': True,
             'new_total': puntos_usuario.puntos_disponibles,
@@ -1095,45 +1095,460 @@ def redimir_puntos_fisicos():
             'descuento': descuento,
             'tiempo_expiracion': tiempo_expiracion.isoformat()
         }), 200
- 
+
     except Exception as e:
         db.session.rollback()
         print(f"Error: {e}")
         return jsonify({'success': False, 'message': f'Error al redimir puntos: {str(e)}'}), 500
- 
+
 @app.route('/check_coupon_status', methods=['POST'])
 @login_required
 def check_coupon_status():
     try:
         documento = session.get('user_documento')
         codigo = request.json.get('code')
-       
+        
         cupon = historial_beneficio.query.filter_by(cupon_fisico=codigo,documento=documento).first()
-       
+        
         if not cupon:
             return jsonify({'valid': False, 'message': 'Cupón no encontrado'}), 404
-       
+        
         current_time = datetime.now().replace(tzinfo=None)
         expiration_time = cupon.tiempo_expiracion.replace(tzinfo=None)
-       
+        
         is_expired = current_time > expiration_time
-       
+        
         if is_expired:
             cupon.estado = True
             db.session.commit()
             return jsonify({'valid': False, 'message': 'Cupón expirado'}), 200
-       
+        
         return jsonify({
             'valid': not cupon.estado,
             'codigo': cupon.cupon_fisico,
             'descuento': cupon.valor_descuento,
             'expiracion': cupon.tiempo_expiracion.isoformat()
         })
-       
+        
     except Exception as e:
         print(f"Error: {str(e)}")
         db.session.rollback()
         return jsonify({'valid': False, 'message': str(e)}), 500
+
+#inicio de la cobertura
+    
+def obtener_conexion_bd():
+    conn = pyodbc.connect('''DRIVER={SQL Server};
+                            SERVER=20.109.21.246;
+                            DATABASE=MICELU;
+                            UID=db_read;
+                            PWD=mHRL_<='(],#aZ)T"A3QeD''')
+    return conn
+
+def buscar_por_imei(imei):
+    """
+    Busca información asociada a un IMEI específico
+    """
+    conn = obtener_conexion_bd()
+    cursor = conn.cursor()
+    
+    consulta = """
+    WITH VSeriesUtilidadConcatenada AS (
+        SELECT *, 
+               Tipo_Documento + Documento AS Clave_Documento,
+               LEFT(Serie, 15) AS Serie_Truncada
+        FROM VSeriesUtilidad
+        WHERE Tipo_Documento IN ('FB', 'FM')
+          AND Valor > 0
+    ),
+    VreporteMVtradeConcatenada AS (
+        SELECT *, 
+               T_Dcto + Documento AS Clave_Documento
+        FROM VreporteMVtrade
+        WHERE Vendedor NOT IN ('1000644140', '0', '1026258734')
+    ),
+    MtMerciaFiltrada AS (
+        SELECT *
+        FROM MtMercia
+        WHERE CODLINEA = 'CEL'
+          AND CODGRUPO = 'SEMI'
+    ),
+    SeriesUnicas AS (
+        SELECT DISTINCT
+            VS.Serie_Truncada AS IMEI,
+            VS.Referencia AS Producto, 
+            CAST(VS.Valor AS FLOAT) AS Valor,
+            VS.Fecha_Inicial AS Fecha, 
+            VS.NIT, 
+            C.NOMBRE AS Nombre_Cliente, 
+            C.EMAIL AS Correo, 
+            C.TEL1 AS Telefono
+        FROM 
+            Clientes C
+        JOIN 
+            VSeriesUtilidadConcatenada VS ON C.NIT = VS.NIT
+        JOIN 
+            VreporteMVtradeConcatenada VR ON VS.Clave_Documento = VR.Clave_Documento
+        JOIN 
+            MtMerciaFiltrada MM ON VS.Producto = MM.CODIGO
+        WHERE VS.Serie_Truncada = ?
+    )
+    SELECT * FROM SeriesUnicas;
+    """
+    
+    try:
+        cursor.execute(consulta, (imei,))
+        resultado = cursor.fetchone()
+        
+        if resultado:
+            return {
+                'imei': resultado.IMEI,
+                'referencia': resultado.Producto,
+                'valor': float(resultado.Valor),
+                'fecha': resultado.Fecha.strftime('%Y-%m-%d') if resultado.Fecha else None,
+                'nit': resultado.NIT,
+                'nombre': resultado.Nombre_Cliente,
+                'correo': resultado.Correo,
+                'telefono': resultado.Telefono
+            }
+        return None
+        
+    except Exception as e:
+        print(f"Error en la consulta: {str(e)}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+        
+def obtener_token_auth():
+    url = 'https://ms.proteccionmovil.co/api/v1/auth/token'
+    params = {
+        'clientId': 'Q7bMfHwO6f2l4uWGV5B9',
+        'clientSecret': '6jfbwulaBbQ165xmblQxmgQZHsbyM1hoSjpjzA4m'
+    }
+    
+    respuesta = requests.get(url, params=params)
+    datos_respuesta = respuesta.json()
+    
+    return datos_respuesta['data']['token'], datos_respuesta['data']['type']
+def list_policy_options(imei, token, token_type):
+    """
+    Obtiene las opciones de póliza disponibles para un IMEI específico.
+    
+    Args:
+        imei (str): IMEI del dispositivo
+        token (str): Token de autenticación
+        token_type (str): Tipo de token
+    
+    Returns:
+        tuple: (plan_id, price_option_id) si es exitoso
+        dict: Diccionario con error si falla
+    """
+    try:
+        url = 'https://ms.proteccionmovil.co/api/v1/policies/options'
+        headers = {
+            'Authorization': f'{token_type} {token}',
+            'Content-Type': 'application/json'
+        }
+        params = {
+            'imei': imei,
+            'sponsorId': 'MICELU'
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        data = response.json()
+        
+        if response.status_code != 200 or 'data' not in data:
+            return {
+                'error': {
+                    'message': data.get('message', 'Error al obtener opciones de póliza'),
+                    'status': response.status_code
+                }
+            }
+            
+        # Obtener el primer plan y su primera opción de precio
+        plans = data['data'].get('plans', [])
+        if not plans:
+            return {
+                'error': {
+                    'message': 'No hay planes disponibles para este IMEI'
+                }
+            }
+            
+        first_plan = plans[0]
+        price_options = first_plan.get('priceOptions', [])
+        if not price_options:
+            return {
+                'error': {
+                    'message': 'No hay opciones de precio disponibles para este plan'
+                }
+            }
+            
+        return first_plan['id'], price_options[0]['id']
+        
+    except Exception as e:
+        return {
+            'error': {
+                'message': f'Error al obtener opciones de póliza: {str(e)}'
+            }
+        }
+
+class CoberturaEmailService:
+    def __init__(self):
+        self.connection_string = "endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA=="
+        self.sender_address = "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
+        
+    def enviar_confirmacion_cobertura(self, datos_cobertura, fecha_fin):
+        try:
+            email_client = EmailClient.from_connection_string(self.connection_string)
+            
+            message = {
+                "content": {
+                    "subject": "Confirmación de Cobertura micelu.co",
+                    "plainText": self._generar_mensaje_cobertura(datos_cobertura, fecha_fin)
+                },
+                "recipients": {
+                    "to": [
+                        {
+                            "address": datos_cobertura['correo'],
+                            "displayName": datos_cobertura['nombreCliente']
+                        }
+                    ]
+                },
+                "senderAddress": self.sender_address
+            }
+            
+            poller = email_client.begin_send(message)
+            return True, None
+            
+        except Exception as e:
+            error_msg = f"Error al enviar correo de cobertura: {str(e)}"
+            app.logger.error(error_msg)
+            return False, error_msg
+            
+    def _generar_mensaje_cobertura(self, datos, fecha_fin):
+        return f"""
+            Estimado(a) {datos['nombreCliente']},
+            
+            Su cobertura ha sido activada exitosamente por 6 meses con los siguientes detalles:
+            
+            IMEI: {datos['imei']}
+            Fecha de compra: {datos['fecha'].strftime('%d/%m/%Y')}
+            Valor: ${datos['valor']}
+            Vigencia hasta: {fecha_fin}
+            
+            Gracias por confiar en nosotros.
+            
+            Atentamente,
+            Equipo micelu.co
+        """
+
+
+# Crear una instancia del servicio de correo para coberturas
+cobertura_email_service = CoberturaEmailService()
+
+def clean_text(value):
+    if isinstance(value, str):
+        return ' '.join(value.split())
+    return value
+
+
+
+@app.route("/create_policy", methods=['POST'])
+def create_policy():
+    try:
+        datos = request.json
+        imei = datos.get('imei')
+        nombre = datos.get('nombre', '').strip()
+        nit = datos.get('nit', '').strip()
+        correo = datos.get('correo', '').strip()
+
+        if not all([imei, nombre, nit, correo]):
+            return jsonify({
+                'exito': False,
+                'mensaje': 'Todos los campos son requeridos'
+            }), 400
+
+        # Obtener token de autenticación
+        token, token_type = obtener_token_auth()
+
+        # Obtener opciones de póliza con la URL correcta
+        url = f'https://ms.proteccionmovil.co/api/v1/policy/imei/{imei}?sponsorId=MICELU'
+        headers = {
+            'Authorization': f'{token_type} {token}'
+        }
+        
+        response = requests.get(url, headers=headers)
+        policy_data = response.json()
+        
+        if 'error' in policy_data:
+            return jsonify({
+                'exito': False,
+                'mensaje': policy_data['error'].get('message', 'Error al obtener opciones de póliza')
+            }), 400
+
+        # Obtener plan_id y price_option_id del primer plan disponible
+        policies = policy_data['data']['policies']
+        plan_id = policies[0]['id']
+        price_option_id = policies[0]['pricingOptions'][0]['id']
+
+        # Preparar payload para la póliza
+        nombre_completo = nombre.split(' ')
+        first_name = nombre_completo[0]
+        last_name = ' '.join(nombre_completo[1:]) if len(nombre_completo) > 1 else ''
+
+        payload = {
+            "sponsorId": "MICELU",
+            "planId": plan_id,
+            "priceOptionId": price_option_id,
+            "device": {
+                "imei": imei,
+                "line": 'POR_ACTUALIZAR'
+            },
+            "client": {
+                "genderId": "POR_ACTUALIZAR",
+                "email": correo,
+                "firstName": first_name,
+                "lastName": last_name,
+                "identification": {
+                    "type": "CEDULA_CIUDADANIA",
+                    "number": nit
+                }
+            }
+        }
+
+        # Pre-generar póliza
+        url_pre = 'https://ms.proteccionmovil.co/api/v1/policy/pregeneration'
+        headers['Content-Type'] = 'application/json'
+        
+        pre_response = requests.post(url_pre, headers=headers, json=payload)
+        pre_data = pre_response.json()
+        
+        if 'error' in pre_data or ('data' in pre_data and pre_data['data']['message'] != 'Pregeneración exitosa'):
+            error_msg = pre_data.get('error', {}).get('message', 'Error en la pregeneración de la póliza')
+            return jsonify({
+                'exito': False,
+                'mensaje': error_msg
+            }), 400
+
+        # Generar póliza final
+        url_generate = 'https://ms.proteccionmovil.co/api/v1/policy'
+        final_response = requests.post(url_generate, headers=headers, json=payload)
+        final_data = final_response.json()
+        
+        if 'error' in final_data:
+            return jsonify({
+                'exito': False,
+                'mensaje': final_data['error'].get('message', 'Error al generar la póliza final')
+            }), 400
+
+        return jsonify({
+            'exito': True,
+            'mensaje': 'Póliza creada exitosamente',
+            'policy_id': final_data['data'].get('id')
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error al crear póliza: {str(e)}")
+        return jsonify({
+            'exito': False,
+            'mensaje': f'Error en el servidor: {str(e)}'
+        }), 500
+
+@app.route("/cobertura", methods=['POST'])
+def cobertura():
+    datos = request.json
+    imei = datos.get('imei')
+    accion = datos.get('accion', 'buscar')
+    
+    if not imei:
+        return jsonify({
+            'exito': False,
+            'mensaje': 'El IMEI es obligatorio para continuar'
+        }), 400
+    
+    try:
+        if accion == 'buscar':
+            datos_cobertura = buscar_por_imei(imei)
+            
+            if not datos_cobertura:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'No se encontró información para el IMEI ingresado'
+                }), 404
+            
+            return jsonify({
+                'exito': True,
+                'datos': datos_cobertura
+            })
+            
+        elif accion == 'guardar':
+            nit = datos.get('nit')
+            if not nit:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'El documento (NIT) es un campo obligatorio'
+                }), 400
+                
+            try:
+                nit_limpio = nit.replace('-', '').replace('.', '').strip()
+                nit_int = int(nit_limpio)
+            except ValueError:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'El documento debe ser un número válido sin puntos ni espacios'
+                }), 400
+            
+            datos_guardar = {
+                'documento': nit_int,
+                'imei': imei,
+                'nombreCliente': datos.get('datos', {}).get('nombre', '').strip(),
+                'correo': datos.get('datos', {}).get('correo', '').strip(),
+                'fecha': datetime.strptime(datos.get('fecha'), '%Y-%m-%d'),
+                'valor': float(datos.get('valor', 0)),
+                'referencia': datos.get('referencia', '').strip(),
+                'telefono': datos.get('telefono', '').strip()
+                
+            }
+            
+            try:
+                nueva_cobertura = cobertura_clientes(**datos_guardar)
+                db.session.add(nueva_cobertura)
+                db.session.commit()
+                
+                fecha_fin = (datetime.now() + timedelta(days=180)).strftime('%d/%m/%Y')
+                
+                exito, error = cobertura_email_service.enviar_confirmacion_cobertura(
+                    datos_guardar, 
+                    fecha_fin
+                )
+                
+                if not exito:
+                    app.logger.warning(f"La cobertura se guardó pero hubo un error al enviar el correo: {error}")
+                
+                return jsonify({
+                    'exito': True,
+                    'mensaje': 'La cobertura ha sido activada exitosamente por 6 meses'
+                })
+                
+            except Exception as e:
+                app.logger.error(f"Error al procesar la cobertura: {str(e)}")
+                db.session.rollback()
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'Ha ocurrido un error al procesar la solicitud. Por favor, inténtelo nuevamente.'
+                })
+            
+    except Exception as e:
+        app.logger.error(f"Error en el servidor: {str(e)}")
+        return jsonify({
+            'exito': False,
+            'mensaje': f'Error en el servidor: {str(e)}'
+        }), 500
+        
+@app.route('/cobertura', methods=['GET'])
+def cobertura1():
+    return render_template("cobertura.html")
     
 if __name__ == '__app__':
     app.run(port=os.getenv("PORT", default=5000))
