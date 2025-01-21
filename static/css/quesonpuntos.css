@@ -5,7 +5,6 @@ body {
 
   .container.custom-container {
     padding: 30px; /* Ajusta el padding si es necesario */
-    margin-top: 10px;
    
 }
 
@@ -18,7 +17,7 @@ body {
   }
  
   .col {
-    margin-bottom: 30px;
+    margin-bottom: 10px;
   }
  
   .card {

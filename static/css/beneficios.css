@@ -15,6 +15,7 @@
     margin: 0 auto;
     
 }
+.carousel-control-prev-icon, 
 .carousel-control-next-icon {
     background-color: #185F64;
     width: 30px;
@@ -40,7 +41,19 @@
     height: 500px;
     /* altura de los indicadores */
 }
-
+@media (max-width: 600px) {
+    .carousel-control-prev, 
+    .carousel-control-next {
+        display: none; 
+    }
+}
+/* Ocultar las flechas en pantallas medianas (entre 600px y 1024px) */
+@media (min-width: 600px) and (max-width: 1024px) {
+    .carousel-control-prev, 
+    .carousel-control-next {
+        display: none; 
+    }
+}
 /*----------------------estilos para las cards-----------------------------*/
 .carousel-item .card {
     display: flex;
@@ -175,27 +188,6 @@
 
 }
 
-.product-price {
-    font-family: 'Poppins', sans-serif;
-    font-size: 1.5rem;
-    color: rgb(114, 48, 114);
-    font-weight: bold;
-    margin: 20px;
-}
-
-.product-points {
-    font-family: 'Poppins', sans-serif;
-    font-size: 1.5rem;
-    color: rgb(114, 48, 114);
-    font-weight: bold;
-}
-
-
-.product-description {
-    font-size: 1rem;
-    line-height: 1.5;
-    color: #444;
-}
 
 @media (max-width: 768px) {
     .product-card {
@@ -338,6 +330,43 @@
     color: #343a40;
 
 }
+/* Media Queries para pantallas pequeñas */
+@media (max-width: 768px) {
+    .custom-card {
+        width: 100%;
+        margin-right: 10px;
+        margin-left: 10px;
+    }
+
+    .custom-card-img {
+        height: auto;
+    }
+
+    .custom-card-body {
+        padding: 10px;
+    }
+}
+
+/* Media Queries para pantallas muy pequeñas (celulares) */
+@media (max-width: 480px) {
+    .custom-container {
+        padding: 15px;
+    }
+
+    .custom-card {
+        width: 80%;
+        margin-right: 5px;
+        margin-left: 5px;
+    }
+
+    .custom-card-text {
+        font-size: 0.9rem;
+    }
+
+    .custom-card-body {
+        padding: 10px;
+    }
+}
 
 .titulo1 {
     font-size: 3rem;
@@ -345,14 +374,15 @@
     font-family: 'Poppins', sans-serif;
     font-weight: bold;
     color: #185F64;
-    margin: 20px;
+    margin: 10px;
+    margin-top: 5px;
 }
 
 .titulo2 {
     font-size: 2.5rem;
     text-align: center;
     font-family: 'Poppins', sans-serif;
-    margin: 40px;
+    margin-top: 5px;
     font-weight: bold;
     color: #004C49;
 }
@@ -401,6 +431,15 @@
     background-color: #31C0CA; 
     color: #fff; 
 }
+/*.redime {
+    position: absolute;
+    bottom: 5px; 
+    left: 48%; 
+    transform: translateX(-50%); 
+}
+.image-container {
+    position: relative;
+}*/
 
 /*-----estilos para redimir*/
 .container {
@@ -470,6 +509,7 @@
     .modal-content {
         height: auto;
         max-height: 90vh;
+        z-index: 9999;
     }
 
     .modal-title {
@@ -552,6 +592,18 @@
     cursor: pointer;
     transition: background-color 0.3s;
 }
+#redeem-button1 {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    font-size: 1.2rem;
+    color: #fff;
+    background-color: #28A0A8;
+    border: none;
+    border-radius: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
 
 /* Estilo para el logo */
 .logo-container {
@@ -594,15 +646,21 @@
     display: inline-block;
 }
 
-.Pun {
-    font-size: 20px;
-    font-weight: bold;
-    color: #000000;
-    font-family: 'Poppins', sans-serif;
- 
-}
 /*--------- style para el cuadro de puntos*/
 #points-input {
+    width: 60%;
+    padding: 0.5rem;
+    border: 2px solid #28A0A8;
+    border-radius: 12px;
+    font-size: 1rem;
+    color: #000000;
+    background-color: #fff;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    margin-right: 0.5rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    height: 50px;
+}
+#points-input1 {
     width: 60%;
     padding: 0.5rem;
     border: 2px solid #28A0A8;
@@ -618,7 +676,7 @@
 
 /*cards para acumular*/
 .container {
-    padding: 20px;
+    padding: 10px;
 }
 
 .row {
@@ -636,7 +694,7 @@
     border-radius: 10px;
     overflow: hidden;
     transition: transform 0.3s ease;
-    margin: 20px;
+    margin: 10px;
 }
 
 .card2:hover {
@@ -699,7 +757,6 @@
     height: auto; 
     object-fit: cover;
   }
-/*----------estilos del loader--------*/
 
 /*----------estilos del loader--------*/
 .container-fluid1 {
@@ -776,7 +833,7 @@
 .custom-text {
     font-size: 17px;
     color: #000000; 
-    font-weight: boldc;
+    font-weight: bold;
     text-align: center; 
     margin-top: 20px; 
     font-family: 'Poppins', sans-serif; 
@@ -785,4 +842,216 @@
 .coupon-card {
     border-color: #185F64;
   }
+
+  /*-----Botones a seleccionar----*/
+  /* Estilo para el botón primario */
+.btn-primary1 {
+    background: linear-gradient(45deg, #185F64, #00d2ff); /* Gradiente de azul */
+    border: none;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 10px; 
+    text-transform: uppercase;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
+    transition: all 0.3s ease-in-out; /* Transición suave */
+}
+
+.btn-primary1:hover {
+    background: linear-gradient(45deg, #00d2ff, #007bff); /* Inversión del gradiente al pasar el mouse */
+    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.6); 
+    transform: translateY(-2px); /* Elevar el botón al hacer hover */
+}
+
+.btn-primary1:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.4); /* Efecto de enfoque */
+}
+
+/* Estilo para el botón secundario */
+.btn-secondary1 {
+    background: linear-gradient(45deg, #6c757d, #9e9e9e); /* Gradiente de gris */
+    border: none;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 10px; 
+    text-transform: uppercase; 
+    box-shadow: 0 4px 8px rgba(108, 117, 125, 0.4); 
+    transition: all 0.3s ease-in-out; /* Transición suave */
+}
+
+.btn-secondary1:hover {
+    background: linear-gradient(45deg, #9e9e9e, #6c757d); 
+    box-shadow: 0 6px 12px rgba(108, 117, 125, 0.6);
+    transform: translateY(-2px); 
+}
+
+.btn-secondary1:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(108, 117, 125, 0.4); /* Efecto de enfoque */
+}
+.text-descuento{
+    font-weight: bold;
+    text-align: center;
+    padding: 10px 15px; 
+}
+
+
+/*---- estilos para el modal de la cobertura-----*/
+.coverage-container {
+    width: 100%;
+    padding: 2rem;
+    margin: 0 auto;
+  }
+  
+  .coverage-wrapper {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  
+  .coverage-main {
+    width: 100%;
+  }
+  /* Tarjeta del formulario */
+.coverage-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 10px auto;
+    width: 100%;
+  }
+  
+  .coverage-header {
+    background: white;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .coverage-title {
+    font-size: 1.5rem;
+    color: #000000;
+    margin: 0;
+    font-weight: 600;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  .coverage-body {
+    padding: 2rem;
+  }
+/* Estructura del formulario */
+.coverage-form {
+    width: 100%;
+  }
+  
+  .coverage-row {
+    margin-bottom: 1.5rem;
+    width: 100%;
+  }
+  
+  .coverage-field {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  /* Elementos del formulario */
+.coverage-label {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #000000;
+    font-family: 'Poppins', sans-serif;
+  }
+  .coverage-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  .coverage-input:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+  /* Botón de acción */
+.coverage-action {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  .coverage-button {
+    padding: 0.75rem 2.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #0F7A83;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+  }
+  .coverage-button:hover:not(:disabled) {
+    background-color: #0b5ed7;
+  }
+  .coverage-button:disabled {
+    background-color: #0F7A83;
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+  /* Responsive */
+@media (max-width: 768px) {
+    .coverage-container {
+      padding: 1rem;
+    }
+    
+    .coverage-body {
+      padding: 1.5rem;
+    }
+    
+    .coverage-input {
+      padding: 0.625rem 0.875rem;
+    }
+  }
+/* Estilo para resaltar el enlace de Activar Cobertura */
+#coberturaLink {
+    background-color: #31C0CA; 
+    color: #ffffff;          
+    font-weight: bold;        
+    border-radius: 2px;       
+    padding: 8px 12px;        
+    text-align: center;       
+    transition: background-color 0.3s ease, color 0.3s ease; 
+    margin-top: 13px;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+#coberturaLink:hover {
+    background-color: #1A9BA4;
+    color: #ffffff;          
+    text-decoration: none;    
+}
+  /* Efecto al hacer clic */
+#coberturaLink:active {
+    background-color: #0F7A83; 
+    color: #E0FFFF;          
+  }
+  .text-wrap {
+    margin-top: 5px;
+    word-wrap: break-word; 
+    background: #0F7A83;
+    color: white;
+    padding: 0.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.35rem;
+  }
+  .cobertura1{
+    background-color: #f0f0f0;
+  }
+
   

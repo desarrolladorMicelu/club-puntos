@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Usuario</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño1.png') }}">
-    
+   
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/login.css') }}">
@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/alertacrear.js') }}"></script>
-
+ 
 </head>
 <body class="bodylogin">
     {% with messages = get_flashed_messages(with_categories=True) %}
@@ -30,7 +30,7 @@
         </div>
     {% endif %}
     {% endwith %}
-
+ 
     <a href="{{ url_for('login') }}" class="back-arrow">
         <i class="fa-solid fa-circle-arrow-left"></i>
     </a>
@@ -71,6 +71,16 @@
                             </span>
                         </div>
                     </div>
+                    <div class="mb-4">
+                        <label for="genero" class="label-text">
+                            <i class="fas fa-venus-mars" style="color: black; font-size: 15px"></i> Género:
+                        </label>
+                        <select class="form-control form-select" name="genero" id="genero" required>
+                            <option value="" disabled selected style="background-color: white;">Seleccione género</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                        </select>
+                    </div>
                     <div class="mb-4 form-check">
                         <input type="checkbox" class="form-check-input" id="habeasdata" name="habeasdata" required>
                         <label class="form-check-label" for="habeasdata">
@@ -87,31 +97,9 @@
         </div>
     </section>
     <br>
-    <script>
-        function togglePasswordVisibility(inputId, toggleId) {
-            var passwordInput = document.getElementById(inputId);
-            var toggleIcon = document.getElementById(toggleId).querySelector('i');
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.remove('bi-eye');
-                toggleIcon.classList.add('bi-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.remove('bi-eye-slash');
-                toggleIcon.classList.add('bi-eye');
-            }
-        }
 
-        document.getElementById('togglePassword1').addEventListener('click', function() {
-            togglePasswordVisibility('password1', 'togglePassword1');
-        });
-
-        document.getElementById('togglePassword2').addEventListener('click', function() {
-            togglePasswordVisibility('password2', 'togglePassword2');
-        });
-    </script>
 <div class="footer">
-    <div class="Principalfooter">
+    <!---<div class="Principalfooter">
         <div class="social-icons">
             <div class="social-item">
                 <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
@@ -132,17 +120,37 @@
                 <p class="text-icono">Instagram</p>
             </div>
         </div>
-    </div>
+    </div>!-->
     <div class="footer1">
         <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
     </div>
 </div>
+<script>
+    function togglePasswordVisibility(inputId, toggleId) {
+        var passwordInput = document.getElementById(inputId);
+        var toggleIcon = document.getElementById(toggleId).querySelector('i');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.remove('bi-eye');
+            toggleIcon.classList.add('bi-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('bi-eye-slash');
+            toggleIcon.classList.add('bi-eye');
+        }
+    }
 
+    document.getElementById('togglePassword1').addEventListener('click', function() {
+        togglePasswordVisibility('password1', 'togglePassword1');
+    });
 
-
-
+    document.getElementById('togglePassword2').addEventListener('click', function() {
+        togglePasswordVisibility('password2', 'togglePassword2');
+    });
+</script>
+ 
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>    
-
+ 
 </body>
 </html>

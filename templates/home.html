@@ -14,7 +14,8 @@
   <meta http-equiv="refresh" content="14400">
 
   <title>Personas</title>
-  <link rel="icon" type="image/x-icon"  id="favicon1" href="{{ url_for('static', filename='images/logopequeño.png') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="icon" type="image/x-icon" id="favicon1" href="{{ url_for('static', filename='images/logopequeño.png') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
   <!-- slider stylesheet -->
@@ -52,7 +53,7 @@
         <nav class="navbar navbar-expand-lg custom_nav-container ">
           <a class="navbar-brand">
             <span>
-             <img src="{{ url_for('static', filename='images/logopequeño.png') }}" class="imgcelu">
+              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" class="imgcelu">
             </span>
           </a>
           <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
@@ -76,56 +77,56 @@
                 <li class="nav-item ">
                   <a class="nav-link active " href="/acumulapuntos">Acumula</a>
                 </li>
-              <ul class="navbar-nav  ">
-                <li class="nav-item ">
-                  <a class="nav-link login-button" href="/iniciosesion">Inciar Sesion</a>
-                </li>
-            </div>
+                
+                <ul class="navbar-nav  ">
+                  <li class="nav-item ">
+                    <a class="nav-link login-button" href="/iniciosesion">Iniciar Sesion</a>
+                  </li>
           </div>
-
-        </nav>
       </div>
-    </header>
-    <!-- end header section -->
-    <!------ inicio carrusel-->
-    <!<div class="section">
-        <img src="{{ url_for('static', filename='images/banner1.png') }}" class="imgcelu">
-      </div> 
-      
-        <h1 class="titulo1">Disfruta de tus Puntos Micelu.co</h1>
-        <div class="container custom-container">
-          <div class="row">
-            <div class="col-md-4">
-              <div class="custom-card">
-                <img src="{{ url_for('static', filename='images/REGISTRATE.png') }}" class="custom-card-img" alt="...">
-                <div class="custom-card-body">
-                  <button onclick="location.href='/iniciosesion'" class="btn btn-dark">Registrate ahora</button>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="custom-card">
-                <img src="{{ url_for('static', filename='images/ACUMULA.png') }}" class="custom-card-img" alt="...">
-                <div class="custom-card-body">
-                  <button onclick="location.href='/acumulapuntos'" class="btn btn-dark">Acumular</button>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="custom-card">
-                <img src="{{ url_for('static', filename='images/REDIME.png') }}" class="custom-card-img" alt="...">
-                <div class="custom-card-body">
-                  <button onclick="location.href='/redimir'" class="btn btn-dark">Descubre</button>
-                </div>
-              </div>
+
+      </nav>
+  </div>
+  </header>
+  <!-- end header section -->
+  <!------ inicio carrusel-->
+  <!<div class="section">
+    <img src="{{ url_for('static', filename='images/banner1.png') }}" class="imgcelu">
+    </div>
+
+    <h1 class="titulo1">Disfruta de tus Puntos Micelu.co</h1>
+    <div class="container custom-container">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="custom-card">
+            <img src="{{ url_for('static', filename='images/REGISTRATE.png') }}" class="custom-card-img" alt="...">
+            <div class="custom-card-body">
+              <button onclick="location.href='/iniciosesion'" class="btn btn-dark">Registrate ahora</button>
             </div>
           </div>
-        </div> <!-- Esta es la última div que cierra el contenedor principal -->
-        
-
+        </div>
+        <div class="col-md-4">
+          <div class="custom-card">
+            <img src="{{ url_for('static', filename='images/ACUMULA.png') }}" class="custom-card-img" alt="...">
+            <div class="custom-card-body">
+              <button onclick="location.href='/acumulapuntos'" class="btn btn-dark">Acumular</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="custom-card">
+            <img src="{{ url_for('static', filename='images/REDIME.png') }}" class="custom-card-img" alt="...">
+            <div class="custom-card-body">
+              <button onclick="location.href='/redimir'" class="btn btn-dark">Descubre</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> <!-- Esta es la última div que cierra el contenedor principal -->
+   
     <!-- menu section -->
     <div class="footer">
-      <div class="Principalfooter">
+      <!---<div class="Principalfooter">
           <div class="social-icons">
               <div class="social-item">
                   <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
@@ -146,7 +147,7 @@
                   <p class="text-icono">Instagram</p>
               </div>
           </div>
-      </div>
+      </div>!-->
       <div class="footer1">
           <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
       </div>
@@ -157,6 +158,7 @@
 
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

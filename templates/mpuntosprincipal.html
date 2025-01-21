@@ -75,6 +75,9 @@
                   <a class="nav-link" href="/mpuntosprincipal">Canjea Puntos</a>
                 </li>
                 <li class="nav-item">
+                  <a class="nav-link" href="/cobertura" id="coberturaLink">Activa Cobertura</a>
+                </li>
+                <li class="nav-item">
                   <a class="nav-link" href="#" id="customLogoutButton">Cerrar sesión</a>
                 </li>
 
@@ -84,7 +87,7 @@
                       <i class="fa-solid fa-user" style="color: #31C0CA"></i>
                       <span class="fw-bold1"> Hola {{ usuario.nombre|title }}, tienes</span>
                     </div>
-                    <span id="nav-points" class="badge custom-badge ms-2">{{ total_puntos }} Puntos</span>
+                    <span id="nav-points" class="badge custom-badge ms-2">{{ "{:,.0f}".format(total_puntos) }} Puntos</span>
                   </div>
                 </li>
               </ul>
@@ -104,9 +107,15 @@
     </header>
     <!-- end header section -->
     <!------ inicio carrusel-->
-    <div class="">
-      <img src="{{ url_for('static', filename='images/banner.png') }}" class="imgcelu">
+    <div class="banner-container">
+      <div class="image-container">
+          <img src="{{ url_for('static', filename='images/banner.png') }}"   class="imgcelu">
+          <!--<div class="redime">
+              <a href="{{ url_for('redime_ahora') }}" class="btn btn-lg btn-rdm">Redimir ahora</a>
+          </div>!-->
+      </div>
     </div>
+  
 
     <div class="carousel-wrapper">
       <div id="carouselExample" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
@@ -167,7 +176,7 @@
     </section>
     <!-- menu section -->
     <div class="footer">
-      <div class="Principalfooter">
+      <!---<div class="Principalfooter">
         <div class="social-icons">
           <div class="social-item">
             <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
@@ -189,7 +198,7 @@
             <p class="text-icono">Instagram</p>
           </div>
         </div>
-      </div>
+      </div>!--->
       <div class="footer1">
         <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
       </div>

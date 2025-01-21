@@ -77,6 +77,9 @@
                   <a class="nav-link" href="/mpuntosprincipal">Canjea Puntos</a>
                 </li>
                 <li class="nav-item">
+                  <a class="nav-link" href="/cobertura" id="coberturaLink">Activa Cobertura</a>
+                </li>
+                <li class="nav-item">
                   <a class="nav-link" href="#" id="customLogoutButton">Cerrar sesión</a>
                 </li>
 
@@ -86,7 +89,7 @@
                       <i class="fa-solid fa-user" style="color: #31C0CA"></i>
                       <span class="fw-bold1"> Hola {{ usuario.nombre|title }}, tienes</span>
                     </div>
-                    <span id="nav-points" class="badge custom-badge ms-2">{{ total_puntos }} Puntos</span>
+                    <span id="nav-points" class="badge custom-badge ms-2">{{ "{:,.0f}".format(total_puntos) }} Puntos</span>
                   </div>
                 </li>
 
@@ -183,41 +186,85 @@
     </div>
     <!-- Aside -->
     <div class="tabla-redimir">
-      <aside class="col-md-4">
-          <div class="table-container">
-              <div class="container mt-4">
-                  <h3 class="titulo3">¡Canjea tus puntos ahora!</h3>
-                  <table class="tabla-puntos">
+      <aside class="col-md-12">
+        <div class="table-container">
+          <div class="container mt-4">
+            <h3 class="titulo3">¡Club de puntos elige el metodo y Canjea tus puntos ahora!</h3>
+    
+            <!-- Botones para seleccionar el método -->
+            <div class="row d-flex justify-content-between mb-3">
+              <div class="col-md-12 text-center">
+                <button id="tab-virtual" class="btn btn-primary1" onclick="mostrarTabla('virtual')">Canje en Tienda Virtual</button>
+                <button id="tab-fisica" class="btn btn-secondary1" onclick="mostrarTabla('fisica')">Canje en Tienda Física</button>
+              </div>
+            </div>
+    
+            <!-- Contenedor de las tablas -->
+            <div class="row d-flex justify-content-between">
+              <div class="col-md-12">
+                <div id="tabla-container">
+                  <div id="tabla-virtual" class="tabla-puntos">
+                    <table>
                       <thead>
-                          <tr>
-                              <th>Club de Puntos</th>
-                          </tr>
+                        <tr>
+                          <th>Canje en Tienda Virtual</th>
+                        </tr>
                       </thead>
                       <tbody>
-                          <tr>
-                              <td>
-                                  <div class="d-flex align-items-center">
-                                      <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="custom-logo">
-                                      <input type="text" id="points-input" placeholder="Ingrese puntos">
-                                  </div>
-                                  <button id="redeem-button" class="btn btn-primary mt-2">Redimir Puntos</button>
-                                  <button id="ver-cupon" class="btn btn-secondary mt-2">Ver Cupón</button>
-                              </td>
-                          </tr>
-                          <tr>
-                              <td class="Pun">Puntos actuales: <span id="current-points">{{ total_puntos }}</span></td>
-                          </tr>
+                        <tr>
+                          <td>
+                            <div class="d-flex align-items-center">
+                              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="custom-logo">
+                              <input type="text" id="points-input" placeholder="Ingrese puntos">
+                            </div>
+                            <button id="redeem-button" class="btn btn-primary mt-2">Redimir Puntos</button>
+                            <button id="ver-cupon" class="btn btn-secondary mt-2">Ver Cupón</button>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="Pun">Puntos actuales: <span id="current-points">{{ total_puntos }}</span></td>
+                        </tr>
                       </tbody>
-                  </table>
+                    </table>
+                  </div>
+    
+                  <!-- Cuadro para redimir puntos en tienda física -->
+                  <div id="tabla-fisica" class="tabla-puntos" style="display: none;">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Canje en Tienda Física</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <div class="d-flex align-items-center">
+                              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="custom-logo">
+                              <input type="text" id="points-input1" placeholder="Ingrese puntos" class="form-control">
+                            </div>
+                            <div class="d-flex align-items-center mt-2">
+                              <span class="text-descuento"> ¡Redime tus puntos en tienda física!</span>
+                            </div>
+                            <button id="redeem-button1" class="btn btn-primary mt-2">Redimir Puntos</button>
+                            <button id="ver-cupon1" class="btn btn-secondary mt-2">Ver Cupón</button>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="Pun">Puntos actuales: <span id="current-points">{{ total_puntos }}</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
+            </div>
           </div>
+        </div>
       </aside>
-  </div>
-  
-  </div>
-  </div>  
-
-  </div>
+    </div>
+    <br>
+    
   <!-------------------------- MODAL REDIMIR PUNTOS------------------------------->
 
   <div class="modal fade" id="redemptionModal" tabindex="-1" aria-labelledby="redemptionModalLabel" aria-hidden="true">
@@ -278,7 +325,7 @@
             <div class="card-body">
               <h5 class="card-title">Código del Cupón</h5>
               <p class="card-text"><strong id="couponCode" class="fs-4"></strong></p>
-              <button onclick="copiarCodigo()"><i class="fa-solid fa-copy"></i></button>
+              <button onclick="copiarCodigo()" class="btn btn-secondary btn-sm"> <i class="fa-solid fa-copy"></i>Copiar cupon</button>
             </div>
           </div>
           <p class="custom-text">Tu cupón expira en 12 horas. ¡Úsalo en tu próxima compra!</p>
@@ -290,57 +337,109 @@
       </div>
     </div>
   </div>
-  <script src="path/to/bootstrap.bundle.min.js"></script> <!-- Bootstrap JS -->
-  <div class="footer">
-    <div class="Principalfooter">
-      <div class="social-icons">
-        <div class="social-item">
-          <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-            <i class="fa-brands fa-whatsapp"></i>
-          </a>
-          <p class="text-icono">Comprar</p>
+
+  <!--------Modal para redimir fisico-->
+  <div class="modal fade" id="redemptionModal1" tabindex="-1" aria-labelledby="redemptionModalLabel1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <!-- Encabezado del Modal -->
+            <div class="modal-header custom-bg-color text-white">
+                <h5 class="modal-title" id="redemptionModalLabel1">Cupón Generado</h5>
+            </div>
+            
+            <!-- Contenido Principal del Modal -->
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-tag text-success" style="font-size: 30px;"></i>
+                </div>
+                <h4 class="text-center mb-4">¡Aquí está tu cupón exclusivo!</h4>
+                
+                <!-- Diseño de los cuadros del cupón -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3 coupon-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Código del Cupón</h5>
+                                <p class="card-text"><strong id="redemptionCode1" class="fs-4"></strong></p>
+                                <button id="copyCodeButton1" class="btn btn-outline-success btn-sm">
+                                    <i class="fa-solid fa-copy"></i> Copiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3 coupon-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Descuento Aplicado</h5>
+                                <p class="card-text"><strong id="redemptionDiscount1" class="fs-4"></strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="custom-text text-center mt-3">Tu cupón expira en <strong id="redemptionExpiration1"></strong>. ¡Úsalo en tienda Fisica</p>
+            </div>
+            
+            <!-- Pie del Modal con botón para cerrar -->
+            <div class="modal-footer">
+                <button type="button" id="closeModalButton1" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
         </div>
-        <div class="social-item">
-          <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
-            <i class="fa-brands fa-tiktok"></i>
-          </a>
-          <p class="text-icono">Tiktok</p>
-        </div>
-        <div class="social-item">
-          <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer"
-            class="icon-instagram">
-            <i class="fa-brands fa-instagram"></i>
-          </a>
-          <p class="text-icono">Instagram</p>
-        </div>
-      </div>
     </div>
-    <div class="footer1">
-      <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+</div>
+
+<div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel"
+aria-hidden="true">
+<div class="modal-dialog custom-logout-modal-dialog" role="document">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title" id="customLogoutModalLabel">Confirmar cierre de sesión</h5>
+    </div>
+    <div class="modal-body">
+      ¿Deseas cerrar esta sesión?
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="cancelLogoutButton">No</button>
+      <a href="{{ url_for('logout') }}" class="btn btn-primary">Sí</a>
     </div>
   </div>
+</div>
+</div>
 
-  <div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog custom-logout-modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="customLogoutModalLabel">Confirmar cierre de sesión</h5>
+
+  <script src="path/to/bootstrap.bundle.min.js"></script> <!-- Bootstrap JS -->
+  <div class="footer">
+          <!---<div class="Principalfooter">
+        <div class="social-icons">
+          <div class="social-item">
+            <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
+              <i class="fa-brands fa-whatsapp"></i>
+            </a>
+            <p class="text-icono">Comprar</p>
+          </div>
+          <div class="social-item">
+            <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
+              <i class="fa-brands fa-tiktok"></i>
+            </a>
+            <p class="text-icono">Tiktok</p>
+          </div>
+          <div class="social-item">
+            <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer"
+              class="icon-instagram">
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+            <p class="text-icono">Instagram</p>
+          </div>
         </div>
-        <div class="modal-body">
-          ¿Deseas cerrar esta sesión?
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="cancelLogoutButton">No</button>
-          <a href="{{ url_for('logout') }}" class="btn btn-primary">Sí</a>
-        </div>
-      </div>
+      </div>!--->
+    <div class="footer1">
+      <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
     </div>
   </div>
 
 
   <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
   <script src="{{ url_for('static', filename='js/movimiento.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/redimir_fisico.js') }}"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
 </body>
