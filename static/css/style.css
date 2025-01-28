@@ -25,7 +25,7 @@ body .back-arrow {
       font-size: 20px !important; /* Reduce el tamaño de la fuente */
       background-color: rgba(255, 255, 255, 0.8) !important; /* Fondo semi-transparente */
       padding: 5px 10px !important; /* Añade un poco de padding */
-      border-radius: 50% !important; /* Hace el fondo circular */
+      border-radius: 50% !important; 
       box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; /* Añade una sombra sutil */
   }
 }
@@ -195,9 +195,9 @@ body {
     margin: 0 auto;
   }
   
-  /*estilos para las opciones del navbar*/
+  /*estilos para las opciones del navbar */
   .custom_nav-container .navbar-nav .nav-item .nav-link {
-    padding: 20px 60px;
+    padding: 20px 40px;
     color: #ffffff;
     text-align: center;
     position: relative;
@@ -751,7 +751,7 @@ body {
   /* footer section*/
   .footer_section {
     background-color: #ffffff;
-    padding: 20px;
+    padding: 10px;
     font-family: "Poppins", sans-serif;
     font-weight: 500;
   }
@@ -957,6 +957,9 @@ body {
  .content {
   flex: 1;
 }
+.footer1{
+  margin-top: 15px;
+}
 .footer {
   position: fixed;
   bottom: 0;
@@ -964,16 +967,15 @@ body {
   background-color: #000000;
   color: #fff;
   text-align: center;
-  border-top-left-radius: 3vw;
-  border-top-right-radius: 3vw;
   border: 1px solid black;
   z-index: 10;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 10px 0;
-  height: 100px;
+  padding: 10px;
+  height: 45px;
+
 }
 .Principalfooter {
   display: flex;
@@ -1006,6 +1008,8 @@ body {
 .footer-link {
   color: #ffffff;
   text-decoration: none;
+  
+  
 }
 .footer-link:hover, .footer-link:focus, .footer-link:active {
   color: #ffffff;
@@ -1049,12 +1053,14 @@ body {
 }
 
 .custom-dropdown-item {
-  color: rgb(152, 8, 8) !important;
+  color: #218293 !important;
   text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
 }
 
 .custom-dropdown-item:hover {
-  background-color: #f8f9fa;
+  background-color: #f4f4f4;
 }
 
 .dropdown {
@@ -1071,7 +1077,7 @@ body {
   left: auto;
   min-width: 120px;
   text-align: center;
-  padding: 10px;
+  padding: 5px;
   margin-top: 5px;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -1388,7 +1394,7 @@ input[type="email"], input[type="tel"] {
 .container-fluid1 {
   width: 96%;
 }
-/* Estilo para pantallas pequeñas (por ejemplo, móviles) */
+/* Estilo para pantallas pequeñas */
 @media (max-width: 600px) {
   .historial {
       width: 90%;
@@ -1396,7 +1402,7 @@ input[type="email"], input[type="tel"] {
   }
 }
 
-/* Estilo para pantallas medianas (por ejemplo, tablets) */
+/* Estilo para pantallas medianas ( tablets) */
 @media (min-width: 601px) and (max-width: 1024px) {
   .historial {
       width: 90%;
@@ -1418,8 +1424,8 @@ input[type="email"], input[type="tel"] {
  
 }
 .icon-text-container {
-  display: flex; /* Alinea el icono y el texto en una fila */
-  align-items: center; /* Alinea el icono y el texto verticalmente al centro */
+  display: flex; 
+  align-items: center; 
   padding-bottom: 5px;
 }
 .fa-circle-user {
@@ -1438,7 +1444,7 @@ input[type="email"], input[type="tel"] {
 
 .navbar-nav .nav-item .nav-link.login-button:hover {
   background-color: #185F64; /* Color de fondo al pasar el mouse */
-  color: white; /* Color del texto al pasar el mouse */
+  color: white; 
 }
 .modal-footer {
     display: flex;
@@ -1448,31 +1454,30 @@ input[type="email"], input[type="tel"] {
 }
 
 .modal-footer .btn {
-    min-width: 100px; /* Ajusta este valor según tus preferencias */
+    min-width: 100px; 
 }
 /*cerrar sesion modal*/
-
 .custom-logout-modal-dialog {
-  max-width: 400px;
+  max-width: 400px; 
   margin: 0 auto;
   z-index: 10000;
   position: fixed;
   top: 35%; /* Centrado vertical */
   left: 40%;
- 
+
 }
-@media (max-width: 600px) and (max-width: 1024px){
+@media (max-width: 600px) and (max-width: 1024px) {
   .custom-logout-modal-dialog{
     max-width: 90%; 
-    max-height: 90vh;
-    height: auto;
+    max-height: 90vh; 
+    height: auto; 
     margin-top: 5px;
     top: 50%; 
     left: 10%; 
     transform: translate(-50%, -50%); 
     z-index: 9999;
   }
- 
+
 }
 
 .modal-header {
@@ -1496,9 +1501,24 @@ input[type="email"], input[type="tel"] {
   text-align: center; 
   font-family: 'Poppins', sans-serif;
 }
-.modal-footer .btn {
-  margin: 0 5px; 
-}
+
+
 #carouselExampleInterval {
-  background-color: #000000; 
+  background-color: #000000;  /* Fondo negro */
+}
+#coberturaLink {
+  background-color: #31C0CA; 
+  color: #ffffff;          
+  font-weight: bold;        
+  border-radius: 2px;       
+  padding: 8px 12px;        
+  text-align: center;       
+  transition: background-color 0.3s ease, color 0.3s ease; 
+  margin-top: 13px;
+  font-family: 'Poppins', sans-serif;
+}
+#coberturaLink:hover {
+  background-color: #1A9BA4;
+  color: #ffffff;          
+  text-decoration: none;    
 }

@@ -6,11 +6,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const redemptionDiscountElement1 = document.getElementById('redemptionDiscount1');
     const redemptionExpirationElement1 = document.getElementById('redemptionExpiration1');
     const closeModalButton1 = document.getElementById('closeModalButton1');
- 
+
     closeModalButton1.addEventListener('click', function() {
         redemptionModal1.hide();
     });
- 
+
     function generateRandomCode() {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
@@ -19,17 +19,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return result;
     }
- 
+
     redeemButton1.addEventListener('click', async function() {
         const points = parseInt(pointsInput1.value);
-       
+        
         if (!points || points <= 0) {
             alert('Por favor ingrese una cantidad válida de puntos');
             return;
         }
- 
+
         const code = generateRandomCode();
-       
+        
         try {
             const response = await fetch('/redimir_puntos_fisicos', {
                 method: 'POST',
@@ -41,16 +41,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     code: code
                 })
             });
-           
+            
             const data = await response.json();
-           
+            
             if (data.success) {
                 localStorage.setItem('lastPhysicalCoupon', JSON.stringify({
                     codigo: data.codigo,
                     descuento: data.descuento,
                     expiracion: data.tiempo_expiracion
                 }));
- 
+
                 redemptionCodeElement1.textContent = data.codigo;
                 redemptionDiscountElement1.textContent = new Intl.NumberFormat('es-CO', {
                     style: 'currency',
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     minimumFractionDigits: 0
                 }).format(data.descuento);
                 redemptionExpirationElement1.textContent = new Date(data.tiempo_expiracion).toLocaleString();
- 
+
                 redemptionModal1.show();
                 pointsInput1.value = '';
             } else {
@@ -69,18 +69,18 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Error al procesar la solicitud');
         }
     });
- 
+
     document.getElementById('ver-cupon1').addEventListener('click', async function() {
         const storedCouponData = localStorage.getItem('lastPhysicalCoupon');
-       
+        
         if (!storedCouponData) {
             alert('No hay cupón generado recientemente');
             return;
         }
-       
+        
         try {
             const { codigo } = JSON.parse(storedCouponData);
-           
+            
             const response = await fetch('/check_coupon_status', {
                 method: 'POST',
                 headers: {
@@ -88,15 +88,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ code: codigo })
             });
-           
+            
             const data = await response.json();
-           
+            
             if (!data.valid) {
                 alert('El cupón ha expirado');
                 localStorage.removeItem('lastPhysicalCoupon');
                 return;
             }
-           
+            
             redemptionCodeElement1.textContent = data.codigo;
             redemptionDiscountElement1.textContent = new Intl.NumberFormat('es-CO', {
                 style: 'currency',
@@ -104,14 +104,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 minimumFractionDigits: 0
             }).format(data.descuento);
             redemptionExpirationElement1.textContent = new Date(data.expiracion).toLocaleString();
-           
+            
             redemptionModal1.show();
         } catch (error) {
             console.error('Error:', error);
             alert('Error al verificar el cupón');
         }
     });
- 
+
     // Verificación de expiración al cargar la página
     function checkCouponExpiration() {
         const storedCouponData = localStorage.getItem('lastPhysicalCoupon');
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const { codigo, expiracion } = JSON.parse(storedCouponData);
             const currentTime = new Date();
             const expirationTime = new Date(expiracion);
-           
+            
             if (currentTime > expirationTime) {
                 fetch('/check_coupon_status', {
                     method: 'POST',
@@ -137,13 +137,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
- 
+
     // Verificar expiración cada 5 minutos
     setInterval(checkCouponExpiration, 60 * 1000);
- 
+
     // Verificar expiración al cargar la página
     checkCouponExpiration();
- 
+
     if (document.getElementById('copyCodeButton1')) {
         document.getElementById('copyCodeButton1').addEventListener('click', function() {
             const code = document.getElementById('redemptionCode1').textContent;
@@ -153,17 +153,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
- 
+
 // para la tabla de puntos
 function mostrarTabla(tab) {
     // Ocultar ambas tablas
     document.getElementById('tabla-virtual').style.display = 'none';
     document.getElementById('tabla-fisica').style.display = 'none';
-   
+    
     // Cambiar el color de los botones (opcional, pero visualmente mejora la experiencia)
     document.getElementById('tab-virtual').classList.remove('active');
     document.getElementById('tab-fisica').classList.remove('active');
-   
+    
     // Mostrar la tabla seleccionada
     if (tab === 'virtual') {
       document.getElementById('tabla-virtual').style.display = 'block';

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Usuario</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño1.png') }}">
-    
+   
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/login.css') }}">
@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/alertacrear.js') }}"></script>
-
+ 
 </head>
 <body class="bodylogin">
     {% with messages = get_flashed_messages(with_categories=True) %}
@@ -30,119 +30,151 @@
         </div>
     {% endif %}
     {% endwith %}
-
+ 
     <a href="{{ url_for('login') }}" class="back-arrow">
         <i class="fa-solid fa-circle-arrow-left"></i>
     </a>
     <section class="d-flex justify-content-center align-items-center">
-        <div class="panel card shadow col-xs-12 col-sm-6 col-md-6 col-lg-4 p-4">
-            <div class="title-container">
-                <div class="logo-container1 text-center mb-4">
+        <div class="panellogin card shadow col-10 col-sm-10 col-md-10 col-lg-5 p-4">
+            <div class="title-container text-center mb-4">
+                <div class="logo-container1 mb-4">
                     <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="logo1">
                 </div>
-                <h4 class="title-text">
-                    REGISTRO DE USUARIO
-                </h4>
+                <h4 class="title-text">REGISTRO DE USUARIO</h4>
             </div>
-            <div class="mb-1">
-                <form action="{{ url_for('crear_pass') }}" method="POST">
-                    <div class="mb-4">
-                        <div>
-                            <label for="documento" class="label-text"><i class="fa-solid fa-id-card" style="color: black;" ></i> Ingrese Su Documento:</label>
-                            <input type="text" class="form-control" name="documento" id="documento" placeholder="Ingrese Su Cedula o Nit" required>
-                            <div class="documento"></div>
-                        </div>
-                    </div>                    
-                    <div class="mb-4">
-                        <label for="password1" class="label-text"><i class="fas fa-lock-open" style="color: black; font-size: 15px;"></i> Nueva Contraseña:</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" name="contraseña" id="password1" placeholder="Ingrese Su Primera Contraseña" required>
-                            <span class="input-group-text position-absolute end-0 bg-transparent border-0" id="togglePassword1" style="z-index: 10; cursor: pointer;">
-                                <i class="bi bi-eye"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label for="password2" class="label-text"><i class="fas fa-lock" style="color: black; font-size: 15px"></i> Confirme Su Contraseña:</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" name="confirmar_contraseña" id="password2" placeholder="Ingrese Nuevamente Su Contraseña" required>
-                            <span class="input-group-text position-absolute end-0 bg-transparent border-0" id="togglePassword2" style="z-index: 10; cursor: pointer;">
-                                <i class="bi bi-eye"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="mb-4 form-check">
-                        <input type="checkbox" class="form-check-input" id="habeasdata" name="habeasdata" required>
-                        <label class="form-check-label" for="habeasdata">
-                            Acepto recibir información de marketing y promociones.
+     
+            <form action="{{ url_for('crear_pass') }}" method="POST">
+                <div class="row">
+                    <!-- Columna izquierda -->
+                    <div class="col-md-6 mb-3">
+                        <label for="documento" class="label-text required">
+                            <i class="fa-solid fa-id-card"></i> Documento:
                         </label>
+                        <input type="text" class="form-control" name="documento" id="documento" placeholder="Ingrese su Documento" required>
                     </div>
-                    <div class="mb-2">
-                        <button id="botton" type="submit" class="boton1">
-                            <span class="button-text">CREAR</span>
-                        </button>
+     
+                    <div class="col-md-6 mb-3">
+                        <label for="genero" class="label-text required">
+                            <i class="fas fa-venus-mars"></i> Género:
+                        </label>
+                        <select class="form-control custom-select" name="genero" id="genero" required>
+                            <option  disabled selected>Seleccione género</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                        </select>
+                    </div>
+     
+                    <!-- Columna derecha -->
+                    <div class="col-md-6 mb-3">
+                        <label for="ciudad" class="label-text required">
+                            <i class="fas fa-city"></i> Ciudad:
+                        </label>
+                        <select class="form-control" name="ciudad" id="ciudad" required>
+                            <option value="" disabled selected>Seleccione ciudad</option>
+                            <option value="Medellín">Medellín</option>
+                            <option value="Bogotá">Bogotá</option>
+                        </select>
+                    </div>
+     
+                    <div class="col-md-6 mb-3">
+                        <label for="barrio" class="label-text">
+                            <i class="fas fa-map-marker-alt"></i> Barrio:
+                        </label>
+                        <select class="form-control" name="barrio" id="barrio" >
+                            <option value="" disabled selected>Seleccione barrio</option>
+                        </select>
+                    </div>
+     
+                    <!-- Campo de fecha de nacimiento -->
+                    <div class="col-md-6 mb-3">
+                        <label for="fecha_nacimiento" class="label-text required">
+                            <i class="fas fa-calendar"></i> Fecha de Nacimiento:
+                        </label>
+                        <input type="date" class="form-control" name="fecha_nacimiento" id="fecha_nacimiento" required>
+                    </div>
+     
+                    <!-- Campo de nueva contraseña -->
+                    <div class="col-md-6 mb-3">
+                        <label for="password1" class="label-text required">
+                            <i class="fas fa-lock-open"></i> Nueva Contraseña:
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="contraseña" id="password1" placeholder="Ingrese su contraseña" required>
+                            <span class="input-group-text position-absolute end-0 bg-transparent border-0" id="togglePassword1">
+                                <i class="bi bi-eye"></i>
+                            </span>
+                        </div>
+                    </div>
+     
+                    <!-- Campo de confirmación de contraseña -->
+                    <div class="col-md-6 mb-3">
+                        <label for="password2" class="label-text required">
+                            <i class="fas fa-lock"></i> Confirme Contraseña:
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="confirmar_contraseña" id="password2" placeholder="Confirme su contraseña" required>
+                            <span class="input-group-text position-absolute end-0 bg-transparent border-0" id="togglePassword2">
+                                <i class="bi bi-eye"></i>
+                            </span>
+                        </div>
+                    </div>
+     
+                    <!-- Checkbox de aceptación de términos -->
+                    <div class="col-12 mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="habeasdata" name="habeasdata" required>
+                            <label class="form-check-label" for="habeasdata">
+                                Acepto recibir información de marketing y promociones.
+                            </label>
+                        </div>
+                    </div>
+     
+                    <!-- Botón de enviar -->
+                    <div class="row">
+                        <div class="col-12 text-center">
+                            <button type="submit" class="boton1">
+                                <span class="button-text">CREAR</span>
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
     </section>
     <br>
-    <script>
-        function togglePasswordVisibility(inputId, toggleId) {
-            var passwordInput = document.getElementById(inputId);
-            var toggleIcon = document.getElementById(toggleId).querySelector('i');
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.remove('bi-eye');
-                toggleIcon.classList.add('bi-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.remove('bi-eye-slash');
-                toggleIcon.classList.add('bi-eye');
-            }
-        }
 
-        document.getElementById('togglePassword1').addEventListener('click', function() {
-            togglePasswordVisibility('password1', 'togglePassword1');
-        });
-
-        document.getElementById('togglePassword2').addEventListener('click', function() {
-            togglePasswordVisibility('password2', 'togglePassword2');
-        });
-    </script>
 <div class="footer">
-    <div class="Principalfooter">
-        <div class="social-icons">
-            <div class="social-item">
-                <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-                    <i class="fa-brands fa-whatsapp"></i>
-                </a>
-                <p class="text-icono">Comprar</p>
-            </div>
-            <div class="social-item">
-                <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
-                    <i class="fa-brands fa-tiktok"></i>
-                </a>
-                <p class="text-icono">Tiktok</p>
-            </div>
-            <div class="social-item">
-                <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
-                    <i class="fa-brands fa-instagram"></i>
-                </a>
-                <p class="text-icono">Instagram</p>
-            </div>
-        </div>
-    </div>
     <div class="footer1">
         <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
     </div>
 </div>
+<script>
+    function togglePasswordVisibility(inputId, toggleId) {
+        var passwordInput = document.getElementById(inputId);
+        var toggleIcon = document.getElementById(toggleId).querySelector('i');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.remove('bi-eye');
+            toggleIcon.classList.add('bi-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('bi-eye-slash');
+            toggleIcon.classList.add('bi-eye');
+        }
+    }
 
+    document.getElementById('togglePassword1').addEventListener('click', function() {
+        togglePasswordVisibility('password1', 'togglePassword1');
+    });
 
-
-
+    document.getElementById('togglePassword2').addEventListener('click', function() {
+        togglePasswordVisibility('password2', 'togglePassword2');
+    });
+</script>
+ 
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>    
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+<script src="{{ url_for('static', filename='js/comunasylocalidades.js') }}"></script>  
+ 
 </body>
 </html>

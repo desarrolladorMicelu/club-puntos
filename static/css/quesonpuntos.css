@@ -5,7 +5,6 @@ body {
 
   .container.custom-container {
     padding: 30px; /* Ajusta el padding si es necesario */
-    margin-top: 60px;
    
 }
 
@@ -18,7 +17,7 @@ body {
   }
  
   .col {
-    margin-bottom: 30px;
+    margin-bottom: 10px;
   }
  
   .card {
@@ -32,7 +31,7 @@ body {
   }
  
   .card:hover {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2), 0 0 15px rgba(0, 123, 255, 0.5);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2), 0 0 15px #31C0CA;
     border-color: #31C0CA;
   }
  
