@@ -22,6 +22,7 @@ from woocommerce import API
 from sqlalchemy import Float
 from azure.communication.email import EmailClient
 
+
  
 app = Flask(__name__)
 # Configurar el tiempo de la sesión a 30 minutos
@@ -749,6 +750,7 @@ def quesonpuntos():
     usuario = Usuario.query.filter_by(documento=documento).first()
     if not documento:
         return redirect(url_for('login'))
+    
     try:
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
@@ -868,34 +870,37 @@ def quesonpuntos():
             referido.puntos_obtenidos for referido in referidos)
         total_puntos_nuevos += total_referidos_puntos
         
-        # Actualizar puntos del usuario
-        puntos_usuario = Puntos_Clientes.query.filter_by(
-            documento=documento).first()
-        if puntos_usuario:
-            puntos_usuario.total_puntos = total_puntos_nuevos
-            db.session.commit()
-        else:
-            nuevo_usuario = Puntos_Clientes(
+        # Buscar o crear registro de puntos para el usuario
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        
+        if not puntos_usuario:
+            # Crear nuevo registro de puntos si no existe
+            puntos_usuario = Puntos_Clientes(
                 documento=documento,
                 total_puntos=total_puntos_nuevos,
                 puntos_redimidos='0',
                 puntos_regalo=0
             )
-            db.session.add(nuevo_usuario)
-            db.session.commit()
+            db.session.add(puntos_usuario)
+        else:
+            # Actualizar puntos si ya existe
+            puntos_usuario.total_puntos = total_puntos_nuevos
         
-        # Calcular puntos totales
-        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
-        total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+        db.session.commit()
+        
+        # Calcular puntos totales con manejo seguro de valores nulos
+        puntos_redimidos = int(puntos_usuario.puntos_redimidos or 0)
+        puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
+        total_puntos = (puntos_usuario.total_puntos or 0) + puntos_regalo - puntos_redimidos
         
         return render_template('puntos.html', 
                                total_puntos=total_puntos, 
                                usuario=usuario)
     
     except Exception as e:
-        print(f"Error: {e}")
-        return redirect(url_for('error_page'))
+        print(f"Error en quesonpuntos: {e}")
+        # Registrar el error en un log si es posible
+        return redirect(url_for('login'))  # Redirigir al login en caso de error
 
 @app.route('/homepuntos')
 def homepuntos():
@@ -1463,55 +1468,67 @@ def list_policy_options(imei, token, token_type):
 
 class CoberturaEmailService:
     def __init__(self):
+        # Configuración de conexión de Azure Communication Services
         self.connection_string = "endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA=="
         self.sender_address = "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
-        
+
     def enviar_confirmacion_cobertura(self, datos_cobertura, fecha_fin):
         try:
             email_client = EmailClient.from_connection_string(self.connection_string)
-            
-            message = {
+
+            # URL de la imagen
+            url_imagen = "https://i.ibb.co/1DsGPLQ/imagen.jpg"
+
+            contenido_html = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="{url_imagen}" alt="Logo Micelu" style="max-width:600px; display: block; margin: 0 auto;">
+                </div>
+                <h2 style="color: #333;">Confirmación de Cobertura</h2>
+                <p>Estimado(a) {datos_cobertura['nombreCliente']},</p>
+                <p>Su cobertura ha sido activada exitosamente por 6 meses con los siguientes detalles:</p>
+                <ul>
+                    <li><strong>IMEI:</strong> {datos_cobertura['imei']}</li>
+                    <li><strong>Fecha de compra:</strong> {datos_cobertura['fecha'].strftime('%d/%m/%Y')}</li>
+                    <li><strong>Valor:</strong> ${datos_cobertura['valor']}</li>
+                    <li><strong>Vigencia hasta:</strong> {fecha_fin}</li>
+                </ul>
+                <p>Gracias por confiar en nosotros.</p>
+                <p>Atentamente,<br>Equipo Micelu.co</p>
+            </body>
+            </html>
+            """
+
+            # Preparar destinatarios
+            destinatarios = [
+                {
+                    "address": datos_cobertura['correo'],
+                    "displayName": datos_cobertura['nombreCliente']
+                }
+            ]
+            # Mensaje de correo
+            mensaje = {
+                "senderAddress": self.sender_address,
+                "recipients": {
+                    "to": [{"address": dest["address"], "displayName": dest["displayName"]} for dest in destinatarios]
+                },
                 "content": {
                     "subject": "Confirmación de Cobertura micelu.co",
-                    "plainText": self._generar_mensaje_cobertura(datos_cobertura, fecha_fin)
-                },
-                "recipients": {
-                    "to": [
-                        {
-                            "address": datos_cobertura['correo'],
-                            "displayName": datos_cobertura['nombreCliente']
-                        }
-                    ]
-                },
-                "senderAddress": self.sender_address
+                    "html": contenido_html
+                }
             }
-            
-            poller = email_client.begin_send(message)
+
+            # Enviar correo
+            poller = email_client.begin_send(mensaje)
+            result = poller.result()
+
             return True, None
-            
+
         except Exception as e:
-            error_msg = f"Error al enviar correo de cobertura: {str(e)}"
-            app.logger.error(error_msg)
-            return False, error_msg
-            
-    def _generar_mensaje_cobertura(self, datos, fecha_fin):
-        return f"""
-            Estimado(a) {datos['nombreCliente']},
-            
-            Su cobertura ha sido activada exitosamente por 6 meses con los siguientes detalles:
-            
-            IMEI: {datos['imei']}
-            Fecha de compra: {datos['fecha'].strftime('%d/%m/%Y')}
-            Valor: ${datos['valor']}
-            Vigencia hasta: {fecha_fin}
-            
-            Gracias por confiar en nosotros.
-            
-            Atentamente,
-            Equipo micelu.co
-        """
-
-
+            mensaje_error = f"Error al enviar correo de cobertura: {str(e)}"
+            app.logger.error(mensaje_error)
+            return False, mensaje_error
 # Crear una instancia del servicio de correo para coberturas
 cobertura_email_service = CoberturaEmailService()
 
@@ -1534,7 +1551,7 @@ def create_policy():
         if not all([imei, nombre, nit, correo]):
             return jsonify({
                 'exito': False,
-                'mensaje': 'Todos los campos son requeridos'
+                'mensaje': 'Todos los campos son requeridos Completa la informacion en mi perfil'
             }), 400
 
         # Obtener token de autenticación
