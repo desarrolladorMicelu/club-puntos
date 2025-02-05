@@ -1487,7 +1487,7 @@ class CoberturaEmailService:
                 </div>
                 <h2 style="color: #333;">Confirmación de Cobertura</h2>
                 <p>Estimado(a) {datos_cobertura['nombreCliente']},</p>
-                <p>Su cobertura ha sido activada exitosamente por 6 meses con los siguientes detalles:</p>
+                <p>Su cobertura ha sido activada exitosamente por 1 año con los siguientes detalles:</p>
                 <ul>
                     <li><strong>IMEI:</strong> {datos_cobertura['imei']}</li>
                     <li><strong>Fecha de compra:</strong> {datos_cobertura['fecha'].strftime('%d/%m/%Y')}</li>

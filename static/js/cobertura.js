@@ -224,13 +224,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const diferenciaDias = Math.floor((fechaActual - fechaCompra) / (1000 * 60 * 60 * 24));
 
             // Validar que no hayan pasado más de 10 días desde la compra
-            if (diferenciaDias > 10) {
+            if (diferenciaDias > 30) {
                 await Swal.fire({
                     icon: 'error',
                     title: 'Fuera de tiempo',
                     html: `
                         <div class="alert alert-danger" role="alert">
-                            <strong>¡Atención!</strong> Han pasado más de 10 días desde la fecha de compra.
+                            <strong>¡Atención!</strong> Han pasado más de 30 días desde la fecha de compra.
                             No es posible activar la cobertura.
                             <br>
                             Fecha de compra: ${fechaInput.value}
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.exito) {
                 // Calcular fecha de finalización
                 const fechaFinalizacion = new Date(fechaCompra);
-                fechaFinalizacion.setMonth(fechaFinalizacion.getMonth() + 6);
+                fechaFinalizacion.setFullYear(fechaFinalizacion.getFullYear() + 1);
                 const fechaFinalizacionStr = fechaFinalizacion.toISOString().split('T')[0];
     
                 if (fechaActual > fechaFinalizacion) {
@@ -319,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         title: 'Cobertura y Póliza Confirmadas',
                         html: `
                             <div class="alert alert-success" role="alert">
-                                <strong>¡Éxito!</strong> La cobertura y póliza han sido activadas exitosamente por 6 meses.
+                                <strong>¡Éxito!</strong> La cobertura y póliza han sido activadas exitosamente por 1 año.
                             </div>
                             <ul>
                                 <li><strong>IMEI:</strong> ${imei}</li>
