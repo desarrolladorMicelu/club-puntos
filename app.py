@@ -536,7 +536,7 @@ def mhistorialcompras():
             puntos_usuario.total_puntos = total_puntos_nuevos
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
             puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
-            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+            total_puntos = max(0, (puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos))
             db.session.commit()
         else:
             nuevo_usuario = Puntos_Clientes(
@@ -572,7 +572,8 @@ def mpuntosprincipal():
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+            puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
+            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
    
     try:
         wcapi = API(
@@ -891,7 +892,7 @@ def quesonpuntos():
         # Calcular puntos totales con manejo seguro de valores nulos
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or 0)
         puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
-        total_puntos = (puntos_usuario.total_puntos or 0) + puntos_regalo - puntos_redimidos
+        total_puntos = max(0, (puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos))
         
         return render_template('puntos.html', 
                                total_puntos=total_puntos, 
@@ -1140,7 +1141,8 @@ def redime_ahora():
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
             if puntos_usuario:
                 puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+                puntos_regalo = int(puntos_usuario.puntos_regalo or 0) 
+                total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
     return render_template("redime_ahora.html",total_puntos=total_puntos, usuario=usuario)
 
 @app.route('/acumulapuntos')
