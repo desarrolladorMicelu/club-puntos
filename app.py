@@ -1183,101 +1183,82 @@ def redimir_puntos_fisicos():
         puntos_a_redimir = int(request.json.get('points'))
         codigo = request.json.get('code')
         
-       
         tiempo_expiracion = datetime.now() + timedelta(hours=12)
-
+        
         # Verificar si el cupón ya existe y no ha expirado
-        cupon_existente = historial_beneficio.query.filter_by(cupon_fisico=codigo, documento=documento, estado=False).first()
-
+        cupon_existente = historial_beneficio.query.filter_by(
+            cupon_fisico=codigo, 
+            documento=documento, 
+            estado=False
+        ).first()
+        
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        if not puntos_usuario:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+        
+        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+        puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
+        puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+        
+        if puntos_a_redimir > puntos_disponibles:
+            return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
+        
+        valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
+        descuento = puntos_a_redimir * valor_del_punto
+        
         if cupon_existente:
             # Verificar si el cupón ha expirado
             if datetime.now() > cupon_existente.tiempo_expiracion:
-                # Marcar como expirado
                 cupon_existente.estado = True
                 db.session.commit()
                 return jsonify({
                     'success': False, 
                     'message': 'El cupón ha expirado'
                 }), 400
-
-            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-            if not puntos_usuario:
-                return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
-
-            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
-            puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
-
-            if puntos_a_redimir > puntos_disponibles:
-                return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
-
-            valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
-            descuento = puntos_a_redimir * valor_del_punto
-
+            
             puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
-            puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
-
+            # Actualizar puntos_disponibles directamente
+            puntos_usuario.puntos_disponibles = max(0, (puntos_usuario.total_puntos + puntos_regalo - int(puntos_usuario.puntos_redimidos)))
+            
             cupon_existente.estado = True
             cupon_existente.valor_descuento = descuento
             cupon_existente.puntos_utilizados = puntos_a_redimir
             cupon_existente.fecha_canjeo = datetime.now()
-
-            db.session.commit()
-
-            return jsonify({
-                'success': True,
-                'new_total': puntos_usuario.puntos_disponibles,
-                'codigo': codigo,
-                'descuento': descuento,
-                'tiempo_expiracion': tiempo_expiracion.isoformat()
-            }), 200
-
-        # Si no existe un cupón previo, crear uno nuevo
-        valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
-        descuento = puntos_a_redimir * valor_del_punto
-
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        if not puntos_usuario:
-            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
-
-        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
-        puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
-
-        if puntos_a_redimir > puntos_disponibles:
-            return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
-
-        puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
-        puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
-
-        nuevo_historial = historial_beneficio(
-            id=uuid.uuid4(),
-            documento=documento,
-            valor_descuento=descuento,
-            puntos_utilizados=puntos_a_redimir,
-            fecha_canjeo=datetime.now(),
-            cupon='',
-            cupon_fisico=codigo,
-            tiempo_expiracion=tiempo_expiracion,
-            estado=False
-        )
-
-        db.session.add(nuevo_historial)
+            
+        else:
+            # Si no existe un cupón previo, crear uno nuevo
+            puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
+            # Actualizar puntos_disponibles directamente
+            puntos_usuario.puntos_disponibles = max(0, (puntos_usuario.total_puntos + puntos_regalo - int(puntos_usuario.puntos_redimidos)))
+            
+            nuevo_historial = historial_beneficio(
+                id=uuid.uuid4(),
+                documento=documento,
+                valor_descuento=descuento,
+                puntos_utilizados=puntos_a_redimir,
+                fecha_canjeo=datetime.now(),
+                cupon='',
+                cupon_fisico=codigo,
+                tiempo_expiracion=tiempo_expiracion,
+                estado=False
+            )
+            db.session.add(nuevo_historial)
+        
         db.session.commit()
-
+        
         return jsonify({
             'success': True,
-            'new_total': puntos_usuario.puntos_disponibles,
+            'new_total': puntos_usuario.puntos_disponibles,  # Return the updated points
             'codigo': codigo,
             'descuento': descuento,
             'tiempo_expiracion': tiempo_expiracion.isoformat()
         }), 200
-
+        
     except Exception as e:
         db.session.rollback()
         print(f"Error: {e}")
         return jsonify({'success': False, 'message': f'Error al redimir puntos: {str(e)}'}), 500
-
+    
 @app.route('/check_coupon_status', methods=['POST'])
 @login_required
 def check_coupon_status():
