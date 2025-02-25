@@ -1758,6 +1758,16 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 403
+            # Obtener y validar el correo
+            correo = datos.get('datos', {}).get('correo', '').strip()
+            if not correo:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'El correo electrónico es obligatorio para activar la cobertura',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 400
+
                 
             datos_guardar = {
                 'documento': nit_limpio,

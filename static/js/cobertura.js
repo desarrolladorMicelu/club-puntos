@@ -109,6 +109,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
+                // Verificar si tenemos correo electrónico
+                if (!data.datos.correo || !data.datos.correo.trim()) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'Correo electrónico faltante',
+                        text: 'El correo electrónico es obligatorio para activar la cobertura. Por favor actualice su información de perfil.',
+                        footer: '<a href="/perfil">Ir a Mi Perfil</a>'
+                    });
+                    // No bloqueamos el proceso aquí, solo alertamos
+                }
+                
                 datosCobertura = {
                     ...data.datos,
                     nit: nitLimpio
@@ -149,6 +160,27 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         try {
+            // Verificar si tenemos datos de cobertura
+            if (!datosCobertura) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Datos incompletos',
+                    text: 'Por favor busque primero la información del IMEI.',
+                });
+                return;
+            }
+
+            // Verificar explícitamente que tengamos un correo electrónico
+            if (!datosCobertura.correo || !datosCobertura.correo.trim()) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Correo electrónico faltante',
+                    text: 'El correo electrónico es obligatorio para activar la cobertura. Por favor actualice su información de perfil.',
+                    footer: '<a href="/perfil">Ir a Mi Perfil</a>'
+                });
+                return;
+            }
+
             // Validar campos vacíos primero
             if (!nombreClienteInput.value.trim() || !fechaInput.value || !valorInput.value || 
                 !nitInput.value.trim() || !referenciaInput.value.trim() || !telefonoInput.value.trim()) {
