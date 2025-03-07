@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Calcular la diferencia en días
             const diferenciaDias = Math.floor((fechaActual - fechaCompra) / (1000 * 60 * 60 * 24));
 
-            // Validar que no hayan pasado más de 10 días desde la compra
+            // Validar que no hayan pasado más de 30 días desde la compra
             if (diferenciaDias > 30) {
                 await Swal.fire({
                     icon: 'error',
@@ -277,33 +277,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Mostrar spinner con mensaje de confirmación
             fullPageSpinner.classList.remove('d-none');
-            fullPageSpinner.querySelector('.fw-bold').textContent = 'Confirmando cobertura...';
+            fullPageSpinner.querySelector('.fw-bold').textContent = 'Activando cobertura...';
             
             cobBtnConf.disabled = true;
             cobBtnConf.textContent = 'Procesando...';
     
-            // Crear la póliza
-            const responsePolicies = await fetch('/create_policy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    imei: imei,
-                    nombre: nombreClienteInput.value.trim(),
-                    nit: nitValue,
-                    correo: datosCobertura.correo?.trim() || '',
-                }),
-            });
-
-            const policyData = await responsePolicies.json();
-            
-            // Modificar esta parte para continuar incluso si la póliza ya existe
-            if (!policyData.exito && !policyData.poliza_existente) {
-                throw new Error(policyData.mensaje || 'Error al crear la póliza');
-            }
-
-            // Procesar cobertura independientemente del resultado de la póliza
+            // Activar cobertura directamente
             const response = await fetch('/cobertura', {
                 method: 'POST',
                 headers: {
@@ -329,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fullPageSpinner.classList.add('d-none');
     
             if (data.exito) {
-                // Calcular fecha de finalización
+                // Calcular fecha de finalización (1 año)
                 const fechaFinalizacion = new Date(fechaCompra);
                 fechaFinalizacion.setFullYear(fechaFinalizacion.getFullYear() + 1);
                 const fechaFinalizacionStr = fechaFinalizacion.toISOString().split('T')[0];
@@ -348,10 +327,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     await Swal.fire({
                         icon: 'success',
-                        title: 'Cobertura y Póliza Confirmadas',
+                        title: 'Cobertura Activada',
                         html: `
                             <div class="alert alert-success" role="alert">
-                                <strong>¡Éxito!</strong> La cobertura y póliza han sido activadas exitosamente por 1 año.
+                                <strong>¡Éxito!</strong> La cobertura ha sido activada exitosamente por 1 año.
                             </div>
                             <ul>
                                 <li><strong>IMEI:</strong> ${imei}</li>
@@ -393,16 +372,16 @@ document.querySelector('.question-icon').addEventListener('click', function(e) {
     modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
     modal.style.left = `${iconRect.left}px`;
     modal.style.top = `${iconRect.top - 120}px`; // Ajusta este valor para posicionar sobre el ícono
-  });
+});
   
-  // Cerrar modal al hacer clic fuera
-  document.addEventListener('click', function(e) {
+// Cerrar modal al hacer clic fuera
+document.addEventListener('click', function(e) {
     const modal = document.getElementById('imeiInfoModal');
     const icon = document.querySelector('.question-icon');
     
     if (modal.style.display === 'block' && 
         !icon.contains(e.target) && 
         !modal.contains(e.target)) {
-      modal.style.display = 'none';
+        modal.style.display = 'none';
     }
-  });
+});
