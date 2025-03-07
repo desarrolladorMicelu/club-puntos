@@ -280,48 +280,7 @@ def editar_perfil():
         return jsonify({'success': False, 'message': str(e)}), 500
  
 #---------------------------------------------------LOGIN-------------------------------------------------
-def generate_captcha_image():
-    # Generar texto CAPTCHA
-    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k=7))
-    
-    # Crear una imagen
-    image = Image.new('RGB', (220, 110), color = (240, 240, 240))  # Fondo  gris
-    draw = ImageDraw.Draw(image)
-    
-    try:
-        font = ImageFont.truetype("arial.ttf", 32)
-    except IOError:
-        font = ImageFont.load_default()
-    
-    # Dibujar el texto con variación en la posición y color
-    for i, char in enumerate(captcha_text):
-        x = 25 + i * 28 + random.randint(-5, 5)
-        y = 35 + random.randint(-5, 5)
-        color = (random.randint(0, 100), random.randint(0, 100), random.randint(0, 100))
-        draw.text((x, y), char, font=font, fill=color)
-    
-    # Añadir ruido de puntos
-    for _ in range(1000):
-        x = random.randint(0, 219)
-        y = random.randint(0, 109)
-        draw.point((x, y), fill=(random.randint(150, 255), random.randint(150, 255), random.randint(150, 255)))
-    
-    # Añadir líneas de ruido
-    for _ in range(5):
-        start = (random.randint(0, 220), random.randint(0, 110))
-        end = (random.randint(0, 220), random.randint(0, 110))
-        draw.line([start, end], fill=(random.randint(150, 255), random.randint(150, 255), random.randint(150, 255)), width=2)
-    
-    # Guardar la imagen
-    buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    
-    return captcha_text, img_str
- 
-@app.before_request
-def make_session_permanent():
-    session.permanent = True
+
 
 
 @app.route('/iniciosesion', methods=['GET', 'POST'])
