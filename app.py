@@ -327,17 +327,20 @@ def make_session_permanent():
 @app.route('/iniciosesion', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        captcha_text, captcha_image = generate_captcha_image()
-        session['captcha'] = captcha_text
-        return render_template('login.html', captcha_image=captcha_image)
+        # Comentamos la generación del captcha
+        # captcha_text, captcha_image = generate_captcha_image()
+        # session['captcha'] = captcha_text
+        # return render_template('login.html', captcha_image=captcha_image)
+        return render_template('login.html')
     elif request.method == 'POST':
         documento = str(request.form.get('documento'))
         contraseña = str(request.form.get('contraseña'))
-        user_captcha = request.form.get('captcha')
+        # Comentamos la verificación del captcha
+        # user_captcha = request.form.get('captcha')
        
-        # Verificar el captcha primero
-        if user_captcha != session.get('captcha'):
-            return jsonify({'status': 'error', 'message': 'Captcha incorrecto. Por favor, intenta de nuevo.'})
+        # Eliminamos la verificación del captcha
+        # if user_captcha != session.get('captcha'):
+        #     return jsonify({'status': 'error', 'message': 'Captcha incorrecto. Por favor, intenta de nuevo.'})
        
         user = Usuario.query.filter_by(documento=documento).first()
         if user and user.contraseña and contraseña:
@@ -359,11 +362,11 @@ def login():
         else:
             return jsonify({'status': 'error', 'message': 'Documento o Contraseña Incorrectos. Por favor, intenta de nuevo.'})
 
-@app.route('/refresh_captcha', methods=['GET'])
-def refresh_captcha():
-    captcha_text, captcha_image = generate_captcha_image()
-    session['captcha'] = captcha_text
-    return jsonify({'captcha_image': captcha_image})
+#@app.route('/refresh_captcha', methods=['GET'])
+#def refresh_captcha():
+ #   captcha_text, captcha_image = generate_captcha_image()
+  #  session['captcha'] = captcha_text
+   # return jsonify({'captcha_image': captcha_image})
 
 
 @app.route('/login', methods=["GET", "POST"])

@@ -137,7 +137,7 @@
                     icon.removeClass('bi-eye-slash').addClass('bi-eye');
                 }
             });
- 
+    
             $('#login-button').click(function() {
                 // Validar que los campos requeridos estén llenos
                 var documento = $('#documento').val().trim();
@@ -146,60 +146,28 @@
                     $('#flash-messages').html('<div class="alert alert-danger">Por favor, complete todos los campos requeridos.</div>');
                     return;
                 }
-                // Si la validación pasa, mostrar el modal de CAPTCHA
-                $('#captchaModal').modal('show');
-            });
- 
-            function refreshCaptcha() {
-                $.get('/refresh_captcha', function(data) {
-                    $('#captcha-image').attr('src', 'data:image/png;base64,' + data.captcha_image);
-                    $('#captcha-input').val('');
-                });
-            }
- 
-            $('#submit-captcha').click(function() {
+                
+                // En lugar de mostrar el modal, enviamos el formulario directamente
                 var formData = $('#login-form').serialize();
-                formData += '&captcha=' + $('#captcha-input').val();
- 
+                
                 $.ajax({
                     url: '{{ url_for("login") }}',
                     type: 'POST',
                     data: formData,
                     success: function(response) {
                         if (response.status === 'success') {
-                            $('#captchaModal').modal('hide');
                             $('#flash-messages').html('<div class="alert alert-success">' + response.message + '</div>');
                             setTimeout(function() {
                                 window.location.href = response.redirect_url;
                             }, 1200);
                         } else {
-                            if (response.message.includes('Captcha incorrecto')) {
-                                $('#captcha-error').text(response.message).show();
-                                $('#captcha-input').val('');
-                                refreshCaptcha();  // Regenerate CAPTCHA image
-                            } else {
-                                $('#captchaModal').modal('hide');
-                                $('#flash-messages').html('<div class="alert alert-danger">' + response.message + '</div>');
-                            }
+                            $('#flash-messages').html('<div class="alert alert-danger">' + response.message + '</div>');
                         }
                     },
                     error: function() {
-                        $('#captchaModal').modal('hide');
                         $('#flash-messages').html('<div class="alert alert-danger">Error de conexión. Por favor, intenta de nuevo.</div>');
                     }
                 });
-            });
-            $('#refresh-captcha').click(function() {
-                refreshCaptcha();
-                $('#captcha-error').hide();
-            });
-            $('#captcha-input').on('input', function() {
-                $('#captcha-error').hide();
-            });
-            $('#captchaModal').on('hidden.bs.modal', function () {
-                $('#captcha-error').hide();
-                $('#captcha-input').val('');
-                refreshCaptcha();
             });
         });
     </script>
