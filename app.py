@@ -120,8 +120,8 @@ class cobertura_clientes(db.Model):
     __bind_key__ = 'db3'
     __tablename__ = 'cobertura_clientes'
     __table_args__ = {'schema': 'plan_beneficios'}
-
-    documento = db.Column(db.String(50), primary_key=True, nullable=False)
+ 
+    documento = db.Column(db.String(50), nullable=False)
     imei = db.Column(db.String(50), nullable=False, unique=True)
     nombreCliente = db.Column(db.String(100), nullable=False)
     correo = db.Column(db.String(100))
@@ -129,6 +129,13 @@ class cobertura_clientes(db.Model):
     valor = db.Column(db.String(50), nullable=False)
     referencia = db.Column(db.String(100), nullable=False)
     telefono = db.Column(db.String(20))
+    id = db.Column(db.String(150), primary_key=True)
+ 
+    @staticmethod
+    def before_insert(mapper, connection, target):
+        target.id = f"{target.documento}-{target.imei}"
+ 
+db.event.listen(cobertura_clientes, 'before_insert', cobertura_clientes.before_insert)
     
     
 def login_required(f):
@@ -280,7 +287,6 @@ def editar_perfil():
         return jsonify({'success': False, 'message': str(e)}), 500
  
 #---------------------------------------------------LOGIN-------------------------------------------------
-
 
 
 @app.route('/iniciosesion', methods=['GET', 'POST'])
@@ -1258,9 +1264,7 @@ def check_coupon_status():
 #inicio de la cobertura
     
 def obtener_conexion_bd():
-
     conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=20.109.21.246;DATABASE=MICELU;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
-
     return conn
 
 def buscar_por_imei(imei):
@@ -1284,7 +1288,7 @@ def buscar_por_imei(imei):
         SELECT *, 
                T_Dcto + Documento AS Clave_Documento
         FROM VreporteMVtrade WITH (NOLOCK)
-        WHERE Vendedor NOT IN ('1000644140', '0', '1026258734')
+        -- Se elimina el filtro de vendedores para permitir todas las activaciones
     ),
     MtMerciaFiltrada AS (
         SELECT *
@@ -1337,79 +1341,6 @@ def buscar_por_imei(imei):
     finally:
         cursor.close()
         conn.close()
-        
-def obtener_token_auth():
-    url = 'https://ms.proteccionmovil.co/api/v1/auth/token'
-    params = {
-        'clientId': 'Q7bMfHwO6f2l4uWGV5B9',
-        'clientSecret': '6jfbwulaBbQ165xmblQxmgQZHsbyM1hoSjpjzA4m'
-    }
-    
-    respuesta = requests.get(url, params=params)
-    datos_respuesta = respuesta.json()
-    
-    return datos_respuesta['data']['token'], datos_respuesta['data']['type']
-def list_policy_options(imei, token, token_type):
-    """
-    Obtiene las opciones de póliza disponibles para un IMEI específico.
-    
-    Args:
-        imei (str): IMEI del dispositivo
-        token (str): Token de autenticación
-        token_type (str): Tipo de token
-    
-    Returns:
-        tuple: (plan_id, price_option_id) si es exitoso
-        dict: Diccionario con error si falla
-    """
-    try:
-        url = 'https://ms.proteccionmovil.co/api/v1/policies/options'
-        headers = {
-            'Authorization': f'{token_type} {token}',
-            'Content-Type': 'application/json'
-        }
-        params = {
-            'imei': imei,
-            'sponsorId': 'MICELU'
-        }
-        
-        response = requests.get(url, headers=headers, params=params)
-        data = response.json()
-        
-        if response.status_code != 200 or 'data' not in data:
-            return {
-                'error': {
-                    'message': data.get('message', 'Error al obtener opciones de póliza'),
-                    'status': response.status_code
-                }
-            }
-            
-        # Obtener el primer plan y su primera opción de precio
-        plans = data['data'].get('plans', [])
-        if not plans:
-            return {
-                'error': {
-                    'message': 'No hay planes disponibles para este IMEI'
-                }
-            }
-            
-        first_plan = plans[0]
-        price_options = first_plan.get('priceOptions', [])
-        if not price_options:
-            return {
-                'error': {
-                    'message': 'No hay opciones de precio disponibles para este plan'
-                }
-            }
-            
-        return first_plan['id'], price_options[0]['id']
-        
-    except Exception as e:
-        return {
-            'error': {
-                'message': f'Error al obtener opciones de póliza: {str(e)}'
-            }
-        }
 
 class CoberturaEmailService:
     def __init__(self):
@@ -1482,139 +1413,6 @@ def clean_text(value):
         return ' '.join(value.split())
     return value
 
-
-
-@app.route("/create_policy", methods=['POST'])
-def create_policy():
-    try:
-        datos = request.json
-        imei = datos.get('imei')
-        nombre = datos.get('nombre', '').strip()
-        nit = datos.get('nit', '').strip()
-        correo = datos.get('correo', '').strip()
-
-        if not all([imei, nombre, nit, correo]):
-            return jsonify({
-                'exito': False,
-                'mensaje': 'Todos los campos son requeridos Completa la informacion en mi perfil'
-            }), 400
-
-        # Obtener token de autenticación
-        token, token_type = obtener_token_auth()
-
-        # Verificar si existe la póliza
-        url = f'https://ms.proteccionmovil.co/api/v1/policy/imei/{imei}?sponsorId=MICELU'
-        headers = {
-            'Authorization': f'{token_type} {token}'
-        }
-        
-        response = requests.get(url, headers=headers)
-        policy_data = response.json()
-        
-        # Si encuentra una póliza existente, retornar éxito
-        if 'data' in policy_data and policy_data['data'].get('policies'):
-            return jsonify({
-                'exito': True,
-                'mensaje': 'El IMEI ya cuenta con una póliza',
-                'poliza_existente': True
-            })
-
-        # Si no existe póliza, obtener opciones de póliza
-        url = f'https://ms.proteccionmovil.co/api/v1/policies/options'
-        params = {
-            'imei': imei,
-            'sponsorId': 'MICELU'
-        }
-        
-        response = requests.get(url, headers=headers, params=params)
-        data = response.json()
-        
-        if response.status_code != 200 or 'data' not in data:
-            return jsonify({
-                'exito': False,
-                'mensaje': data.get('message', 'Error al obtener opciones de póliza'),
-                'status': response.status_code
-            }), 400
-            
-        # Obtener el primer plan y su primera opción de precio
-        plans = data['data'].get('plans', [])
-        if not plans:
-            return jsonify({
-                'exito': False,
-                'mensaje': 'No hay planes disponibles para este IMEI'
-            }), 400
-            
-        first_plan = plans[0]
-        price_options = first_plan.get('priceOptions', [])
-        if not price_options:
-            return jsonify({
-                'exito': False,
-                'mensaje': 'No hay opciones de precio disponibles para este plan'
-            }), 400
-
-        # Preparar payload para la póliza
-        nombre_completo = nombre.split(' ')
-        first_name = nombre_completo[0]
-        last_name = ' '.join(nombre_completo[1:]) if len(nombre_completo) > 1 else ''
-
-        payload = {
-            "sponsorId": "MICELU",
-            "planId": first_plan['id'],
-            "priceOptionId": price_options[0]['id'],
-            "device": {
-                "imei": imei,
-                "line": 'POR_ACTUALIZAR'
-            },
-            "client": {
-                "genderId": "POR_ACTUALIZAR",
-                "email": correo,
-                "firstName": first_name,
-                "lastName": last_name,
-                "identification": {
-                    "type": "CEDULA_CIUDADANIA",
-                    "number": nit
-                }
-            }
-        }
-
-        # Pre-generar póliza
-        url_pre = 'https://ms.proteccionmovil.co/api/v1/policy/pregeneration'
-        headers['Content-Type'] = 'application/json'
-        
-        pre_response = requests.post(url_pre, headers=headers, json=payload)
-        pre_data = pre_response.json()
-        
-        if 'error' in pre_data or ('data' in pre_data and pre_data['data']['message'] != 'Pregeneración exitosa'):
-            error_msg = pre_data.get('error', {}).get('message', 'Error en la pregeneración de la póliza')
-            return jsonify({
-                'exito': False,
-                'mensaje': error_msg
-            }), 400
-
-        # Generar póliza final
-        url_generate = 'https://ms.proteccionmovil.co/api/v1/policy'
-        final_response = requests.post(url_generate, headers=headers, json=payload)
-        final_data = final_response.json()
-        
-        if 'error' in final_data:
-            return jsonify({
-                'exito': False,
-                'mensaje': final_data['error'].get('message', 'Error al generar la póliza final')
-            }), 400
-
-        return jsonify({
-            'exito': True,
-            'mensaje': 'Póliza creada exitosamente',
-            'policy_id': final_data['data'].get('id')
-        })
-
-    except Exception as e:
-        app.logger.error(f"Error al crear póliza: {str(e)}")
-        return jsonify({
-            'exito': False,
-            'mensaje': f'Error en el servidor: {str(e)}'
-        }), 500
-
 @app.route("/cobertura", methods=['GET', 'POST'])
 @login_required
 def cobertura():
@@ -1671,11 +1469,9 @@ def cobertura():
             
             # Limpiar el documento de sesión
             documento_sesion = str(documento).strip()
-        
             
             # Validación más detallada
             if nit_cobertura != documento_sesion:
-                
                 return jsonify({
                     'exito': False,
                     'mensaje': 'No tiene permisos para acceder a la información de este IMEI',
@@ -1683,11 +1479,21 @@ def cobertura():
                     'total_puntos': total_puntos
                 }), 403
             
+            # Verificar si ya existe cobertura para este IMEI
+            cobertura_existente = cobertura_clientes.query.filter_by(imei=imei).first()
+            if cobertura_existente:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'Ya existe una cobertura activa para este IMEI',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 400
+            
             return jsonify({
                 'exito': True,
                 'datos': datos_cobertura,
                 'usuario': usuario.nombre if usuario else None,
-                'usuario_documento': documento_sesion,  # Enviamos el documento limpio
+                'usuario_documento': documento_sesion,
                 'total_puntos': total_puntos
             })
             
@@ -1720,6 +1526,31 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 403
+                
+            # Validar que el IMEI exista en la base de datos
+            datos_cobertura = buscar_por_imei(imei)
+            if not datos_cobertura:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'No se encontró información para el IMEI ingresado',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 404
+                
+            # Validar que el NIT de la cobertura coincida con el del usuario
+            nit_cobertura = str(datos_cobertura.get('nit', ''))
+            if '-' in nit_cobertura:
+                nit_cobertura = nit_cobertura.split('-')[0]
+            nit_cobertura = nit_cobertura.strip()
+            
+            if nit_cobertura != nit_limpio:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'No tiene permisos para activar la cobertura de este IMEI',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 403
+                
             # Obtener y validar el correo
             correo = datos.get('datos', {}).get('correo', '').strip()
             if not correo:
@@ -1729,13 +1560,13 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 400
-
                 
+            # Preparar datos para guardar
             datos_guardar = {
                 'documento': nit_limpio,
                 'imei': imei,
                 'nombreCliente': datos.get('datos', {}).get('nombre', '').strip(),
-                'correo': datos.get('datos', {}).get('correo', '').strip(),
+                'correo': correo,
                 'fecha': datetime.strptime(datos.get('fecha'), '%Y-%m-%d'),
                 'valor': float(datos.get('valor', 0)),
                 'referencia': datos.get('referencia', '').strip(),
@@ -1753,12 +1584,15 @@ def cobertura():
                         'total_puntos': total_puntos
                     }), 400
 
+                # Guardar la cobertura
                 nueva_cobertura = cobertura_clientes(**datos_guardar)
                 db.session.add(nueva_cobertura)
                 db.session.commit()
                 
-                fecha_fin = (datetime.now() + timedelta(days=180)).strftime('%d/%m/%Y')
+                # Calcular fecha de fin de cobertura (1 año)
+                fecha_fin = (datetime.now() + timedelta(days=365)).strftime('%d/%m/%Y')
                 
+                # Enviar correo de confirmación
                 exito, error = cobertura_email_service.enviar_confirmacion_cobertura(
                     datos_guardar, 
                     fecha_fin
@@ -1769,7 +1603,7 @@ def cobertura():
                 
                 return jsonify({
                     'exito': True,
-                    'mensaje': 'La cobertura ha sido activada exitosamente por 6 meses',
+                    'mensaje': 'La cobertura ha sido activada exitosamente por 1 año',
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 })
