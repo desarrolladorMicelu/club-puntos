@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const diferenciaDias = Math.floor((fechaActual - fechaCompra) / (1000 * 60 * 60 * 24));
 
             // Validar que no hayan pasado más de 30 días desde la compra
-            if (diferenciaDias > 30) {
+            if (diferenciaDias > 60) {
                 await Swal.fire({
                     icon: 'error',
                     title: 'Fuera de tiempo',
