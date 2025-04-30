@@ -114,8 +114,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     await Swal.fire({
                         icon: 'warning',
                         title: 'Correo electrónico faltante',
-                        text: 'El correo electrónico es obligatorio para activar la cobertura. Por favor actualice su información de perfil.',
-                        footer: '<a href="/perfil">Ir a Mi Perfil</a>'
+                        text: 'El correo electrónico es obligatorio para activar la cobertura. Contacta tu asesor para actualizar la información.',
+                        footer: '<a href="/miperfil">Ir a Mi Perfil</a>'
                     });
                     // No bloqueamos el proceso aquí, solo alertamos
                 }

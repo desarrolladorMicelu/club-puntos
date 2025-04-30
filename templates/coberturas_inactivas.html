@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coberturas Inactivas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css">
+    <style>
+        .loader {
+            display: none;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fecha-filtro {
+            max-width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Coberturas Inactivas</h1>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Filtros de búsqueda</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="fecha_inicio" class="form-label">Fecha Inicial</label>
+                        <input type="date" class="form-control fecha-filtro" id="fecha_inicio">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="fecha_fin" class="form-label">Fecha Final</label>
+                        <input type="date" class="form-control fecha-filtro" id="fecha_fin">
+                    </div>
+                    <div class="col-md-3">
+                        <button id="btnBuscar" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Las coberturas inactivas se procesan automáticamente cada domingo a las 23:59. Se muestran los dispositivos vendidos que aún no tienen cobertura activada.
+        </div>
+        
+        <div class="loader" id="loader"></div>
+        
+        <div id="resultados" style="display: none;">
+            <div class="alert alert-success mb-4" id="total-resultados">
+                Se encontraron <span id="cantidad-resultados">0</span> coberturas inactivas registradas.
+            </div>
+
+            <div class="alert alert-info mb-4" id="total-con-cobertura">
+                Se encontraron <span id="cantidad-con-cobertura">0</span> IMEIs con cobertura activa.
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="tabla-coberturas">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>IMEI</th>
+                            <th>Producto</th>
+                            <th>NIT Cliente</th>
+                            <th>Fecha Compra</th>
+                            <th>Valor</th>
+                            <th>Factura</th>
+                            <th>correo</th>
+                            <th>Teléfono</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body">
+                        <!-- Los datos se cargarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="sin-resultados" class="alert alert-warning" style="display: none;">
+            No se encontraron coberturas inactivas para el período seleccionado.
+        </div>
+        
+        <div id="error" class="alert alert-danger" style="display: none;">
+            Ha ocurrido un error al buscar las coberturas.
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Establecer fechas por defecto (últimos 7 días)
+            const hoy = new Date();
+            const semanaAntes = new Date();
+            semanaAntes.setDate(hoy.getDate() - 7);
+            
+            $('#fecha_fin').val(hoy.toISOString().split('T')[0]);
+            $('#fecha_inicio').val(semanaAntes.toISOString().split('T')[0]);
+            
+            let dataTable = null;
+            
+            // Evento click del botón buscar
+            $('#btnBuscar').on('click', function() {
+                buscarCoberturas();
+            });
+            
+            // Buscar coberturas al cargar la página
+            buscarCoberturas();
+            
+            function buscarCoberturas() {
+                const fechaInicio = $('#fecha_inicio').val();
+                const fechaFin = $('#fecha_fin').val();
+                
+                // Validar fechas
+                if (!fechaInicio || !fechaFin) {
+                    alert('Debe seleccionar ambas fechas');
+                    return;
+                }
+                
+                // Mostrar loader
+                $('#loader').show();
+                $('#resultados').hide();
+                $('#sin-resultados').hide();
+                $('#error').hide();
+                
+                // Realizar petición AJAX
+                $.ajax({
+                    url: '/coberturas_inactivas',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        fecha_inicio: fechaInicio,
+                        fecha_fin: fechaFin
+                    }),
+                    success: function(response) {
+                        $('#loader').hide();
+                        
+                        if (response.exito) {
+                            const coberturas = response.coberturas_inactivas;
+                            const imeisConCobertura = response.imeis_con_cobertura || [];
+                            
+                            // Actualizar contadores
+                            $('#cantidad-resultados').text(coberturas.length);
+                            $('#cantidad-con-cobertura').text(imeisConCobertura.length);
+                            
+                            // Limpiar y llenar la tabla
+                            const tbody = $('#tabla-body');
+                            tbody.empty();
+                            
+                            // Destruir DataTable si existe
+                            if (dataTable) {
+                                dataTable.destroy();
+                            }
+                            
+                            coberturas.forEach(function(item) {
+                                const row = `
+                                    <tr>
+                                        <td>${item.imei}</td>
+                                        <td>${item.producto}</td>
+                                        <td>${item.nit}</td>
+                                        <td>${formatearFecha(item.fecha_compra)}</td>
+                                        <td>$${item.valor.toLocaleString('es-CO')}</td>
+                                        <td>${item.factura}</td>
+                                        <td>${item.correo}</td>
+                                        <td>${item.telefono}</td>
+                                        <td><span class="badge bg-warning">Pendiente</span></td>
+                                    </tr>
+                                `;
+                                tbody.append(row);
+                            });
+                            
+                            // Inicializar DataTable
+                            dataTable = $('#tabla-coberturas').DataTable({
+                                language: {
+                                    url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/es-ES.json'
+                                },
+                                pageLength: 10,
+                                responsive: true
+                            });
+                            
+                            $('#resultados').show();
+                        } else {
+                            $('#sin-resultados').show();
+                        }
+                    },
+                    error: function(xhr) {
+                        $('#loader').hide();
+                        $('#error').text('Error: ' + (xhr.responseJSON?.mensaje || 'Ha ocurrido un error al buscar las coberturas.')).show();
+                    }
+                });
+            }
+            
+            // Función para formatear fechas
+            function formatearFecha(fechaStr) {
+                if (!fechaStr) return '-';
+                const fecha = new Date(fechaStr);
+                return fecha.toLocaleDateString('es-CO');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -769,8 +769,6 @@ body {
   /* end footer section*/
   /*# sourceMappingURL=style.css.map */
   
-  
-  
   .container2 {
     display: flex; 
     height: auto;
@@ -1010,6 +1008,9 @@ body {
   text-decoration: none;
   
   
+}
+.footer-link + .footer-link {
+  margin-left: 10px;
 }
 .footer-link:hover, .footer-link:focus, .footer-link:active {
   color: #ffffff;
