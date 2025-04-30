@@ -37,3 +37,4 @@ APScheduler
 msal
 pandas
 tzlocal
+schedule
