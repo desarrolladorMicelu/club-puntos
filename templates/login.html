@@ -44,7 +44,7 @@
         <i class="fa-solid fa-circle-arrow-left"></i>
     </a>
     <section class="d-flex justify-content-center align-items-center">
-        <div class="panel card col-xs-12 col-sm-6 col-md-6 col-lg-4 p-4">
+        <div class="panellogin card col-xs-12 col-sm-6 col-md-6 col-lg-4 p-4">
             <div class="logo-container text-center mb-4">
                 <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="logo">
             </div>
@@ -119,28 +119,6 @@
     </div>
  
     <div class="footer">
-        <!---<div class="Principalfooter">
-            <div class="social-icons">
-                <div class="social-item">
-                    <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </a>
-                    <p class="text-icono">Comprar</p>
-                </div>
-                <div class="social-item">
-                    <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
-                        <i class="fa-brands fa-tiktok"></i>
-                    </a>
-                    <p class="text-icono">Tiktok</p>
-                </div>
-                <div class="social-item">
-                    <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer" class="icon-instagram">
-                        <i class="fa-brands fa-instagram"></i>
-                    </a>
-                    <p class="text-icono">Instagram</p>
-                </div>
-            </div>
-        </div>!-->
         <div class="footer1">
             <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
         </div>
@@ -159,7 +137,7 @@
                     icon.removeClass('bi-eye-slash').addClass('bi-eye');
                 }
             });
- 
+    
             $('#login-button').click(function() {
                 // Validar que los campos requeridos estén llenos
                 var documento = $('#documento').val().trim();
@@ -168,60 +146,28 @@
                     $('#flash-messages').html('<div class="alert alert-danger">Por favor, complete todos los campos requeridos.</div>');
                     return;
                 }
-                // Si la validación pasa, mostrar el modal de CAPTCHA
-                $('#captchaModal').modal('show');
-            });
- 
-            function refreshCaptcha() {
-                $.get('/refresh_captcha', function(data) {
-                    $('#captcha-image').attr('src', 'data:image/png;base64,' + data.captcha_image);
-                    $('#captcha-input').val('');
-                });
-            }
- 
-            $('#submit-captcha').click(function() {
+                
+                // En lugar de mostrar el modal, enviamos el formulario directamente
                 var formData = $('#login-form').serialize();
-                formData += '&captcha=' + $('#captcha-input').val();
- 
+                
                 $.ajax({
                     url: '{{ url_for("login") }}',
                     type: 'POST',
                     data: formData,
                     success: function(response) {
                         if (response.status === 'success') {
-                            $('#captchaModal').modal('hide');
                             $('#flash-messages').html('<div class="alert alert-success">' + response.message + '</div>');
                             setTimeout(function() {
                                 window.location.href = response.redirect_url;
                             }, 1200);
                         } else {
-                            if (response.message.includes('Captcha incorrecto')) {
-                                $('#captcha-error').text(response.message).show();
-                                $('#captcha-input').val('');
-                                refreshCaptcha();  // Regenerate CAPTCHA image
-                            } else {
-                                $('#captchaModal').modal('hide');
-                                $('#flash-messages').html('<div class="alert alert-danger">' + response.message + '</div>');
-                            }
+                            $('#flash-messages').html('<div class="alert alert-danger">' + response.message + '</div>');
                         }
                     },
                     error: function() {
-                        $('#captchaModal').modal('hide');
                         $('#flash-messages').html('<div class="alert alert-danger">Error de conexión. Por favor, intenta de nuevo.</div>');
                     }
                 });
-            });
-            $('#refresh-captcha').click(function() {
-                refreshCaptcha();
-                $('#captcha-error').hide();
-            });
-            $('#captcha-input').on('input', function() {
-                $('#captcha-error').hide();
-            });
-            $('#captchaModal').on('hidden.bs.modal', function () {
-                $('#captcha-error').hide();
-                $('#captcha-input').val('');
-                refreshCaptcha();
             });
         });
     </script>

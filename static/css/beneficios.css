@@ -54,6 +54,7 @@
         display: none; 
     }
 }
+
 /*----------------------estilos para las cards-----------------------------*/
 .carousel-item .card {
     display: flex;
@@ -67,7 +68,8 @@
 
 .card-img-top {
     width: 100%;
-    height: 300px;
+    height: auto;
+    max-height: auto;
     object-fit: cover;
 }
 
@@ -747,7 +749,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px;
     background-color: #f4f4f9; 
   }
   
@@ -958,6 +959,7 @@
     flex-direction: row;
     gap: 0.5rem;
     width: 100%;
+    position: relative;
   }
   /* Elementos del formulario */
 .coverage-label {
@@ -997,7 +999,7 @@
     transition: background-color 0.15s ease-in-out;
   }
   .coverage-button:hover:not(:disabled) {
-    background-color: #0b5ed7;
+    background-color: #0B6A74;
   }
   .coverage-button:disabled {
     background-color: #0F7A83;
@@ -1053,5 +1055,42 @@
   .cobertura1{
     background-color: #f0f0f0;
   }
+  /*Estilos para el tooltip*/
+  .coverage-field {
+  position: static;
+}
+
+.info-modal {
+  display: none;
+  position: fixed;
+  background-color: #B197FC;
+  color: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 10px;
+  z-index: 20;
+  border-radius: 6px;
+  max-width: 350px;
+  width: auto;
+}
+
+.question-icon {
+  cursor: pointer;
+  font-size: 25px;
+  margin: 10px;
+  transition: transform 0.3s ease;
+}
+.question-icon:hover {
+    transform: scale(1.1); 
+    
+}
+
+@media (max-width: 768px) {
+    .info-modal {
+      max-width: 90%;
+      width: auto;
+      left: 5% !important;
+    }
+  }
+
 
   

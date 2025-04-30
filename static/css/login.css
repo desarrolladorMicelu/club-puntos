@@ -1,11 +1,26 @@
 
 .panel {
+  max-width: 1900px;
+  width: 90%;
+  margin: 0 auto;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
   padding: 2rem; 
   border-radius: 20px; 
   background-color: white; 
   margin-top: 50px;
   margin-bottom: 10px;
+}
+.panellogin {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  border-radius: 20px;
+  background-color: white;
+  margin-top: 50px;
+  margin-bottom: 10px;
+}
+.required::after {
+  content: " *";
+  color: red;
 }
 
 /* Título de la tarjeta */
