@@ -2326,7 +2326,7 @@ def configurar_tareas_programadas():
         # 4. Procesamiento diario de coberturas inactivas a las 9:00 AM
         scheduler.add_job(
             procesar_coberturas_inactivas_programado, 'cron',
-            hour='8', minute='45',
+            hour='8', minute='55',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
             replace_existing=True
@@ -2670,7 +2670,7 @@ def configurar_tareas_programadas():
         # Programar tarea para ejecutarse todos los días a las 9:00 AM hora de Bogotá
         scheduler.add_job(
             func=procesar_coberturas_inactivas_programado,
-            trigger=CronTrigger(hour=8, minute=45, timezone=bogota_tz),
+            trigger=CronTrigger(hour=8, minute=55, timezone=bogota_tz),
             id='procesar_coberturas_inactivas',
             replace_existing=True
         )
