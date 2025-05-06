@@ -1380,7 +1380,7 @@ class CoberturaEmailService:
             email_client = EmailClient.from_connection_string(self.connection_string)
 
             # URL de la imagen
-            url_imagen = "https://i.ibb.co/1DsGPLQ/imagen.jpg"
+            url_imagen = "https://ibb.co/934Vm1xs/imagen.jpg"
 
             contenido_html = f"""
             <html>
@@ -1848,7 +1848,6 @@ def filtrar_coberturas_inactivas(datos_consulta):
     return coberturas_inactivas, imeis_con_cobertura
 
 
-
 @app.route("/exportar_coberturas_inactivas", methods=['GET', 'POST'])
 def exportar_coberturas_inactivas():
     if request.method == 'GET':
@@ -2257,7 +2256,7 @@ def enviar_reporte_coberturas_activadas():
             </body>
             </html>
             """
-            
+            encoded_content = base64.b64encode(file_content).decode('utf-8')
             # Preparar mensaje con archivo adjunto
             mensaje = {
                 "senderAddress": sender_address,
@@ -2266,15 +2265,15 @@ def enviar_reporte_coberturas_activadas():
                 },
                 "content": {
                     "subject": asunto,
-                    "html": contenido_html,
-                    "attachments": [
-                        {
-                            "name": f"Coberturas_Activadas_{fecha_inicio.strftime('%Y%m%d')}_al_{fecha_fin.strftime('%Y%m%d')}.xlsx",
-                            "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            "contentInBase64": base64.b64encode(file_content).decode('utf-8')
-                        }
-                    ]
-                }
+                    "html": contenido_html
+                },
+                "attachments": [
+                    {
+                        "name": f"Coberturas_Activadas_{fecha_inicio.strftime('%Y%m%d')}_al_{fecha_fin.strftime('%Y%m%d')}.xlsx",
+                        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "contentInBase64": encoded_content
+                    }
+                ]
             }
             
             # Enviar correo
@@ -2298,22 +2297,22 @@ def configurar_tareas_programadas():
         
         # 1. Exportación de coberturas inactivas cada domingo a las 23:59
         scheduler.add_job(
-            exportar_coberturas_automaticamente, 'cron', 
-            day_of_week='sun', hour='23', minute='59', 
+            exportar_coberturas_automaticamente, 'cron',
+            day_of_week='sun', hour='23', minute='59',
             timezone=bogota_tz,
             id='exportar_coberturas',
             replace_existing=True
         )
-
+        
         # 2. Actualización diaria de coberturas inactivas a las 23:00
         scheduler.add_job(
-            actualizar_coberturas_inactivas_diario, 'cron', 
-            hour='23', minute='00', 
+            actualizar_coberturas_inactivas_diario, 'cron',
+            hour='23', minute='00',
             timezone=bogota_tz,
             id='actualizar_coberturas_inactivas',
             replace_existing=True
         )
-
+        
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
@@ -2322,11 +2321,11 @@ def configurar_tareas_programadas():
             id='reporte_coberturas_activadas',
             replace_existing=True
         )
-
-        # 4. Procesamiento diario de coberturas inactivas a las 9:00 AM
+        
+        # 4. Procesamiento diario de coberturas inactivas a las 11:45 AM
         scheduler.add_job(
             procesar_coberturas_inactivas_programado, 'cron',
-            hour='11', minute='45',
+            hour='12', minute='23',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
             replace_existing=True
@@ -2334,6 +2333,7 @@ def configurar_tareas_programadas():
         
         # Iniciar el planificador
         scheduler.start()
+        print(f"SCHEDULER INICIADO: {datetime.now(bogota_tz).strftime('%Y-%m-%d %H:%M:%S')}")
         app.logger.info("Tareas programadas configuradas correctamente con zona horaria de Bogotá")
         
     except Exception as e:
@@ -2660,27 +2660,6 @@ def enviar_correos_dia3(hoy, resultados):
 
 # Función para programar el procesamiento automático de coberturas inactivas
 
-def configurar_tareas_programadas():
-    """
-    Configura las tareas programadas para el procesamiento automático de coberturas inactivas
-    """
-    try:
-        scheduler = BackgroundScheduler(timezone=bogota_tz)
-        
-        # Programar tarea para ejecutarse todos los días a las 9:00 AM hora de Bogotá
-        scheduler.add_job(
-            func=procesar_coberturas_inactivas_programado,
-            trigger=CronTrigger(hour=11, minute=45, timezone=bogota_tz),
-            id='procesar_coberturas_inactivas',
-            replace_existing=True
-        )
-        
-        # Iniciar el planificador
-        scheduler.start()
-        app.logger.info("Tareas programadas configuradas correctamente con zona horaria de Bogotá")
-        
-    except Exception as e:
-        app.logger.error(f"Error al configurar tareas programadas: {str(e)}")
 def procesar_coberturas_inactivas_programado():
     """
     Función que se ejecuta automáticamente por el planificador
@@ -2706,7 +2685,6 @@ def procesar_coberturas_inactivas_programado():
             
     except Exception as e:
         app.logger.error(f"Error en procesamiento programado: {str(e)}")
-
 
 if __name__ == '__app__':
     app.run(port=os.getenv("PORT", default=5000))
