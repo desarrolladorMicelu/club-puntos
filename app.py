@@ -2325,7 +2325,7 @@ def configurar_tareas_programadas():
         # 4. Procesamiento diario de coberturas inactivas a las 11:45 AM
         scheduler.add_job(
             procesar_coberturas_inactivas_programado, 'cron',
-            hour='12', minute='23',
+            hour='10', minute='05',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
             replace_existing=True
@@ -2664,27 +2664,29 @@ def procesar_coberturas_inactivas_programado():
     """
     Función que se ejecuta automáticamente por el planificador
     """
-    app.logger.info("Iniciando procesamiento programado de coberturas inactivas")
-    resultados = {
-        'correos_dia1_enviados': 0,
-        'correos_dia3_enviados': 0,
-        'coberturas_activadas': 0,
-        'errores': []
-    }
-    
-    try:
-        # Procesar coberturas inactivas
-        procesar_envio_correos_inactivas(resultados)
+    with app.app_context():
+        app.logger.info("Iniciando procesamiento programado de coberturas inactivas")
+        resultados = {
+            'correos_dia1_enviados': 0,
+            'correos_dia3_enviados': 0,
+            'coberturas_activadas': 0,
+            'errores': []
+        }
         
-        app.logger.info(f"Procesamiento programado completado: {resultados['correos_dia1_enviados']} correos día 1, "
-                      f"{resultados['correos_dia3_enviados']} correos día 3, "
-                      f"{resultados['coberturas_activadas']} coberturas activadas")
-        
-        if resultados['errores']:
-            app.logger.error(f"Errores durante el procesamiento programado: {resultados['errores']}")
+        try:
+            # Procesar coberturas inactivas
+            procesar_envio_correos_inactivas(resultados)
             
-    except Exception as e:
-        app.logger.error(f"Error en procesamiento programado: {str(e)}")
+            app.logger.info(f"Procesamiento programado completado: {resultados['correos_dia1_enviados']} correos día 1, "
+                          f"{resultados['correos_dia3_enviados']} correos día 3, "
+                          f"{resultados['coberturas_activadas']} coberturas activadas")
+            
+            if resultados['errores']:
+                app.logger.error(f"Errores durante el procesamiento programado: {resultados['errores']}")
+                
+        except Exception as e:
+            app.logger.error(f"Error en procesamiento programado: {str(e)}")
+
 
 if __name__ == '__app__':
     app.run(port=os.getenv("PORT", default=5000))
