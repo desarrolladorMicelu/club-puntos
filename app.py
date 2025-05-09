@@ -1752,7 +1752,8 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
         AND v.Fecha_Inicial BETWEEN ? AND ?
         AND m.CODLINEA = 'CEL'
         AND m.CODGRUPO = 'SEMI'
-        AND v.NIT NOT IN ('1152718000', '1053817613', '1000644140', '01')  
+        AND v.NIT NOT IN ('1152718000', '1053817613', '1000644140', '01')
+        AND (c.EMAIL IS NULL OR c.EMAIL NOT LIKE '%@exito.com')  -- Excluye todos los correos de exito.com  
     ORDER BY 
         v.Fecha_Inicial DESC
     """                                                                                                         
@@ -2099,6 +2100,8 @@ def ensure_folder_exists(ctx, folder_path):
         #logger.error(f"Error al verificar/crear carpetas: {str(e)}")
         raise
 # Definir la función que quieres ejecutar
+bogota_tz = pytz.timezone('America/Bogota')
+scheduler = BackgroundScheduler(timezone=bogota_tz)
 def exportar_coberturas_automaticamente():
     with app.app_context():
         try:
@@ -2146,6 +2149,7 @@ def actualizar_coberturas_inactivas_diario():
             resultados_consulta = obtener_datos_consulta(fecha, fecha)
             
             if not resultados_consulta:
+                print("No hay resultados de consulta")
                 return
             
             # (Esta función ya verifica si el registro existe antes de crearlo)
@@ -2153,7 +2157,7 @@ def actualizar_coberturas_inactivas_diario():
             
             if not coberturas_inactivas:
                 return
-                
+            print(f"Actualización diaria completada: {datetime.now(bogota_tz)}")
         except Exception as e:
             #logger.error(f"❌ ERROR CRÍTICO EN LA ACTUALIZACIÓN DIARIA: {str(e)}")
             import traceback
@@ -2286,14 +2290,46 @@ def enviar_reporte_coberturas_activadas():
             #logger.error(traceback.format_exc())
 
 # Definir zona horaria de Bogotá
-bogota_tz = pytz.timezone('America/Bogota')
+# Función para programar el procesamiento automático de coberturas inactivas
+
+def procesar_coberturas_inactivas_programado():
+    """
+    Función que se ejecuta automáticamente por el planificador
+    """
+    with app.app_context():
+        app.logger.info("Iniciando procesamiento programado de coberturas inactivas")
+        resultados = {
+            'correos_dia1_enviados': 0,
+            'correos_dia3_enviados': 0,
+            'coberturas_activadas': 0,
+            'errores': []
+        }
+        
+        try:
+            # Procesar coberturas inactivas
+            procesar_envio_correos_inactivas(resultados)
+            
+            app.logger.info(f"Procesamiento programado completado: {resultados['correos_dia1_enviados']} correos día 1, "
+                          f"{resultados['correos_dia3_enviados']} correos día 3, "
+                          f"{resultados['coberturas_activadas']} coberturas activadas")
+            
+            if resultados['errores']:
+                app.logger.error(f"Errores durante el procesamiento programado: {resultados['errores']}")
+                
+        except Exception as e:
+            import traceback
+            error_msg = traceback.format_exc()
+            app.logger.error(f"Error en procesamiento programado: {str(e)}")
+            print(f"Error en procesar_coberturas_inactivas_programado: {error_msg}")
+
+
+
 def configurar_tareas_programadas():
     """
     Configura todas las tareas programadas del sistema
     """
     try:
         # Crear scheduler con zona horaria
-        scheduler = BackgroundScheduler(timezone=bogota_tz)
         
         # 1. Exportación de coberturas inactivas cada domingo a las 23:59
         scheduler.add_job(
@@ -2325,7 +2361,7 @@ def configurar_tareas_programadas():
         # 4. Procesamiento diario de coberturas inactivas a las 11:45 AM
         scheduler.add_job(
             procesar_coberturas_inactivas_programado, 'cron',
-            hour='10', minute='05',
+            hour='8', minute='30',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
             replace_existing=True
@@ -2338,7 +2374,22 @@ def configurar_tareas_programadas():
         
     except Exception as e:
         app.logger.error(f"Error al configurar tareas programadas: {str(e)}")
+try:
+    # Configurar tareas
+    configurar_tareas_programadas()
+    
+    # Iniciar el programador
+    if not scheduler.running:
+        scheduler.start()
+        print(f"SCHEDULER INICIADO: {datetime.now(bogota_tz).strftime('%Y-%m-%d %H:%M:%S')}")
+    else:
+        print("El scheduler ya está en ejecución")
         
+except Exception as e:
+    import traceback
+    error_msg = traceback.format_exc()
+    print(f"Error al iniciar el scheduler: {error_msg}")
+
 # Clase para el servicio de correo para coberturas inactivas
 class CoberturaInactivaEmailService:
     def __init__(self):
@@ -2657,35 +2708,6 @@ def enviar_correos_dia3(hoy, resultados):
     except Exception as e:
         app.logger.error(f"Error al enviar correos día 3: {str(e)}")
         resultados['errores'].append(f"Error al enviar correos día 3: {str(e)}")
-
-# Función para programar el procesamiento automático de coberturas inactivas
-
-def procesar_coberturas_inactivas_programado():
-    """
-    Función que se ejecuta automáticamente por el planificador
-    """
-    with app.app_context():
-        app.logger.info("Iniciando procesamiento programado de coberturas inactivas")
-        resultados = {
-            'correos_dia1_enviados': 0,
-            'correos_dia3_enviados': 0,
-            'coberturas_activadas': 0,
-            'errores': []
-        }
-        
-        try:
-            # Procesar coberturas inactivas
-            procesar_envio_correos_inactivas(resultados)
-            
-            app.logger.info(f"Procesamiento programado completado: {resultados['correos_dia1_enviados']} correos día 1, "
-                          f"{resultados['correos_dia3_enviados']} correos día 3, "
-                          f"{resultados['coberturas_activadas']} coberturas activadas")
-            
-            if resultados['errores']:
-                app.logger.error(f"Errores durante el procesamiento programado: {resultados['errores']}")
-                
-        except Exception as e:
-            app.logger.error(f"Error en procesamiento programado: {str(e)}")
 
 
 if __name__ == '__app__':
