@@ -2367,11 +2367,6 @@ def configurar_tareas_programadas():
             replace_existing=True
         )
         
-        # Iniciar el planificador
-        scheduler.start()
-        print(f"SCHEDULER INICIADO: {datetime.now(bogota_tz).strftime('%Y-%m-%d %H:%M:%S')}")
-        app.logger.info("Tareas programadas configuradas correctamente con zona horaria de Bogota")
-        
     except Exception as e:
         app.logger.error(f"Error al configurar tareas programadas: {str(e)}")
 try:
