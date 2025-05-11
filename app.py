@@ -1312,15 +1312,42 @@ def obtener_conexion_bd():
 def buscar_por_imei(imei):
     """
     Busca información asociada a un IMEI específico
+    Maneja casos especiales de IMEIs con sufijo 'A' (equipos de recompra)
     """
     conn = obtener_conexion_bd()
     cursor = conn.cursor()
     
-    consulta = """
+    # Limpiar el IMEI para manejar diferentes formatos
+    imei_limpio = imei.strip()
+    
+    # Preparamos diferentes variantes del IMEI para la búsqueda
+    imei_variantes = [imei_limpio]  # La versión original tal como viene
+    
+    # Si el IMEI termina con 'A', agregamos versión sin la 'A'
+    if imei_limpio.endswith('A'):
+        imei_variantes.append(imei_limpio[:-1])
+    else:
+        # Si no termina con 'A', agregamos versión con 'A'
+        imei_variantes.append(imei_limpio + 'A')
+    
+    # Construimos la parte dinámica de la consulta SQL
+    condiciones_imei = []
+    parametros = []
+    
+    for variante in imei_variantes:
+        condiciones_imei.append("v.Serie = ?")
+        parametros.append(variante)
+        
+        # También buscamos en los primeros 15 caracteres
+        condiciones_imei.append("LEFT(v.Serie, 15) = ?")
+        parametros.append(variante[:15])
+    
+    consulta = f"""
     SELECT DISTINCT TOP 1
         v.Tipo_Documento,
         v.Documento,
         v.Tipo_Documento + v.Documento AS Factura,
+        v.Serie AS Serie_Completa,
         LEFT(v.Serie, 15) AS IMEI,
         v.Referencia AS Producto,
         v.Valor,
@@ -1342,16 +1369,23 @@ def buscar_por_imei(imei):
         AND m.CODLINEA = 'CEL'
         AND m.CODGRUPO = 'SEMI'
         AND v.NIT NOT IN ('1152718000', '1053817613', '1000644140', '01')
-        AND LEFT(v.Serie, 15) = ?
+        AND ({" OR ".join(condiciones_imei)})
+    ORDER BY 
+        v.Fecha_Inicial DESC  -- Obtener el registro más reciente
     """
     
     try:
-        cursor.execute(consulta, (imei,))
+        cursor.execute(consulta, parametros)
         resultado = cursor.fetchone()
         
         if resultado:
+            # Usamos el IMEI guardado tal como está en la base de datos
+            imei_guardado = resultado.Serie_Completa
+            imei_limpio_15 = resultado.IMEI  # Los primeros 15 caracteres
+            
             return {
-                'imei': resultado.IMEI,
+                'imei': imei_guardado,  # IMEI completo como está en la BD
+                'imei_limpio': imei_limpio_15,  # Los primeros 15 caracteres
                 'referencia': resultado.Producto,
                 'valor': float(resultado.Valor),
                 'fecha': resultado.Fecha.strftime('%Y-%m-%d') if resultado.Fecha else None,
@@ -1360,10 +1394,12 @@ def buscar_por_imei(imei):
                 'correo': resultado.Correo,
                 'telefono': resultado.Telefono
             }
+            
+        app.logger.debug(f"No se encontraron resultados para el IMEI: {imei_limpio}")
         return None
         
     except Exception as e:
-        app.logger.error(f"Error en la consulta: {str(e)}")
+        app.logger.error(f"Error en la consulta de buscar_por_imei: {str(e)}")
         raise
     finally:
         cursor.close()
@@ -1478,6 +1514,8 @@ def cobertura():
 
     try:
         if accion == 'buscar':
+            app.logger.debug(f"Buscando cobertura para IMEI: {imei}, Usuario: {documento}")
+            
             datos_cobertura = buscar_por_imei(imei)
             
             if not datos_cobertura:
@@ -1497,17 +1535,10 @@ def cobertura():
             # Limpiar el documento de sesión
             documento_sesion = str(documento).strip()
             
-            # Validación más detallada
-            if nit_cobertura != documento_sesion:
-                return jsonify({
-                    'exito': False,
-                    'mensaje': 'No tiene permisos para acceder a la información de este IMEI',
-                    'usuario': usuario.nombre if usuario else None,
-                    'total_puntos': total_puntos
-                }), 403
-            
             # Verificar si ya existe cobertura para este IMEI
-            cobertura_existente = cobertura_clientes.query.filter_by(imei=imei).first()
+            imei_limpio = datos_cobertura.get('imei', imei)[:15]
+            cobertura_existente = cobertura_clientes.query.filter_by(imei=imei_limpio).first()
+            
             if cobertura_existente:
                 return jsonify({
                     'exito': False,
@@ -1515,6 +1546,26 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 400
+            
+            # Verificar si es un IMEI de recompra (termina en A)
+            es_recompra = imei.endswith('A')
+            
+            # Validación de NIT con manejo especial para IMEIs de recompra
+            if nit_cobertura != documento_sesion:
+                # Si es un IMEI de recompra, permitir sin importar el NIT
+                if es_recompra:
+                    app.logger.info(f"Aplicando excepción para equipo recompra: {imei}, Usuario: {documento_sesion}")
+                    # Continuar con la validación, permitiendo el acceso
+                else:
+                    return jsonify({
+                        'exito': False,
+                        'mensaje': f'No tiene permisos para acceder a la información de este IMEI.',
+                        'usuario': usuario.nombre if usuario else None,
+                        'total_puntos': total_puntos
+                    }), 403
+            
+            # Añadir la información de recompra a los datos
+            datos_cobertura['es_recompra'] = es_recompra
             
             return jsonify({
                 'exito': True,
@@ -1570,13 +1621,21 @@ def cobertura():
                 nit_cobertura = nit_cobertura.split('-')[0]
             nit_cobertura = nit_cobertura.strip()
             
+            # Verificar si es un IMEI de recompra (termina en A)
+            es_recompra = imei.endswith('A')
+            
             if nit_cobertura != nit_limpio:
-                return jsonify({
-                    'exito': False,
-                    'mensaje': 'No tiene permisos para activar la cobertura de este IMEI',
-                    'usuario': usuario.nombre if usuario else None,
-                    'total_puntos': total_puntos
-                }), 403
+                # Si es un IMEI de recompra, permitir sin importar el NIT
+                if es_recompra:
+                    app.logger.info(f"Aplicando excepción para guardar equipo recompra: {imei}, Usuario: {nit_limpio}")
+                    # Continuar con la validación, permitiendo el acceso
+                else:
+                    return jsonify({
+                        'exito': False,
+                        'mensaje': f'No tiene permisos para activar la cobertura de este IMEI.',
+                        'usuario': usuario.nombre if usuario else None,
+                        'total_puntos': total_puntos
+                    }), 403
                 
             # Obtener y validar el correo
             correo = datos.get('datos', {}).get('correo', '').strip()
@@ -1588,10 +1647,12 @@ def cobertura():
                     'total_puntos': total_puntos
                 }), 400
                 
-            # Preparar datos para guardar
+            # Preparar datos para guardar - asegurar que el IMEI tenga máximo 15 caracteres
+            imei_limpio = datos_cobertura.get('imei', imei)[:15]
+            
             datos_guardar = {
                 'documento': nit_limpio,
-                'imei': imei,
+                'imei': imei_limpio,
                 'nombreCliente': datos.get('datos', {}).get('nombre', '').strip(),
                 'correo': correo,
                 'fecha': datetime.strptime(datos.get('fecha'), '%Y-%m-%d'),
@@ -1603,7 +1664,7 @@ def cobertura():
                 
             try:
                 # Verificar si ya existe una cobertura activa para este IMEI
-                cobertura_existente = cobertura_clientes.query.filter_by(imei=imei).first()
+                cobertura_existente = cobertura_clientes.query.filter_by(imei=imei_limpio).first()
                 if cobertura_existente:
                     return jsonify({
                         'exito': False,
@@ -1644,7 +1705,7 @@ def cobertura():
                     'mensaje': 'Ha ocurrido un error al procesar la solicitud. Por favor, inténtelo nuevamente.',
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
-                })
+                }), 500
             
     except Exception as e:
         app.logger.error(f"Error en el servidor: {str(e)}")
