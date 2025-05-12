@@ -42,7 +42,7 @@ app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
-    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway',
+    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
     #'db3':'postgresql://postgres:123@localhost:5432/cobertura_local'
 }
 
@@ -2163,6 +2163,7 @@ def ensure_folder_exists(ctx, folder_path):
 # Definir la función que quieres ejecutar
 bogota_tz = pytz.timezone('America/Bogota')
 scheduler = BackgroundScheduler(timezone=bogota_tz)
+
 def exportar_coberturas_automaticamente():
     with app.app_context():
         try:
@@ -2228,21 +2229,19 @@ def actualizar_coberturas_inactivas_diario():
 def enviar_reporte_coberturas_activadas():
     with app.app_context():
         try:
-            #logger.info("===== INICIANDO REPORTE SEMANAL DE COBERTURAS ACTIVADAS =====")
-            
-            # Calcular rango de fechas: semana anterior (de lunes a domingo)
+            # Obtener la fecha y hora actual en la zona horaria de Bogotá
             hoy = datetime.now(bogota_tz)
             
-            # Cálculo del lunes de la semana anterior
-            dias_hasta_lunes_actual = hoy.weekday()  # 0=Lunes, 6=Domingo
-            dias_hasta_lunes_anterior = dias_hasta_lunes_actual + 7
-            lunes_anterior = hoy - timedelta(days=dias_hasta_lunes_anterior)
-            fecha_inicio = lunes_anterior.replace(hour=0, minute=0, second=0)
+            # Obtener el número de días desde el lunes de la semana actual
+            dia_semana = hoy.weekday()  # 0=Lunes, 6=Domingo
             
-            # Cálculo del domingo de la semana anterior (lunes anterior + 6 días)
-            domingo_anterior = lunes_anterior + timedelta(days=6)
-            fecha_fin = domingo_anterior.replace(hour=23, minute=59, second=59)
+            # Calcular fecha de inicio (lunes pasado)
+            fecha_inicio = (hoy - timedelta(days=dia_semana + 7)).replace(hour=0, minute=0, second=0, microsecond=0)
             
+            # Calcular fecha de fin (domingo pasado)
+            fecha_fin = (hoy - timedelta(days=dia_semana + 1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Formato del rango de fechas
             rango_fechas = f"{fecha_inicio.strftime('%d/%m/%Y')} - {fecha_fin.strftime('%d/%m/%Y')}"
             
             # Consultar la base de datos para obtener coberturas activadas en el rango de fechas
@@ -2253,9 +2252,7 @@ def enviar_reporte_coberturas_activadas():
             if not coberturas_activadas:
                 #logger.warning("No se encontraron coberturas activadas en el período especificado")
                 return
-            print(f"Fecha de inicio: {fecha_inicio}")
-            print(f"Fecha de fin: {fecha_fin}")
-            print(f"Rango de fechas: {rango_fechas}")
+            
             #logger.info(f"Se encontraron {len(coberturas_activadas)} coberturas activadas en el período")
             
             # Preparar datos para Excel
@@ -2306,7 +2303,7 @@ def enviar_reporte_coberturas_activadas():
                 #"leslyvalderrama@acinco.com.co",
                 #"juangarcia@micelu.co",
                 'higuitaa891@gmail.com',
-                'estradak325@gmail.com'
+                'estradak325@gmail.com',
                 #"coordinadormed@micelu.co",
                 #"karen.vargas@micelu.co"
             ]
@@ -2419,7 +2416,7 @@ def configurar_tareas_programadas():
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
-            hour='11', minute='30',
+            day_of_week='0', hour='12', minute='45',
             timezone=bogota_tz,
             id='reporte_coberturas_activadas',
             replace_existing=True
