@@ -2229,19 +2229,18 @@ def actualizar_coberturas_inactivas_diario():
 def enviar_reporte_coberturas_activadas():
     with app.app_context():
         try:
-            # Obtener la fecha y hora actual en la zona horaria de Bogotá
-            hoy = datetime.now(bogota_tz)
+            #logger.info("===== INICIANDO REPORTE SEMANAL DE COBERTURAS ACTIVADAS =====")
             
+            # Calcular rango de fechas: última semana (de lunes a domingo)
+            hoy = datetime.now(bogota_tz)
             # Obtener el número de días desde el lunes de la semana actual
             dia_semana = hoy.weekday()  # 0=Lunes, 6=Domingo
             
-            # Calcular fecha de inicio (lunes pasado)
-            fecha_inicio = (hoy - timedelta(days=dia_semana + 7)).replace(hour=0, minute=0, second=0, microsecond=0)
+            # Calcular fecha de inicio (lunes de la semana actual)
+            fecha_inicio = (hoy - timedelta(days=dia_semana)).replace(hour=0, minute=0, second=0)
+            # Calcular fecha de fin (domingo de la semana actual)
+            fecha_fin = hoy.replace(hour=23, minute=49, second=59)
             
-            # Calcular fecha de fin (domingo pasado)
-            fecha_fin = (hoy - timedelta(days=dia_semana + 1)).replace(hour=23, minute=59, second=59, microsecond=999999)
-            
-            # Formato del rango de fechas
             rango_fechas = f"{fecha_inicio.strftime('%d/%m/%Y')} - {fecha_fin.strftime('%d/%m/%Y')}"
             
             # Consultar la base de datos para obtener coberturas activadas en el rango de fechas
@@ -2299,13 +2298,12 @@ def enviar_reporte_coberturas_activadas():
             
             # Lista de destinatarios del reporte
             destinatarios = [
-                #"agonzalez@acinco.com.co",
-                #"leslyvalderrama@acinco.com.co",
-                #"juangarcia@micelu.co",
+                "agonzalez@acinco.com.co",
+                "leslyvalderrama@acinco.com.co",
+                "juangarcia@micelu.co",
                 'higuitaa891@gmail.com',
-                'estradak325@gmail.com',
-                #"coordinadormed@micelu.co",
-                #"karen.vargas@micelu.co"
+                "coordinadormed@micelu.co",
+                "karen.vargas@micelu.co"
             ]
             
             # Formato del asunto
@@ -2398,7 +2396,7 @@ def configurar_tareas_programadas():
         # 1. Exportación de coberturas inactivas cada domingo a las 23:59
         scheduler.add_job(
             exportar_coberturas_automaticamente, 'cron',
-            day_of_week='sun', hour='23', minute='59',
+            day_of_week='6', hour='23', minute='50',
             timezone=bogota_tz,
             id='exportar_coberturas',
             replace_existing=True
@@ -2416,7 +2414,7 @@ def configurar_tareas_programadas():
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
-            day_of_week='0', hour='12', minute='45',
+            day_of_week='6', hour='21', minute='00',
             timezone=bogota_tz,
             id='reporte_coberturas_activadas',
             replace_existing=True
