@@ -2306,6 +2306,7 @@ def enviar_reporte_coberturas_activadas():
                 #"leslyvalderrama@acinco.com.co",
                 #"juangarcia@micelu.co",
                 'higuitaa891@gmail.com',
+                'estradak325@gmail.com'
                 #"coordinadormed@micelu.co",
                 #"karen.vargas@micelu.co"
             ]
@@ -2418,7 +2419,7 @@ def configurar_tareas_programadas():
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
-            day_of_week='mon', hour='09', minute='22',
+            day_of_week='mon', hour='09', minute='45',
             timezone=bogota_tz,
             id='reporte_coberturas_activadas',
             replace_existing=True
