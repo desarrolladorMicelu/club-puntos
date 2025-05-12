@@ -42,7 +42,7 @@ app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
-    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
+    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway',
     #'db3':'postgresql://postgres:123@localhost:5432/cobertura_local'
 }
 
@@ -2419,7 +2419,7 @@ def configurar_tareas_programadas():
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
-            day_of_week='mon', hour='09', minute='45',
+            hour='11', minute='30',
             timezone=bogota_tz,
             id='reporte_coberturas_activadas',
             replace_existing=True
