@@ -2230,15 +2230,18 @@ def enviar_reporte_coberturas_activadas():
         try:
             #logger.info("===== INICIANDO REPORTE SEMANAL DE COBERTURAS ACTIVADAS =====")
             
-            # Calcular rango de fechas: última semana (de lunes a domingo)
+            # Calcular rango de fechas: semana anterior (de lunes a domingo)
             hoy = datetime.now(bogota_tz)
-            # Obtener el número de días desde el lunes de la semana actual
-            dia_semana = hoy.weekday()  # 0=Lunes, 6=Domingo
             
-            # Calcular fecha de inicio (lunes de la semana actual)
-            fecha_inicio = (hoy - timedelta(days=dia_semana)).replace(hour=0, minute=0, second=0)
-            # Calcular fecha de fin (domingo de la semana actual)
-            fecha_fin = hoy.replace(hour=23, minute=59, second=59)
+            # Cálculo del lunes de la semana anterior
+            dias_hasta_lunes_actual = hoy.weekday()  # 0=Lunes, 6=Domingo
+            dias_hasta_lunes_anterior = dias_hasta_lunes_actual + 7
+            lunes_anterior = hoy - timedelta(days=dias_hasta_lunes_anterior)
+            fecha_inicio = lunes_anterior.replace(hour=0, minute=0, second=0)
+            
+            # Cálculo del domingo de la semana anterior (lunes anterior + 6 días)
+            domingo_anterior = lunes_anterior + timedelta(days=6)
+            fecha_fin = domingo_anterior.replace(hour=23, minute=59, second=59)
             
             rango_fechas = f"{fecha_inicio.strftime('%d/%m/%Y')} - {fecha_fin.strftime('%d/%m/%Y')}"
             
@@ -2250,7 +2253,9 @@ def enviar_reporte_coberturas_activadas():
             if not coberturas_activadas:
                 #logger.warning("No se encontraron coberturas activadas en el período especificado")
                 return
-            
+            print(f"Fecha de inicio: {fecha_inicio}")
+            print(f"Fecha de fin: {fecha_fin}")
+            print(f"Rango de fechas: {rango_fechas}")
             #logger.info(f"Se encontraron {len(coberturas_activadas)} coberturas activadas en el período")
             
             # Preparar datos para Excel
@@ -2297,12 +2302,12 @@ def enviar_reporte_coberturas_activadas():
             
             # Lista de destinatarios del reporte
             destinatarios = [
-                "agonzalez@acinco.com.co",
-                "leslyvalderrama@acinco.com.co",
-                "juangarcia@micelu.co",
+                #"agonzalez@acinco.com.co",
+                #"leslyvalderrama@acinco.com.co",
+                #"juangarcia@micelu.co",
                 'higuitaa891@gmail.com',
-                "coordinadormed@micelu.co",
-                "karen.vargas@micelu.co"
+                #"coordinadormed@micelu.co",
+                #"karen.vargas@micelu.co"
             ]
             
             # Formato del asunto
@@ -2413,7 +2418,7 @@ def configurar_tareas_programadas():
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
-            day_of_week='sun', hour='21', minute='00',
+            day_of_week='mon', hour='09', minute='22',
             timezone=bogota_tz,
             id='reporte_coberturas_activadas',
             replace_existing=True
