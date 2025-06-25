@@ -37,6 +37,7 @@ app = Flask(__name__)
 # Configurar el tiempo de la sesión a 30 minutos
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 #Envio correo recuperar contraseña
+
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
@@ -52,6 +53,7 @@ TENANT_ID = os.getenv('TENANT_ID')
 SHAREPOINT_URL = os.getenv('SHAREPOINT_URL') 
 SITE_ID = os.getenv('SITE_ID')
 ARCHIVO_EXCEL = os.getenv('ARCHIVO_EXCEL')
+app.config['POLICY_ENVIRONMENT'] = 'prod'  # o 'qa'
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)  
@@ -1416,27 +1418,28 @@ class CoberturaEmailService:
             email_client = EmailClient.from_connection_string(self.connection_string)
 
             # URL de la imagen
-            url_imagen = "https://ibb.co/934Vm1xs/imagen.jpg"
+            url_imagen = "https://i.postimg.cc/zXqYFxZf/Cobertura.jpg"
 
             contenido_html = f"""
             <html>
-            <body style="font-family: Poppins, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <img src="{url_imagen}" alt="Logo Micelu" style="max-width:600px; display: block; margin: 0 auto;">
-                </div>
-                <h2 style="color: #333;">Confirmación de Cobertura</h2>
-                <p>Estimado(a) {datos_cobertura['nombreCliente']},</p>
-                <p>Su cobertura ha sido activada exitosamente por 1 año con los siguientes detalles:</p>
-                <ul>
+                <body style="font-family: Poppins, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; font-size: 14px; line-height: 1.6;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="{url_imagen}" alt="Logo Micelu" style="max-width: 600px; display: block; margin: 0 auto;">
+                    </div>
+                    <h2 style="color: #333; font-size: 20px;">Confirmación de Cobertura</h2>
+                    <p style="font-size: 16px;">Estimado(a) <strong>{datos_cobertura['nombreCliente']}</strong>,</p>
+                    <p style="font-size: 16px;">Su cobertura ha sido activada exitosamente por 1 año con los siguientes detalles:</p>
+                    <ul style="font-size: 16px; padding-left: 20px;">
                     <li><strong>IMEI:</strong> {datos_cobertura['imei']}</li>
                     <li><strong>Fecha de compra:</strong> {datos_cobertura['fecha'].strftime('%d/%m/%Y')}</li>
                     <li><strong>Valor:</strong> ${datos_cobertura['valor']}</li>
                     <li><strong>Vigencia hasta:</strong> {fecha_fin}</li>
-                </ul>
-                <p>Gracias por confiar en nosotros.</p>
-                <p>Atentamente,<br>Equipo Micelu.co</p>
-            </body>
+                    </ul>
+                    <p style="font-size: 16px;">Gracias por confiar en nosotros.</p>
+                    <p style="font-size: 16px;">Atentamente,<br><strong>Equipo Micelu.co</strong></p>
+                </body>
             </html>
+
             """
 
             # Preparar destinatarios
@@ -1476,17 +1479,366 @@ def clean_text(value):
         return ' '.join(value.split())
     return value
 
+class PolicyIntegrationService:
+    """
+    Servicio de integración para generar pólizas en API externa
+    Basado en el sistema exitoso de la primera aplicación
+    """
+    
+    # Configuración de la API - Producción
+    API_CONFIG_PROD = {
+        'AUTH_URL': 'https://ms.proteccionmovil.co/api/v1/auth/token',
+        'CLIENT_ID': 'Q7bMfHwO6f2l4uWGV5B9',
+        'CLIENT_SECRET': '6jfbwulaBbQ165xmblQxmgQZHsbyM1hoSjpjzA4m',
+        'BASE_URL': 'https://ms.proteccionmovil.co/api/v1'
+    }
+
+    # Configuración de la API - Pruebas (QA)
+    API_CONFIG_QA = {
+        'AUTH_URL': 'https://qamicroservice.proteccionmovil.co/api/v1/auth/token',
+        'CLIENT_ID': 'mS8DJ3GFOBW3d8AIZsSy',
+        'CLIENT_SECRET': 'Y2stnRwVvPWJhJvt4KRA0Js1LWtnijp4ls6s05Qz',
+        'BASE_URL': 'https://qamicroservice.proteccionmovil.co/api/v1'
+    }
+    # Configuración de planes específicos
+    PLANES_ESPECIFICOS = {
+        'qa': {
+            'ASISTENCIA_FRACTURA_PANTALLA': {
+                'plan_id': 107,
+                'price_id': 324,
+                'nombre': 'Plan Asistencia Fractura de pantalla'
+            }
+        },
+        'prod': {
+            'ASISTENCIA_FRACTURA_PANTALLA': {
+                'plan_id': 70,
+                'price_id': 199,
+                'nombre': 'Plan Asistencia Fractura de pantalla'
+            }
+        }
+    }
+    
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        
+    def get_config(self, environment='prod'):
+        """Obtiene la configuración según el ambiente - CORREGIDO"""
+        # CORREGIDO: La lógica estaba invertida
+        return self.API_CONFIG_QA if environment == 'prod' else self.API_CONFIG_PROD
+    
+    def get_auth_token(self, environment='prod'):
+        """
+        Obtiene token de autenticación según el ambiente
+        Returns: (token, token_type) o (None, None) si falla
+        """
+        try:
+            config = self.get_config(environment)
+            url = config['AUTH_URL']
+            params = {
+                'clientId': config['CLIENT_ID'],
+                'clientSecret': config['CLIENT_SECRET']
+            }
+            
+            #self.logger.debug(f"Solicitando token a: {url}")
+            response = requests.get(url, params=params, timeout=30)
+            
+            if response.status_code != 200:
+                self.logger.error(f"Error al obtener token: {response.status_code} - {response.text}")
+                return None, None
+            
+            response_data = response.json()
+            
+            if 'data' not in response_data:
+                #self.logger.error(f"Respuesta inesperada del servidor: {response_data}")
+                return None, None
+            
+            token = response_data['data']['token']
+            token_type = response_data['data']['type']
+            
+            #self.logger.debug(f"Token obtenido exitosamente para ambiente: {environment}")
+            return token, token_type
+            
+        except requests.exceptions.RequestException as e:
+            #self.logger.error(f"Error de conexión al obtener token: {str(e)}")
+            return None, None
+        except Exception as e:
+            self.logger.error(f"Error inesperado al obtener token: {str(e)}")
+            return None, None
+    
+    def list_policy_options(self, imei, token, token_type, sponsor_id="MICELU", environment='prod'):
+        """
+        Lista opciones de póliza según el ambiente
+        Returns: (plan_id, price_option_id) o (None, None) si falla
+        """
+        try:
+            config = self.get_config(environment)
+            url = f"{config['BASE_URL']}/policy/imei/{imei}?sponsorId={sponsor_id}"
+            headers = {
+                'Authorization': f'{token_type} {token}'
+            }
+            
+            self.logger.debug(f"Consultando opciones de póliza para IMEI: {imei}")
+            response = requests.get(url, headers=headers, timeout=30)
+            
+            if response.status_code != 200:
+                self.logger.error(f"Error al consultar póliza: {response.status_code} - {response.text}")
+                return None, None
+            
+            response_data = response.json()
+            
+            if 'error' in response_data:
+                self.logger.error(f"Error en respuesta de póliza: {response_data['error']}")
+                return None, None
+            
+            if 'data' not in response_data or 'policies' not in response_data['data']:
+                self.logger.error(f"Estructura de respuesta inesperada: {response_data}")
+                return None, None
+            
+            policies = response_data['data']['policies']
+            if not policies or not policies[0].get('pricingOptions'):
+                self.logger.error("No se encontraron pólizas o opciones de precio")
+                return None, None
+            
+            plan_id = policies[0]['id']
+            price_option_id = policies[0]['pricingOptions'][0]['id']
+            
+            self.logger.debug(f"Opciones obtenidas - Plan ID: {plan_id}, Price Option ID: {price_option_id}")
+            return plan_id, price_option_id
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error de conexión al consultar póliza: {str(e)}")
+            return None, None
+        except Exception as e:
+            self.logger.error(f"Error inesperado al consultar póliza: {str(e)}")
+            return None, None
+    
+    def get_specific_plan_ids(self, environment='prod', plan_type='ASISTENCIA_FRACTURA_PANTALLA'):
+        """
+        Obtiene los IDs específicos del plan solicitado según el ambiente
+        Returns: (plan_id, price_option_id) para el plan específico
+        """
+        if environment in self.PLANES_ESPECIFICOS and plan_type in self.PLANES_ESPECIFICOS[environment]:
+            plan_config = self.PLANES_ESPECIFICOS[environment][plan_type]
+            plan_id = plan_config['plan_id']
+            price_id = plan_config['price_id']
+            
+            #self.logger.debug(f"Usando plan específico '{plan_config['nombre']}' para ambiente {environment} - Plan ID: {plan_id}, Price ID: {price_id}")
+            return plan_id, price_id
+        else:
+            self.logger.warning(f"Plan específico '{plan_type}' no encontrado para ambiente '{environment}', usando método estándar")
+            return None, None
+    
+    def pre_generate_policy(self, payload, token, token_type, environment='prod'):
+        """Pregenera póliza según el ambiente"""
+        try:
+            config = self.get_config(environment)
+            url = f"{config['BASE_URL']}/policy/pregeneration"
+            headers = {
+                'Authorization': f'{token_type} {token}',
+                'Content-Type': 'application/json'
+            }
+            
+            #self.logger.debug(f"Pregenerando póliza para IMEI: {payload.get('device', {}).get('imei', 'N/A')}")
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code != 200:
+                #self.logger.error(f"Error en pregeneración: {response.status_code} - {response.text}")
+                return None
+            
+            response_data = response.json()
+            #self.logger.debug(f"Pregeneración completada: {response_data}")
+            return response_data
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error de conexión en pregeneración: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error inesperado en pregeneración: {str(e)}")
+            return None
+    
+    def generate_policy(self, payload, token, token_type, environment='prod'):
+        """Genera póliza según el ambiente"""
+        try:
+            config = self.get_config(environment)
+            url = f"{config['BASE_URL']}/policy"
+            headers = {
+                'Authorization': f'{token_type} {token}',
+                'Content-Type': 'application/json'
+            }
+
+            self.logger.debug(f"Generando póliza final para IMEI: {payload.get('device', {}).get('imei', 'N/A')}")
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code != 200:
+                self.logger.error(f"Error en generación final: {response.status_code} - {response.text}")
+                return None
+            
+            response_data = response.json()
+            self.logger.debug(f"Generación final completada: {response_data}")
+            return response_data
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error de conexión en generación final: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error inesperado en generación final: {str(e)}")
+            return None
+    
+    def procesar_cobertura_completa(self, datos_cobertura, environment='prod', usar_plan_especifico=True, tipo_plan='ASISTENCIA_FRACTURA_PANTALLA'):
+        """
+        Procesa la cobertura completa: busca datos, genera póliza
+        
+        Parámetros:
+        - datos_cobertura: datos del cliente y dispositivo
+        - environment: ambiente (qa/prod)
+        - usar_plan_especifico: si True, usa los IDs específicos configurados
+        - tipo_plan: tipo de plan específico a usar
+        """
+        try:
+            imei = datos_cobertura.get('imei', '').strip()
+            if not imei:
+                return False, "IMEI no proporcionado", None
+
+            # 1. Buscar información del cliente en la base de datos
+            self.logger.info(f"Procesando cobertura para IMEI: {imei} en ambiente: {environment}")
+            
+            db_results = buscar_por_imei(imei)
+            if not db_results:
+                return False, "No se encontró información del IMEI en la base de datos", None
+
+            client_info = db_results[0] if isinstance(db_results, list) else db_results
+            
+            # 2. Obtener token de autenticación
+            token, token_type = self.get_auth_token(environment)
+            if not token:
+                return False, "No se pudo obtener token de autenticación", None
+
+            # 3. Obtener opciones de póliza (método específico o estándar)
+            plan_id = None
+            price_option_id = None
+            
+            if usar_plan_especifico:
+                # Usar plan específico configurado
+                plan_id, price_option_id = self.get_specific_plan_ids(environment, tipo_plan)
+                #self.logger.info(f"Usando plan específico: {tipo_plan} - Plan ID: {plan_id}, Price ID: {price_option_id}")
+            
+            # Si no se pudo obtener el plan específico, usar método estándar como fallback
+            if not plan_id or not price_option_id:
+                #self.logger.info("Usando método estándar para obtener plan (fallback)")
+                plan_id, price_option_id = self.list_policy_options(imei, token, token_type, environment=environment)
+                
+            if not plan_id or not price_option_id:
+                return False, "No se pudieron obtener opciones de póliza para este IMEI", None
+
+            # Primero intentar obtener el nombre de los datos pasados directamente
+            nombre_completo = str(datos_cobertura.get('nombre_cliente', '')).strip()
+            
+            # Si no está en datos_cobertura, buscar en client_info de la BD
+            if not nombre_completo:
+                nombre_completo = str(client_info.get('nombre_cliente', client_info.get('Nombre_Cliente', ''))).strip()
+            
+            # Si aún no tenemos nombre, intentar construirlo de otras fuentes
+            if not nombre_completo:
+                # Intentar otras posibles claves
+                nombre_completo = str(client_info.get('nombre', client_info.get('Nombre', ''))).strip()
+            
+            # Validación final del nombre
+            if not nombre_completo:
+                return False, "No se pudo obtener el nombre del cliente", None
+            
+            # Separar nombre y apellido
+            if ' ' in nombre_completo:
+                partes_nombre = nombre_completo.split(' ')
+                first_name = partes_nombre[0]
+                last_name = ' '.join(partes_nombre[1:])
+            else:
+                first_name = nombre_completo
+                last_name = ''
+            
+            # Validación adicional
+            if not first_name.strip():
+                return False, "El nombre del cliente no puede estar vacío", None
+            telefono = str(datos_cobertura.get('telefono', 'POR_ACTUALIZAR')).strip()
+
+            # 5. Construir payload con validaciones adicionales
+            correo = str(datos_cobertura.get('correo', client_info.get('correo', client_info.get('Correo', '')))).strip()
+            nit = str(datos_cobertura.get('nit', client_info.get('nit', client_info.get('NIT', '')))).strip()
+            valor = float(datos_cobertura.get('valor', client_info.get('valor', client_info.get('Valor', 0))))
+            
+            payload = {
+                "sponsorId": "MICELU",
+                "planId": plan_id,
+                "priceOptionId": price_option_id,
+                "insuredValue": valor,
+                "device": {
+                    "imei": imei,
+                    "line": telefono,
+                    "referenceTac": imei[:8]
+                },
+                "client": {
+                    "genderId": "POR_ACTUALIZAR",
+                    "email": correo,
+                    "firstName": first_name,
+                    "lastName": last_name,
+                    "identification": {
+                        "type": "CEDULA_CIUDADANIA",
+                        "number": nit
+                    }
+                }
+            }
+            
+            # Log para debugging - INCLUIR INFO DEL PLAN
+            plan_info = ""
+            if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS:
+                plan_info = f", plan específico: {self.PLANES_ESPECIFICOS[tipo_plan]['nombre']}"
+            
+            self.logger.debug(f"Payload construido: nombre_completo='{nombre_completo}', firstName='{first_name}', lastName='{last_name}', planId={plan_id}, priceOptionId={price_option_id}{plan_info}")
+            
+            # 6. Pregeneración
+            pre_response = self.pre_generate_policy(payload, token, token_type, environment)
+            if not pre_response:
+                return False, "Error en la pregeneración de póliza", None
+
+            if not (pre_response.get('data', {}).get('message') == 'Pregeneración exitosa'):
+                error_msg = pre_response.get('error', {}).get('message', 'Error desconocido en pregeneración')
+                return False, f"Pregeneración falló: {error_msg}", pre_response
+
+            # 7. Generación final (solo en producción)
+            final_response = None
+            if environment == 'prod':
+                final_response = self.generate_policy(payload, token, token_type, environment)
+                if not final_response:
+                    return False, "Error en la generación final de póliza", pre_response
+
+            self.logger.info(f"Póliza procesada exitosamente para IMEI: {imei}{plan_info}")
+            
+            return True, None, {
+                'pre_generation': pre_response,
+                'final_generation': final_response,
+                'environment': environment,
+                'payload_used': payload,
+                'plan_info': {
+                    'plan_id': plan_id,
+                    'price_option_id': price_option_id,
+                    'tipo_plan': tipo_plan if usar_plan_especifico else 'estandar',
+                    'nombre_plan': self.PLANES_ESPECIFICOS[tipo_plan]['nombre'] if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS else 'Plan estándar'
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error inesperado en procesamiento completo: {str(e)}")
+            return False, f"Error inesperado: {str(e)}", None
+
 @app.route("/cobertura", methods=['GET', 'POST'])
 @login_required
 def cobertura():
     documento = session.get('user_documento')
-    
     usuario = Usuario.query.filter_by(documento=documento).first()
-    
-    # Obtener los puntos del usuario
+
+    # Obtener puntos del usuario
     puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
     total_puntos = 0
-    
+
     if puntos_usuario:
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
         puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
@@ -1498,26 +1850,24 @@ def cobertura():
             usuario=usuario,
             total_puntos=total_puntos
         )
-    
-    datos = request.json
-    
-    imei = datos.get('imei')
-    accion = datos.get('accion', 'buscar')
-
-    if not imei:
-        return jsonify({
-            'exito': False,
-            'mensaje': 'El IMEI es obligatorio para continuar',
-            'usuario': usuario.nombre if usuario else None,
-            'total_puntos': total_puntos
-        }), 400
 
     try:
+        datos = request.json
+        imei = datos.get('imei')
+        accion = datos.get('accion', 'buscar')
+
+        if not imei:
+            return jsonify({
+                'exito': False,
+                'mensaje': 'El IMEI es obligatorio para continuar',
+                'usuario': usuario.nombre if usuario else None,
+                'total_puntos': total_puntos
+            }), 400
+
         if accion == 'buscar':
             app.logger.debug(f"Buscando cobertura para IMEI: {imei}, Usuario: {documento}")
-            
             datos_cobertura = buscar_por_imei(imei)
-            
+
             if not datos_cobertura:
                 return jsonify({
                     'exito': False,
@@ -1525,20 +1875,13 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 404
-            
-            # Obtener y limpiar el NIT de cobertura
-            nit_cobertura = str(datos_cobertura.get('nit', ''))
-            if '-' in nit_cobertura:
-                nit_cobertura = nit_cobertura.split('-')[0]
-            nit_cobertura = nit_cobertura.strip()
-            
-            # Limpiar el documento de sesión
+
+            nit_cobertura = str(datos_cobertura.get('nit', '')).split('-')[0].strip()
             documento_sesion = str(documento).strip()
-            
-            # Verificar si ya existe cobertura para este IMEI
+
             imei_limpio = datos_cobertura.get('imei', imei)[:15]
             cobertura_existente = cobertura_clientes.query.filter_by(imei=imei_limpio).first()
-            
+
             if cobertura_existente:
                 return jsonify({
                     'exito': False,
@@ -1546,27 +1889,19 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 400
-            
-            # Verificar si es un IMEI de recompra (termina en A)
+
             es_recompra = imei.endswith('A')
-            
-            # Validación de NIT con manejo especial para IMEIs de recompra
-            if nit_cobertura != documento_sesion:
-                # Si es un IMEI de recompra, permitir sin importar el NIT
-                if es_recompra:
-                    app.logger.info(f"Aplicando excepción para equipo recompra: {imei}, Usuario: {documento_sesion}")
-                    # Continuar con la validación, permitiendo el acceso
-                else:
-                    return jsonify({
-                        'exito': False,
-                        'mensaje': f'No tiene permisos para acceder a la información de este IMEI.',
-                        'usuario': usuario.nombre if usuario else None,
-                        'total_puntos': total_puntos
-                    }), 403
-            
-            # Añadir la información de recompra a los datos
+
+            if nit_cobertura != documento_sesion and not es_recompra:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'No tiene permisos para acceder a la información de este IMEI.',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 403
+
             datos_cobertura['es_recompra'] = es_recompra
-            
+
             return jsonify({
                 'exito': True,
                 'datos': datos_cobertura,
@@ -1574,7 +1909,7 @@ def cobertura():
                 'usuario_documento': documento_sesion,
                 'total_puntos': total_puntos
             })
-            
+
         elif accion == 'guardar':
             nit = datos.get('nit')
             if not nit:
@@ -1584,19 +1919,8 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 400
-                
-            try:
-                # Limpiamos el NIT recibido para comparar
-                nit_limpio = str(nit).replace('-', '').strip()
-            except ValueError:
-                return jsonify({
-                    'exito': False,
-                    'mensaje': 'El documento debe ser un número válido sin puntos ni espacios',
-                    'usuario': usuario.nombre if usuario else None,
-                    'total_puntos': total_puntos
-                }), 400
-            
-            # Validar que el NIT proporcionado coincida con el usuario logueado
+
+            nit_limpio = str(nit).replace('-', '').strip()
             if nit_limpio != str(documento):
                 return jsonify({
                     'exito': False,
@@ -1604,8 +1928,7 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 403
-                
-            # Validar que el IMEI exista en la base de datos
+
             datos_cobertura = buscar_por_imei(imei)
             if not datos_cobertura:
                 return jsonify({
@@ -1614,30 +1937,18 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 404
-                
-            # Validar que el NIT de la cobertura coincida con el del usuario
-            nit_cobertura = str(datos_cobertura.get('nit', ''))
-            if '-' in nit_cobertura:
-                nit_cobertura = nit_cobertura.split('-')[0]
-            nit_cobertura = nit_cobertura.strip()
-            
-            # Verificar si es un IMEI de recompra (termina en A)
+
+            nit_cobertura = str(datos_cobertura.get('nit', '')).split('-')[0].strip()
             es_recompra = imei.endswith('A')
-            
-            if nit_cobertura != nit_limpio:
-                # Si es un IMEI de recompra, permitir sin importar el NIT
-                if es_recompra:
-                    app.logger.info(f"Aplicando excepción para guardar equipo recompra: {imei}, Usuario: {nit_limpio}")
-                    # Continuar con la validación, permitiendo el acceso
-                else:
-                    return jsonify({
-                        'exito': False,
-                        'mensaje': f'No tiene permisos para activar la cobertura de este IMEI.',
-                        'usuario': usuario.nombre if usuario else None,
-                        'total_puntos': total_puntos
-                    }), 403
-                
-            # Obtener y validar el correo
+
+            if nit_cobertura != nit_limpio and not es_recompra:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'No tiene permisos para activar la cobertura de este IMEI.',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 403
+
             correo = datos.get('datos', {}).get('correo', '').strip()
             if not correo:
                 return jsonify({
@@ -1646,10 +1957,20 @@ def cobertura():
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 400
-                
-            # Preparar datos para guardar - asegurar que el IMEI tenga máximo 15 caracteres
+
             imei_limpio = datos_cobertura.get('imei', imei)[:15]
-            
+
+            # Verificar cobertura existente antes de procesar
+            cobertura_existente = cobertura_clientes.query.filter_by(imei=imei_limpio).first()
+            if cobertura_existente:
+                return jsonify({
+                    'exito': False,
+                    'mensaje': 'Ya existe una cobertura activa para este IMEI',
+                    'usuario': usuario.nombre if usuario else None,
+                    'total_puntos': total_puntos
+                }), 400
+
+            # Preparar datos para guardar
             datos_guardar = {
                 'documento': nit_limpio,
                 'imei': imei_limpio,
@@ -1661,60 +1982,121 @@ def cobertura():
                 'telefono': datos.get('telefono', '').strip(),
                 'fecha_activacion': datetime.now()
             }
-                
-            try:
-                # Verificar si ya existe una cobertura activa para este IMEI
-                cobertura_existente = cobertura_clientes.query.filter_by(imei=imei_limpio).first()
-                if cobertura_existente:
-                    return jsonify({
-                        'exito': False,
-                        'mensaje': 'Ya existe una cobertura activa para este IMEI',
-                        'usuario': usuario.nombre if usuario else None,
-                        'total_puntos': total_puntos
-                    }), 400
 
-                # Guardar la cobertura
+            # Variables para tracking del proceso
+            exito_api = False
+            error_api = None
+            respuesta_api = None
+            environment = app.config.get('POLICY_ENVIRONMENT', 'prod')
+
+            # Procesar API externa con manejo de errores mejorado
+            try:
+                app.logger.info(f"Iniciando procesamiento de API externa para IMEI: {imei_limpio}")
+                
+                policy_service = PolicyIntegrationService()
+                datos_para_api = {
+                    'imei': imei_limpio,
+                    'nombre_cliente': datos.get('datos', {}).get('nombre', '').strip() or datos_cobertura.get('Nombre_Cliente', ''),
+                    'correo': correo,
+                    'nit': nit_limpio,
+                    'valor': float(datos.get('valor', 0)),
+                    'telefono': datos.get('telefono', '').strip()
+                }
+
+                exito_api, error_api, respuesta_api = policy_service.procesar_cobertura_completa(
+                    datos_para_api, 
+                    environment,
+                    usar_plan_especifico=True,  # Usar plan específico
+                    tipo_plan='ASISTENCIA_FRACTURA_PANTALLA'  # Plan específico configurado
+                )
+                
+                app.logger.info(f"Proceso de API externa completado - Éxito: {exito_api}, Error: {error_api}")
+                
+            except Exception as e:
+                app.logger.error(f"Error crítico en API externa: {str(e)}")
+                exito_api = False
+                error_api = f"Error crítico: {str(e)}"
+
+            # Guardar en base de datos local (independientemente del resultado de la API)
+            try:
+                app.logger.info(f"Guardando cobertura en base de datos local para IMEI: {imei_limpio}")
+                
                 nueva_cobertura = cobertura_clientes(**datos_guardar)
                 db.session.add(nueva_cobertura)
                 db.session.commit()
                 
-                # Calcular fecha de fin de cobertura (1 año)
-                fecha_fin = (datos_guardar['fecha'] + timedelta(days=365)).strftime('%d/%m/%Y')
-                
-                # Enviar correo de confirmación
-                exito, error = cobertura_email_service.enviar_confirmacion_cobertura(
-                    datos_guardar, 
-                    fecha_fin
-                )
-                
-                if not exito:
-                    app.logger.warning(f"La cobertura se guardó pero hubo un error al enviar el correo: {error}")
-                
-                return jsonify({
-                    'exito': True,
-                    'mensaje': 'La cobertura ha sido activada exitosamente por 1 año',
-                    'usuario': usuario.nombre if usuario else None,
-                    'total_puntos': total_puntos
-                })
+                app.logger.info(f"Cobertura guardada exitosamente en base de datos local")
                 
             except Exception as e:
-                app.logger.error(f"Error al procesar la cobertura: {str(e)}")
+                app.logger.error(f"Error crítico al guardar en base de datos: {str(e)}")
                 db.session.rollback()
                 return jsonify({
                     'exito': False,
-                    'mensaje': 'Ha ocurrido un error al procesar la solicitud. Por favor, inténtelo nuevamente.',
+                    'mensaje': f'Error al guardar la cobertura: {str(e)}',
                     'usuario': usuario.nombre if usuario else None,
                     'total_puntos': total_puntos
                 }), 500
-            
+
+            # Enviar email de confirmación (de forma asíncrona para no bloquear la respuesta)
+            try:
+                fecha_fin = (datos_guardar['fecha'] + timedelta(days=365)).strftime('%d/%m/%Y')
+                exito_email, error_email = cobertura_email_service.enviar_confirmacion_cobertura(
+                    datos_guardar, fecha_fin
+                )
+                
+                if not exito_email:
+                    app.logger.warning(f"Error al enviar correo de confirmación: {error_email}")
+                else:
+                    app.logger.info(f"Correo de confirmación enviado exitosamente")
+                    
+            except Exception as e:
+                app.logger.warning(f"Error no crítico al enviar email: {str(e)}")
+
+            # Preparar mensaje de respuesta
+            mensaje_base = 'La cobertura ha sido activada exitosamente por 1 año'
+            if not exito_api:
+                mensaje_base += ' (Nota: Procesamiento externo pendiente - se reintentará automáticamente)'
+
+            # Respuesta final
+            respuesta_final = {
+                'exito': True,
+                'mensaje': mensaje_base,
+                'usuario': usuario.nombre if usuario else None,
+                'total_puntos': total_puntos,
+                'api_externa': {
+                    'procesada': exito_api,
+                    'error': error_api if not exito_api else None,
+                    'ambiente': environment
+                }
+            }
+
+            app.logger.info(f"Proceso completo finalizado para IMEI: {imei_limpio} - Enviando respuesta al cliente")
+            return jsonify(respuesta_final)
+
+        else:
+            return jsonify({
+                'exito': False,
+                'mensaje': 'Acción no reconocida',
+                'usuario': usuario.nombre if usuario else None,
+                'total_puntos': total_puntos
+            }), 400
+
     except Exception as e:
-        app.logger.error(f"Error en el servidor: {str(e)}")
+        app.logger.exception(f"Error crítico en el procesamiento de cobertura: {str(e)}")
+        # Asegurar rollback en caso de error
+        try:
+            db.session.rollback()
+        except:
+            pass
+            
         return jsonify({
             'exito': False,
-            'mensaje': f'Error en el servidor: {str(e)}',
+            'mensaje': 'Ocurrió un error interno al procesar la cobertura',
             'usuario': usuario.nombre if usuario else None,
-            'total_puntos': total_puntos
+            'total_puntos': total_puntos,
+            'error_detalle': str(e) if app.debug else None
         }), 500
+
         
 @app.route('/cobertura', methods=['GET'])
 def cobertura1():
@@ -2383,6 +2765,53 @@ def procesar_coberturas_inactivas_programado():
             error_msg = traceback.format_exc()
             app.logger.error(f"Error en procesamiento programado: {str(e)}")
             print(f"Error en procesar_coberturas_inactivas_programado: {error_msg}")
+# eliminar coberturas con más de 30 dias en la db
+def limpiar_coberturas_inactivas_antiguas():
+    """
+    Elimina coberturas inactivas que tengan más de 30 días desde la fecha_compra
+    """
+    with app.app_context():  # Crear contexto de aplicación
+        try:
+            # Calcular fecha límite (30 días atrás)
+            fecha_limite = datetime.now().date() - timedelta(days=30)
+            
+            print(f"[LIMPIEZA COBERTURAS] Iniciando limpieza de coberturas inactivas anteriores a: {fecha_limite}")
+        
+            
+            # Contar registros usando el ORM de SQLAlchemy
+            total_registros = cobertura_inactiva.query.filter(
+                cobertura_inactiva.fecha_compra < fecha_limite
+            ).count()
+            
+            print(f"[LIMPIEZA COBERTURAS] Registros encontrados para eliminar: {total_registros}")
+            
+            if total_registros == 0:
+                print("[LIMPIEZA COBERTURAS] No hay coberturas inactivas antiguas para eliminar")
+                
+                return {"success": True, "eliminados": 0, "mensaje": "No hay registros para eliminar"}
+            
+            # Eliminar registros usando el ORM
+            registros_eliminados = cobertura_inactiva.query.filter(
+                cobertura_inactiva.fecha_compra < fecha_limite
+            ).delete()
+            
+            db.session.commit()
+            
+            logging.info(f"Se eliminaron {registros_eliminados} coberturas inactivas con más de 30 días")
+            
+            return {
+                "success": True, 
+                "eliminados": registros_eliminados,
+                "fecha_limite": str(fecha_limite),
+                "mensaje": f"Eliminación exitosa de {registros_eliminados} registros"
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            error_msg = f"Error al limpiar coberturas inactivas: {str(e)}"
+            print(f"[LIMPIEZA COBERTURAS] ❌ ERROR: {error_msg}")
+            logging.error(error_msg)
+            return {"success": False, "error": error_msg}
 
 
 
@@ -2414,7 +2843,7 @@ def configurar_tareas_programadas():
         # 3. Reporte semanal de coberturas activadas cada domingo a las 21:00
         scheduler.add_job(
             enviar_reporte_coberturas_activadas, 'cron',
-            day_of_week='6', hour='21', minute='00',
+            day_of_week='6', hour='21', minute='04',
             timezone=bogota_tz,
             id='reporte_coberturas_activadas',
             replace_existing=True
@@ -2426,6 +2855,15 @@ def configurar_tareas_programadas():
             hour='8', minute='30',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
+            replace_existing=True
+        )
+        # 5. NUEVO: Limpieza diaria de coberturas inactivas antiguas a las 22:00
+        
+        scheduler.add_job(
+            limpiar_coberturas_inactivas_antiguas, 'cron',
+            hour='8', minute='50',
+            timezone=bogota_tz,
+            id='limpiar_coberturas_antiguas',
             replace_existing=True
         )
         
@@ -2466,9 +2904,9 @@ class CoberturaInactivaEmailService:
             email_client = EmailClient.from_connection_string(self.connection_string)
 
             # URL de la imagen y dirección de activación
-            url_imagen = "https://i.ibb.co/1DsGPLQ/imagen.jpg"
+            url_imagen = "https://i.postimg.cc/SRpM1Jcc/coberturaina.jpg"
             url_activacion = "https://club-puntos-micelu.azurewebsites.net/"  # URL donde el cliente puede activar la cobertura
-
+            url_servicio_cliente = "https://i.postimg.cc/65JHbxrL/serviciocliente.jpg"
             # Configuramos el asunto y contenido según el tipo de correo
             if tipo_correo == 1:
                 asunto = "¡Activa tu cobertura de Pantalla!"
@@ -2499,17 +2937,18 @@ class CoberturaInactivaEmailService:
                     <li><strong>Fecha de compra:</strong> {datos_cobertura['fecha_compra']}</li>
                 </ul>
                 <div style="text-align: center; margin: 25px 0;">
-                    <a href="{url_activacion}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">ACTIVAR MI COBERTURA</a>
+                    <a href="{url_activacion}" style="background-color: #2196F3; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">ACTIVAR MI COBERTURA</a>
                 </div>
-                <p>Para activar tu cobertura solo necesitas:</p>
+                <p><strong>Para activar tu cobertura solo necesitas:</p>
                 <ul>
                     <li>Tu número de documento</li>
                     <li>El IMEI de tu dispositivo</li>
                     <li>Un correo electrónico activo</li>
                     <li>Registrarse en club puntos </li>
                 </ul>
-                <p>Si tienes dudas, puedes contactarnos a través de servicio al cliente.</p>
-                <p>Atentamente,<br>Equipo Micelu.co</p>
+                <div style="text-align: center; margin: 25px 0;">
+                    <img src="{url_servicio_cliente}" alt="Servicio al Cliente Micelu" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+                </div>
             </body>
             </html>
             """
@@ -2765,6 +3204,7 @@ def enviar_correos_dia3(hoy, resultados):
     except Exception as e:
         app.logger.error(f"Error al enviar correos día 3: {str(e)}")
         resultados['errores'].append(f"Error al enviar correos día 3: {str(e)}")
+
 
 
 if __name__ == '__app__':
