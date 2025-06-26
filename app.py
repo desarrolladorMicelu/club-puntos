@@ -43,7 +43,7 @@ app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
-    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
+    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway' 
     #'db3':'postgresql://postgres:123@localhost:5432/cobertura_local'
 }
 
@@ -1524,7 +1524,7 @@ class PolicyIntegrationService:
     def get_config(self, environment='prod'):
         """Obtiene la configuración según el ambiente - CORREGIDO"""
         # CORREGIDO: La lógica estaba invertida
-        return self.API_CONFIG_QA if environment == 'prod' else self.API_CONFIG_PROD
+        return self.API_CONFIG_PROD if environment == 'prod' else self.API_CONFIG_QA
     
     def get_auth_token(self, environment='prod'):
         """
