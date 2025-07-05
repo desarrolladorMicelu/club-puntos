@@ -2825,7 +2825,7 @@ def configurar_tareas_programadas():
         # 1. Exportación de coberturas inactivas cada domingo a las 23:59
         scheduler.add_job(
             exportar_coberturas_automaticamente, 'cron',
-            day_of_week='6', hour='23', minute='50',
+            day_of_week='6', hour='21', minute='30',
             timezone=bogota_tz,
             id='exportar_coberturas',
             replace_existing=True
