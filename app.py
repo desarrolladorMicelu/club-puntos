@@ -2828,7 +2828,7 @@ def configurar_tareas_programadas():
         scheduler.add_job(
             exportar_coberturas_automaticamente, 'cron',
             day_of_week='0',  # 0 = lunes
-            hour='10', minute='55',  # o la hora que prefieras
+            hour='12', minute='32',  # o la hora que prefieras
             timezone=bogota_tz,
             id='exportar_coberturas',
             replace_existing=True
