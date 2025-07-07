@@ -2548,32 +2548,34 @@ scheduler = BackgroundScheduler(timezone=bogota_tz)
 
 def exportar_coberturas_automaticamente():
     with app.app_context():
+        print("[EXPORTAR] Iniciando exportación automática a SharePoint")
         try:
-            # Obtener fechas (domingo actual y 7 días atrás)
-            fecha_fin = datetime.now().strftime('%Y-%m-%d')
-            fecha_inicio = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-            
-            # Obtener datos de coberturas inactivas
+            hoy = datetime.now()
+            # Calcular el lunes y domingo de la semana anterior
+            lunes_anterior = hoy - timedelta(days=hoy.weekday() + 7)
+            domingo_anterior = lunes_anterior + timedelta(days=6)
+            fecha_inicio = lunes_anterior.strftime('%Y-%m-%d')
+            fecha_fin = domingo_anterior.strftime('%Y-%m-%d')
+            print(f"[EXPORTAR] Consultando datos desde {fecha_inicio} hasta {fecha_fin}")
+
             resultados_consulta = obtener_datos_consulta(fecha_inicio, fecha_fin)
-            
             if not resultados_consulta:
+                print("No se encontraron datos para el rango de fechas especificado.")
                 return
-            
-            # Filtrar coberturas inactivas
+
             coberturas_inactivas, _ = filtrar_coberturas_inactivas(resultados_consulta)
-            
             if not coberturas_inactivas:
+                print("No se encontraron coberturas inactivas.")
                 return
-            
-            # Obtener todas las coberturas inactivas de la base de datos
+
             coberturas_db = obtener_coberturas_inactivas()
-            
-            # Exportar a Excel en SharePoint
+            print(f"[EXPORTAR] Exportando {len(coberturas_db)} coberturas a SharePoint...")
             exportar_a_excel_sharepoint(coberturas_db)
-            
+            print("[EXPORTAR] Exportación a SharePoint finalizada.")
+
         except Exception as e:
             import traceback
-            traceback.format_exc()
+            print("[EXPORTAR] Error en exportación automática:", traceback.format_exc())
 
 # Definir la función para actualizar coberturas inactivas diariamente
 def actualizar_coberturas_inactivas_diario():
@@ -2825,7 +2827,8 @@ def configurar_tareas_programadas():
         # 1. Exportación de coberturas inactivas cada domingo a las 23:59
         scheduler.add_job(
             exportar_coberturas_automaticamente, 'cron',
-            day_of_week='6', hour='23', minute='50',
+            day_of_week='0',  # 0 = lunes
+            hour='10', minute='50',  # o la hora que prefieras
             timezone=bogota_tz,
             id='exportar_coberturas',
             replace_existing=True
