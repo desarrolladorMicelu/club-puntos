@@ -1018,7 +1018,10 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
         SELECT DISTINCT
             c.NOMBRE AS CLIENTE_NOMBRE,
             c.NIT,
-            c.TEL1 AS telefono,
+            CASE 
+                WHEN c.TEL1 IS NOT NULL AND c.TEL1 != '' THEN c.TEL1 
+                ELSE c.TEL2 
+            END AS telefono,
             c.EMAIL,
             c.CIUDAD,
             c.DescripTipoCli
@@ -1357,7 +1360,10 @@ def buscar_por_imei(imei):
         v.NIT,
         m.codgrupo,
         c.EMAIL AS Correo,
-        c.TEL1 AS Telefono,
+        CASE 
+            WHEN c.TEL1 IS NOT NULL AND c.TEL1 != '' THEN c.TEL1 
+            ELSE c.TEL2 
+        END AS Telefono,
         c.Nombre AS Nombre_Cliente
     FROM 
         VSeriesUtilidad v WITH (NOLOCK)
@@ -2181,7 +2187,10 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
         v.NIT,
         m.codgrupo,
         c.EMAIL AS Correo,
-        c.TEL1 AS Telefono,
+        CASE 
+            WHEN c.TEL1 IS NOT NULL AND c.TEL1 != '' THEN c.TEL1 
+            ELSE c.TEL2 
+        END AS Telefono
         c.Nombre
     FROM 
         VSeriesUtilidad v WITH (NOLOCK)
