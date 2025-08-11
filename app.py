@@ -2190,7 +2190,7 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
         CASE 
             WHEN c.TEL1 IS NOT NULL AND c.TEL1 != '' THEN c.TEL1 
             ELSE c.TEL2 
-        END AS Telefono
+        END AS Telefono,
         c.Nombre
     FROM 
         VSeriesUtilidad v WITH (NOLOCK)
@@ -2864,7 +2864,7 @@ def configurar_tareas_programadas():
         # 4. Procesamiento diario de coberturas inactivas a las 11:45 AM
         scheduler.add_job(
             procesar_coberturas_inactivas_programado, 'cron',
-            hour='8', minute='30',
+            hour='8', minute='10',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
             replace_existing=True
