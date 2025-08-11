@@ -1372,7 +1372,7 @@ def buscar_por_imei(imei):
     JOIN
         MTPROCLI c ON v.nit = c.NIT
     WHERE 
-        v.Tipo_Documento IN ('FB', 'FM')
+        v.Tipo_Documento IN ('FB', 'FM', 'FC')
         AND v.Valor > 0
         AND m.CODLINEA = 'CEL'
         AND m.CODGRUPO = 'SEMI'
@@ -2199,7 +2199,7 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
     JOIN
         MTPROCLI c ON v.nit = c.NIT
     WHERE 
-        v.Tipo_Documento IN ('FB', 'FM')
+        v.Tipo_Documento IN ('FB', 'FM', 'FC')
         AND v.Valor > 0
         AND v.Fecha_Inicial BETWEEN ? AND ?
         AND m.CODLINEA = 'CEL'
