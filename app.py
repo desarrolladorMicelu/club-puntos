@@ -43,7 +43,7 @@ app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
-    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway' 
+    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
     #'db3':'postgresql://postgres:123@localhost:5432/cobertura_local'
 }
 
@@ -1037,7 +1037,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
             MtMercia mt ON m.PRODUCTO=mt.CODIGO
         WHERE
             c.HABILITADO = 'S'
-            AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB')
+            AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB' OR m.TIPODCTO='FC')
             AND m.VLRVENTA>0
             AND (c.NIT = ? OR c.NIT LIKE ?)
         ORDER BY
@@ -1063,7 +1063,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
             with db.session.begin():
                 for row in results:
                     
-                    ciudad= 'Medellin' if ciudad == 'Medellín' else 'Bogota' if ciudad == 'Bogotá' else ciudad
+                    ciudad= 'Medellin' if ciudad == 'Medellín' else 'Bogota' if ciudad == 'Bogotá' else 'Cali' if ciudad == 'Cali' else ciudad
  
                     clave = bcrypt.generate_password_hash(contraseña).decode('utf-8')
                    
