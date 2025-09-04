@@ -393,7 +393,7 @@ def mhistorialcompras():
     try:
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
-            "SERVER=20.109.21.246;"
+            "SERVER=172.200.231.95;"
             "DATABASE=MICELU;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
@@ -767,7 +767,7 @@ def quesonpuntos():
     try:
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
-            "SERVER=20.109.21.246;"
+            "SERVER=172.200.231.95;"
             "DATABASE=MICELU;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
@@ -1004,7 +1004,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
         # Conexión a la base de datos
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
-            "SERVER=20.109.21.246;"
+            "SERVER=172.200.231.95;"
             "DATABASE=MICELU;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
@@ -1311,7 +1311,7 @@ def check_coupon_status():
 #inicio de la cobertura
     
 def obtener_conexion_bd():
-    conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=20.109.21.246;DATABASE=MICELU;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
+    conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=172.200.231.95;DATABASE=MICELU;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
     return conn
 
 def buscar_por_imei(imei):
@@ -1488,7 +1488,7 @@ def clean_text(value):
 class PolicyIntegrationService:
     """
     Servicio de integración para generar pólizas en API externa
-    Basado en el sistema exitoso de la primera aplicación
+    
     """
     
     # Configuración de la API - Producción
@@ -1528,14 +1528,14 @@ class PolicyIntegrationService:
         self.logger = logging.getLogger(__name__)
         
     def get_config(self, environment='prod'):
-        """Obtiene la configuración según el ambiente - CORREGIDO"""
-        # CORREGIDO: La lógica estaba invertida
+        """Obtiene la configuración según el ambiente -"""
+        
         return self.API_CONFIG_PROD if environment == 'prod' else self.API_CONFIG_QA
     
     def get_auth_token(self, environment='prod'):
         """
         Obtiene token de autenticación según el ambiente
-        Returns: (token, token_type) o (None, None) si falla
+        Returns: (token, token_type)
         """
         try:
             config = self.get_config(environment)
@@ -1545,7 +1545,7 @@ class PolicyIntegrationService:
                 'clientSecret': config['CLIENT_SECRET']
             }
             
-            #self.logger.debug(f"Solicitando token a: {url}")
+            
             response = requests.get(url, params=params, timeout=30)
             
             if response.status_code != 200:
@@ -1555,17 +1555,17 @@ class PolicyIntegrationService:
             response_data = response.json()
             
             if 'data' not in response_data:
-                #self.logger.error(f"Respuesta inesperada del servidor: {response_data}")
+                
                 return None, None
             
             token = response_data['data']['token']
             token_type = response_data['data']['type']
             
-            #self.logger.debug(f"Token obtenido exitosamente para ambiente: {environment}")
+            
             return token, token_type
             
         except requests.exceptions.RequestException as e:
-            #self.logger.error(f"Error de conexión al obtener token: {str(e)}")
+            
             return None, None
         except Exception as e:
             self.logger.error(f"Error inesperado al obtener token: {str(e)}")
@@ -1574,7 +1574,7 @@ class PolicyIntegrationService:
     def list_policy_options(self, imei, token, token_type, sponsor_id="MICELU", environment='prod'):
         """
         Lista opciones de póliza según el ambiente
-        Returns: (plan_id, price_option_id) o (None, None) si falla
+        Returns: (plan_id, price_option_id)
         """
         try:
             config = self.get_config(environment)
@@ -1628,7 +1628,7 @@ class PolicyIntegrationService:
             plan_id = plan_config['plan_id']
             price_id = plan_config['price_id']
             
-            #self.logger.debug(f"Usando plan específico '{plan_config['nombre']}' para ambiente {environment} - Plan ID: {plan_id}, Price ID: {price_id}")
+    
             return plan_id, price_id
         else:
             self.logger.warning(f"Plan específico '{plan_type}' no encontrado para ambiente '{environment}', usando método estándar")
