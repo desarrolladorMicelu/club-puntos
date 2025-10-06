@@ -210,7 +210,7 @@ def recuperar_pass():
            
             # Enviar correo
             try:
-                email_client = EmailClient.from_connection_string("endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA==")
+                email_client = EmailClient.from_connection_string("endpoint=https://email-sender-miceluaz.unitedstates.communication.azure.com/;accesskey=BQXdsHbbOrCCgNlhAjruR1TEKGQMImCDnrz0InjuvKnRw4vfUqulJQQJ99BJACULyCp6Z5KHAAAAAZCS35sJ")
                 message = {
                     "content": {
                         "subject": "Código de recuperación de contraseña micelu.co",
@@ -224,7 +224,7 @@ def recuperar_pass():
                             }
                         ]
                     },
-                    "senderAddress": "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
+                    "senderAddress": "DoNotReply@micelu.co"
                 }
                 poller = email_client.begin_send(message)
                 return jsonify({
@@ -1416,8 +1416,8 @@ def buscar_por_imei(imei):
 class CoberturaEmailService:
     def __init__(self):
         # Configuración de conexión de Azure Communication Services
-        self.connection_string = "endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA=="
-        self.sender_address = "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
+        self.connection_string = "endpoint=https://email-sender-miceluaz.unitedstates.communication.azure.com/;accesskey=BQXdsHbbOrCCgNlhAjruR1TEKGQMImCDnrz0InjuvKnRw4vfUqulJQQJ99BJACULyCp6Z5KHAAAAAZCS35sJ"
+        self.sender_address = "DoNotReply@micelu.co"
 
     def enviar_confirmacion_cobertura(self, datos_cobertura, fecha_fin):
         try:
@@ -2685,9 +2685,9 @@ def enviar_reporte_coberturas_activadas():
             
             # Enviar correo con el reporte
             email_client = EmailClient.from_connection_string(
-                "endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA=="
+                "endpoint=https://email-sender-miceluaz.unitedstates.communication.azure.com/;accesskey=BQXdsHbbOrCCgNlhAjruR1TEKGQMImCDnrz0InjuvKnRw4vfUqulJQQJ99BJACULyCp6Z5KHAAAAAZCS35sJ"
             )
-            sender_address = "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
+            sender_address = "DoNotReply@micelu.co"
             
             # Lista de destinatarios del reporte
             destinatarios = [
@@ -2901,8 +2901,8 @@ except Exception as e:
 class CoberturaInactivaEmailService:
     def __init__(self):
         # Configuración de conexión de Azure Communication Services
-        self.connection_string = "endpoint=https://email-sender-communication-micelu.unitedstates.communication.azure.com/;accesskey=VmkxyJLEb9bzf+23ve1gMPSCHC9jluovcOIJoSyrWrKPhBflOywY6HRWFj9u6pAULH+qsr6UGrlgBeCjuNcpMA=="
-        self.sender_address = "DoNotReply@baca2159-db63-4c5c-87b8-a2fcdcec0539.azurecomm.net"
+        self.connection_string = "endpoint=https://email-sender-miceluaz.unitedstates.communication.azure.com/;accesskey=BQXdsHbbOrCCgNlhAjruR1TEKGQMImCDnrz0InjuvKnRw4vfUqulJQQJ99BJACULyCp6Z5KHAAAAAZCS35sJ"
+        self.sender_address = "DoNotReply@micelu.co"
 
     def enviar_correo_cobertura_inactiva(self, datos_cobertura, tipo_correo):
         """
