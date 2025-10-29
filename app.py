@@ -2102,7 +2102,48 @@ def cobertura():
             'total_puntos': total_puntos,
             'error_detalle': str(e) if app.debug else None
         }), 500
-
+@app.route("/buscar_usuario_reclamacion", methods=['POST'])
+@login_required
+def buscar_usuario_reclamacion():
+    try:
+        datos = request.json
+        documento = datos.get('documento', '').strip()
+        
+        if not documento:
+            return jsonify({
+                'exito': False,
+                'mensaje': 'El documento es obligatorio'
+            }), 400
+        
+        # Buscar en la tabla cobertura_clientes
+        cobertura = cobertura_clientes.query.filter_by(documento=documento).first()
+        
+        if not cobertura:
+            return jsonify({
+                'exito': False,
+                'mensaje': 'No se encontró una cobertura activa con este documento'
+            }), 404
+        
+        # Retornar los datos de la cobertura
+        return jsonify({
+            'exito': True,
+            'datos': {
+                'documento': cobertura.documento,
+                'nombre': cobertura.nombreCliente,
+                'email': cobertura.correo,
+                'telefono': cobertura.telefono,
+                'imei': cobertura.imei,
+                'referencia': cobertura.referencia,
+                'fecha_activacion': cobertura.fecha_activacion.strftime('%Y-%m-%d') if cobertura.fecha_activacion else None
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error al buscar usuario para reclamación: {str(e)}")
+        return jsonify({
+            'exito': False,
+            'mensaje': 'Error al buscar la información de la cobertura'
+        }), 500
         
 @app.route('/cobertura', methods=['GET'])
 def cobertura1():
@@ -2861,10 +2902,10 @@ def configurar_tareas_programadas():
             replace_existing=True
         )
         
-        # 4. Procesamiento diario de coberturas inactivas a las 11:45 AM
+        # 4. Procesamiento diario de coberturas inactivas a las 8:10 AM
         scheduler.add_job(
             procesar_coberturas_inactivas_programado, 'cron',
-            hour='8', minute='10',
+            hour='13', minute='14',
             timezone=bogota_tz,
             id='procesar_coberturas_inactivas',
             replace_existing=True

@@ -1,0 +1,540 @@
+/* Tabs de navegación */
+.reclamacion-tabs {
+  border-bottom: 3px solid #e0e0e0;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.reclamacion-tabs .nav-link {
+  color: #666;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  background: transparent;
+  font-family: 'Poppins', sans-serif;
+}
+
+.reclamacion-tabs .nav-link:hover {
+  color: #31C0CA;
+  border-bottom-color: #31C0CA;
+}
+
+.reclamacion-tabs .nav-link.active {
+  color: #31C0CA;
+  border-bottom-color: #31C0CA;
+  background: transparent;
+}
+
+/* Introducción de reclamación */
+.reclamacion-intro {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #555;
+  padding: 1.5rem 0;
+  margin-bottom: 2rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Proceso de Reclamación */
+.reclamacion-proceso-container {
+  background-color: #f0f0f0;
+  padding: 3rem 0;
+  margin-bottom: 3rem;
+}
+
+.reclamacion-proceso {
+  max-width: 700px;
+  border: solid 2px #ddd;
+  border-radius: 10px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.proceso-step {
+  text-align: center;
+  color: white;
+}
+
+.proceso-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  background: linear-gradient(135deg, #1F3637 0%, #40798C 100%);
+}
+
+.proceso-icon:hover {
+  transform: scale(1.1);
+}
+
+.proceso-icon i {
+  font-size: 2rem;
+  color: white;
+}
+
+.proceso-step h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  max-width: 120px;
+  margin: 0 auto;
+  font-family: 'Poppins', sans-serif;
+  color: #40798C;
+}
+
+.proceso-arrow {
+  color: #40798C;
+  font-size: 1.8rem;
+  opacity: 0.7;
+}
+
+/* Contenedor principal de reclamación */
+.reclamacion-container {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.reclamacion-card {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.reclamacion-header {
+  background: linear-gradient(135deg, #1F3637 0%, #40798C 100%);
+  padding: 2rem;
+  text-align: center;
+}
+
+.reclamacion-title {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+}
+
+.reclamacion-body {
+  padding: 2rem;
+}
+
+/* Secciones del formulario */
+.reclamacion-seccion {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  display: none;
+}
+
+.reclamacion-seccion.paso-activo {
+  display: block;
+  animation: fadeInUp 0.5s ease;
+}
+
+.seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.numero-paso {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #1F3637 0%, #40798C 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+.seccion-titulo h6 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #333;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Reducir espacios entre filas */
+.reclamacion-seccion .row {
+  margin-bottom: 0;
+}
+
+.reclamacion-seccion .mb-3 {
+  margin-bottom: 5px !important;
+}
+
+/* Inputs del formulario */
+.reclamacion-input {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+  font-family: 'Poppins', sans-serif;
+}
+.reclamacion-input1 {
+  border: 2px solid #e0e0e0;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+  font-family: 'Poppins', sans-serif;
+  border-right: none;
+}
+.reclamacion-input:focus {
+  border-color: #31C0CA;
+  box-shadow: 0 0 0 0.2rem rgba(49, 192, 202, 0.25);
+  outline: none;
+}
+
+.reclamacion-input:read-only {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Inputs de archivos */
+.reclamacion-input-file {
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.reclamacion-input-file:hover {
+  border-color: #31C0CA;
+  background: #f8f9fa;
+}
+
+.reclamacion-input-file:focus {
+  border-color: #31C0CA;
+  box-shadow: 0 0 0 0.2rem rgba(49, 192, 202, 0.25);
+  outline: none;
+}
+
+.documento-upload-item {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 1rem;
+}
+
+.documento-upload-item .text-muted {
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+  display: block;
+  font-family: 'Poppins', sans-serif;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
+  font-family: 'Poppins', sans-serif;
+  display: block;
+}
+
+.required {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+/* Botón de búsqueda */
+.btn-buscar-documento {
+  background: linear-gradient(135deg, #1F3637 0%, #40798C 100%);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.2rem;
+  min-width: 50px;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-buscar-documento:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(49, 192, 202, 0.4);
+}
+
+.btn-buscar-documento:active {
+  transform: translateY(0);
+}
+
+/* Botones de acción */
+.reclamacion-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 2rem;
+  border-top: 2px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.btn-reclamacion {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+.btn-reclamacion.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-reclamacion.btn-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+}
+
+.btn-reclamacion.btn-primary {
+  background: linear-gradient(135deg, #1F3637 0%, #40798C 100%);
+  color: white;
+}
+
+.btn-reclamacion.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(49, 192, 202, 0.4);
+}
+
+.btn-reclamacion.btn-success {
+  background: linear-gradient(135deg, #1F3637 0%, #40798C 100%);
+  color: white;
+}
+
+.btn-reclamacion.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(67, 233, 123, 0.4);
+}
+
+/* Checkbox de términos */
+.form-check {
+  padding: 0.95rem;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+
+.form-check-input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #31C0CA;
+  border-color: #40798C;
+}
+
+.form-check-label {
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+}
+
+.form-check-label a {
+  color: #31C0CA;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.form-check-label a:hover {
+  text-decoration: underline;
+}
+
+/* Select personalizado */
+.form-select {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.form-select:focus {
+  border-color: #31C0CA;
+  box-shadow: 0 0 0 0.2rem rgba(49, 192, 202, 0.25);
+  outline: none;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .reclamacion-tabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reclamacion-tabs .nav-link {
+    padding: 0.75rem 1rem;
+    text-align: center;
+  }
+
+  .reclamacion-proceso {
+    flex-direction: column;
+  }
+
+  .proceso-arrow {
+    transform: rotate(90deg);
+    margin: 0.5rem 0;
+  }
+
+  .proceso-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .proceso-icon i {
+    font-size: 1.5rem;
+  }
+
+  .reclamacion-header {
+    padding: 1.5rem;
+  }
+
+  .reclamacion-title {
+    font-size: 1.4rem;
+  }
+
+  .reclamacion-body {
+    padding: 1.5rem;
+  }
+
+  .reclamacion-seccion {
+    padding: 1.2rem;
+  }
+
+  .reclamacion-actions {
+    flex-direction: column;
+  }
+
+  .btn-reclamacion {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reclamacion-seccion .mb-3 {
+    margin-bottom: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .reclamacion-intro {
+    font-size: 1rem;
+    padding: 1rem 0;
+  }
+
+  .reclamacion-proceso-container {
+    padding: 2rem 0;
+  }
+
+  .proceso-step h6 {
+    font-size: 0.85rem;
+  }
+
+  .reclamacion-title {
+    font-size: 1.2rem;
+  }
+
+  .seccion-titulo h6 {
+    font-size: 1.1rem;
+  }
+
+  .numero-paso {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estado de loading */
+.btn-reclamacion:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-reclamacion.loading::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Input con botón de búsqueda integrado */
+.input-group-buscar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-group-buscar .reclamacion-input {
+  flex: 1;
+}

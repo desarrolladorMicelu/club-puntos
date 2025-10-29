@@ -21,30 +21,23 @@
   <link rel="stylesheet" type="text/css"
     href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.1.3/assets/owl.carousel.min.css" />
 
-
-  <!-- bootstrap core css -->
-
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
-  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap 5 CSS ONLY -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
+  
   <!-- fonts style -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css?family=Poppins:400,700|Roboto:400,700&display=swap" rel="stylesheet">
-  <!-- Custom styles for this template -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
+  <!-- Custom styles for this template -->
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
-  <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/beneficios.css') }}">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
-
 </head>
 
-<body>
+<body style="background-color: #fafafafa;">
 
   <div class="hero_area">
     <!-- header section strats -->
@@ -56,8 +49,8 @@
               <img src="{{ url_for('static', filename='images/logopequeño.png') }}" class="imgcelu">
             </span>
           </a>
-          <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
-            data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+          <button class="navbar-toggler ml-auto" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
             aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
@@ -93,7 +86,7 @@
               </ul>
             </div>
             <div class="dropdown ms-2">
-              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button">
+              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="material-icons custom-icon">account_circle</i>
                 <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
               </a>
@@ -106,19 +99,19 @@
       </div>
     </header>
     <!-- end header section -->
-    <!------ inicio carrusel-->
+    
+    <!-- ==================== BANNER SECTION ==================== -->
     <div class="banner-container">
       <div class="image-container">
         <a href="#" onclick="location.href='/redime_ahora'">
-          <img src="{{ url_for('static', filename='images/banner2.jpg') }}"   class="imgcelu">
+          <img src="{{ url_for('static', filename='images/banner2.jpg') }}" class="imgcelu">
         </a>
-          <!--<div class="redime">
-              <a href="{{ url_for('redime_ahora') }}" class="btn btn-lg btn-rdm">Redimir ahora</a>
-          </div>!-->
       </div>
     </div>
+    <!-- ==================== END BANNER SECTION ==================== -->
   
-
+    <!-- ==================== CARRUSEL SECTION (COMENTADO) ==================== -->
+    <!--
     <div class="carousel-wrapper">
       <div id="carouselExample" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
         <div class="carousel-indicators indicadores">
@@ -141,16 +134,11 @@
                     <div class="card-body">
                       <h5 class="card-title">{{ product.name }}</h5>
                       {% if product.price %}
-                      <p class="card-text">Precio: ${{ '{:,.0f}'.format(product.price|float).replace(',', '.') }} COP
-                      </p>
+                      <p class="card-text">Precio: ${{ '{:,.0f}'.format(product.price|float).replace(',', '.') }} COP</p>
                       {% endif %}
                       {% if product.color %}
                       <p class="card-text">Color: {{ product.color }}</p>
                       {% endif %}
-                    <!---{% if product.points %}
-                      <p class="card-text1">Compra <br>Y <br>Acumula <br> {{ product.points }} Puntos</p>
-
-                      {% endif %}-->
                     </div>
                   </a>
                 </div>
@@ -170,30 +158,29 @@
         </button>
       </div>
     </div>
-    <!--<div class="redime">
-      <a href="{{ url_for('redime_ahora') }}" class="btn btn-lg btn-rdm">Redimir ahora</a>
-    </div>!--->
-
-    <section>
-    </section>
-    <!-- menu section -->
+    -->
+    <!-- ==================== END CARRUSEL SECTION (COMENTADO) ==================== -->
+    
+    <!-- footer -->
     <div class="footer">
       <div class="footer1">
         <p>&copy; <a href="https://micelu.co/condiciones-celuprotegemos/" class="footer-link">Términos y Condiciones - Cobertura Pantalla - Micelu.co</a></p>
       </div>
     </div>
 
-    <div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel" aria-hidden="true">
-      <div class="modal-dialog custom-logout-modal-dialog" role="document">
+    <!-- Modal de confirmación de cierre de sesión -->
+    <div class="modal fade" id="customLogoutModal" tabindex="-1" aria-labelledby="customLogoutModalLabel" aria-hidden="true">
+      <div class="modal-dialog custom-logout-modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="customLogoutModalLabel">Confirmar cierre de sesión</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             ¿Deseas cerrar esta sesión?
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" id="cancelLogoutButton">No</button>
+            <button type="button" class="btn btn-secondary" id="cancelLogoutButton" data-bs-dismiss="modal">No</button>
             <a href="{{ url_for('logout') }}" class="btn btn-primary">Sí</a>
           </div>
         </div>
@@ -201,14 +188,15 @@
     </div>
   </div>
 
-
-  <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+  <!-- Bootstrap 5 JS Bundle (includes Popper) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
-  <script src="{{ url_for('static', filename='js/puntos.js') }}"></script>
+  
+  <!-- Custom scripts -->
+  <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
+  <!-- <script src="{{ url_for('static', filename='js/puntos.js') }}"></script> -->
 </body>
 
 </html>

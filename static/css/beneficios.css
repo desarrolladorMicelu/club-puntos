@@ -1090,6 +1090,44 @@
       left: 5% !important;
     }
   }
+@media (max-width: 1024px) {
+    .banner-container,
+    .banner-container .image-container {
+        max-height: 300px;
+    }
+    
+    .banner-container .imgcelu {
+        height: 300px;
+        max-height: 300px;
+    }
+}
+
+/* ==========================================
+   RESPONSIVE - MÓVILES
+   ========================================== */
+@media (max-width: 768px) {
+    .banner-container,
+    .banner-container .image-container {
+        max-height: 250px;
+    }
+    
+    .banner-container .imgcelu {
+        height: 250px;
+        max-height: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .banner-container,
+    .banner-container .image-container {
+        max-height: 200px;
+    }
+    
+    .banner-container .imgcelu {
+        height: 200px;
+        max-height: 200px;
+    }
+}
 
 
   
