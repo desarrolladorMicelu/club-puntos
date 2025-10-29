@@ -194,8 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const facturaCards = document.querySelectorAll('.factura-card');
         facturaCards.forEach(card => {
             card.addEventListener('click', function() {
-                // const facturaNumero = this.getAttribute('data-factura-numero');
-                const facturaNumero = "MCFE11184";
+                const facturaNumero = this.getAttribute('data-factura-numero');
                 document.getElementById('facturaModalLabel').textContent = 'Factura #' + facturaNumero;
                 // Consultar a nuestro backend para que proxeé y sirva el PDF embebible
                 fetch('/api/facturas/' + encodeURIComponent(facturaNumero) + '/pdf')
