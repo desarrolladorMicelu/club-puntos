@@ -23,14 +23,12 @@
  
  
   <!-- bootstrap core css -->
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
  
  
   <!-- fonts style -->
   <link href="https://fonts.googleapis.com/css?family=Poppins:400,700|Roboto:400,700&display=swap" rel="stylesheet">
   <!-- Custom styles for this template -->
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/beneficios.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/header-improvements.css') }}">
   <!-- responsive style -->
@@ -102,44 +100,137 @@
     <div class="historial">
       <h7 class="titulohistorial">Historial de Compras</h7>
  
-      <div class="card bg-light text-dark px-2 py-1" style="border-radius: 5px;">
-        <span class="fw-bold1">Total de puntos Micelu</span>
-        <span id="nav-points3" class="badge custom-badge1">{{ "{:,.0f}".format(total_puntos) }}</span>
-      </div>
+       <div class="puntos-container">
+         <span class="puntos-texto">Total de puntos Micelu: </span><span class="puntos-badge">{{ "{:,.0f}".format(total_puntos) }}</span>
+       </div>
     </div>
  
       {% if historial %}
-      <table class="table table-striped">
-          <thead>
-              <tr>
-                  <th>Fecha</th>
-                  <th>Producto/Referido</th>
-                  <th>Valor</th>
-                  <th>Tipo de Documento</th>
-                  <th>Puntos Obtenidos</th>
-              </tr>
-          </thead>
-          <tbody>
-              {% for item in historial %}
-              <tr>
-                  <td>{{ item.FHCOMPRA }}</td>
-                  <td>{{ item.PRODUCTO_NOMBRE }}</td>
-                  <td>
-                      {% if item.VLRVENTA > 0 %}
-                          {{ "$ {:,.0f}".format(item.VLRVENTA) }}
-                      {% else %}
-                          N/A
-                      {% endif %}
-                  </td>
-                  <td>{{ item.TIPODCTO }}</td>
-                  <td>{{ "{:,.0f}".format(item.PUNTOS_GANADOS) }}</td>
-              </tr>
-              {% endfor %}
-          </tbody>
-      </table>
+      <div class="table-responsive">
+          <table class="table table-striped">
+              <thead>
+                  <tr>
+                      <th>Fecha</th>
+                      <th>Producto</th>
+                      <th>Puntos</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for item in historial %}
+                  <tr>
+                      <td>{{ item.FHCOMPRA }}</td>
+                      <td>{{ item.PRODUCTO_NOMBRE }}</td>
+                      <td>{{ "{:,.0f}".format(item.PUNTOS_GANADOS) }}</td>
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+      </div>
       {% else %}
       <p>No se encontraron registros de compras ni referidos.</p>
       {% endif %}
+
+       <!-- Sección Mis Facturas - Desplegable -->
+       <div class="mis-facturas-section">
+         <div class="accordion" id="facturasAccordion">
+           <div class="card">
+             <div class="card-header" id="headingFacturas">
+               <h5 class="mb-0">
+                 <button class="btn btn-link collapsed titulo-facturas" type="button" data-toggle="collapse" data-target="#collapseFacturas" aria-expanded="false" aria-controls="collapseFacturas">
+                   <i class="fas fa-file-pdf"></i> Mis Facturas
+                   <i class="fas fa-chevron-down ml-2"></i>
+                 </button>
+               </h5>
+             </div>
+             <div id="collapseFacturas" class="collapse" aria-labelledby="headingFacturas" data-parent="#facturasAccordion">
+               <div class="card-body">
+                 <div class="facturas-grid" id="facturasGrid">
+                   <div class="text-center">
+                     <div class="spinner-border text-primary" role="status">
+                       <span class="sr-only">Cargando...</span>
+                     </div>
+                     <p class="mt-2">Cargando facturas...</p>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- Sección Mis Certificados - Desplegable -->
+       <div class="mis-certificados-section">
+         <div class="accordion" id="certificadosAccordion">
+           <div class="card">
+             <div class="card-header" id="headingCertificados">
+               <h5 class="mb-0">
+                 <button class="btn btn-link collapsed titulo-certificados" type="button" data-toggle="collapse" data-target="#collapseCertificados" aria-expanded="false" aria-controls="collapseCertificados">
+                   <i class="fas fa-certificate"></i> Mis Certificados
+                   <i class="fas fa-chevron-down ml-2"></i>
+                 </button>
+               </h5>
+             </div>
+             <div id="collapseCertificados" class="collapse" aria-labelledby="headingCertificados" data-parent="#certificadosAccordion">
+               <div class="card-body">
+                 <div class="certificados-grid" id="certificadosGrid">
+                   <div class="text-center">
+                     <div class="spinner-border text-success" role="status">
+                       <span class="sr-only">Cargando...</span>
+                     </div>
+                     <p class="mt-2">Cargando certificados...</p>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- Modal para visualizar facturas PDF -->
+       <div class="modal fade" id="facturaModal" tabindex="-1" role="dialog" aria-labelledby="facturaModalLabel" aria-hidden="true">
+         <div class="modal-dialog modal-lg" role="document">
+           <div class="modal-content">
+             <div class="modal-header">
+               <h5 class="modal-title" id="facturaModalLabel">Visualizar Factura</h5>
+               <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                 <span aria-hidden="true">&times;</span>
+               </button>
+             </div>
+             <div class="modal-body">
+               <div class="pdf-container">
+                 <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
+               </div>
+             </div>
+             <div class="modal-footer">
+               <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+               <button type="button" class="btn btn-primary" id="descargarFactura">Descargar PDF</button>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- Modal para visualizar certificados PDF -->
+       <div class="modal fade" id="certificadoModal" tabindex="-1" role="dialog" aria-labelledby="certificadoModalLabel" aria-hidden="true">
+         <div class="modal-dialog modal-lg" role="document">
+           <div class="modal-content">
+             <div class="modal-header">
+               <h5 class="modal-title" id="certificadoModalLabel">Visualizar Certificado</h5>
+               <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                 <span aria-hidden="true">&times;</span>
+               </button>
+             </div>
+             <div class="modal-body">
+               <div class="pdf-container">
+                 <iframe id="certificadoViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
+               </div>
+             </div>
+             <div class="modal-footer">
+               <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+               <button type="button" class="btn btn-primary" id="descargarCertificado">Descargar PDF</button>
+             </div>
+           </div>
+         </div>
+       </div>
 
       <div class="modal fade" id="customLogoutModal" tabindex="-1" role="dialog" aria-labelledby="customLogoutModalLabel" aria-hidden="true">
         <div class="modal-dialog custom-logout-modal-dialog" role="document">
@@ -181,17 +272,19 @@
             <p class="text-icono">Instagram</p>
           </div>
         </div>
-      </div>!----->
+      </div>
+      <!---
        <div class="footer1">
         <p>&copy; <a href="https://micelu.co/condiciones-celuprotegemos/" class="footer-link">Términos y Condiciones - Cobertura Pantalla - Micelu.co</a></p>
       </div>
+      ---->
     </div>
 
  
     <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/mobile-name-shortener.js') }}"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/historial_compras.js') }}"></script>
  
 </body>
  

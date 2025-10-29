@@ -7,7 +7,9 @@ import secrets
 import string
 import msal
 from time import timezone
-from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for
+from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for, Response
+import csv
+import os
 from flask_sqlalchemy import SQLAlchemy
 import pyodbc
 from flask_bcrypt import Bcrypt  
@@ -383,6 +385,257 @@ def loginn():
     return render_template('login.html')
 
 #--------------------RUTA HISTORIAL --------------------------------------------------
+@app.route('/factura/<int:factura_id>/pdf')
+@login_required
+def ver_factura_pdf(factura_id):
+    """Ruta para servir PDFs de facturas"""
+    try:
+        # Aquí deberías implementar la lógica para obtener el PDF de la factura
+        # Por ahora, devolvemos un PDF de ejemplo o un error
+        documento = session.get('user_documento')
+        if not documento:
+            return redirect(url_for('login'))
+        
+        # TODO: Implementar lógica para obtener el PDF real de la factura
+        
+        # Ejemplo de respuesta (reemplazar con lógica real)
+        return jsonify({
+            'error': 'PDF no disponible',
+            'message': 'Esta funcionalidad está en desarrollo'
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Error al cargar la factura',
+            'message': str(e)
+        }), 500
+
+@app.route('/certificado/<int:certificado_id>/pdf')
+@login_required
+def ver_certificado_pdf(certificado_id):
+    """Ruta para servir PDFs de certificados"""
+    try:
+        # Aquí deberías implementar la lógica para obtener el PDF del certificado
+        # Por ahora, devolvemos un PDF de ejemplo o un error
+        documento = session.get('user_documento')
+        if not documento:
+            return redirect(url_for('login'))
+        
+        # TODO: Implementar lógica para obtener el PDF real del certificado
+        
+        # Ejemplo de respuesta (reemplazar con lógica real)
+        return jsonify({
+            'error': 'PDF no disponible',
+            'message': 'Esta funcionalidad está en desarrollo'
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Error al cargar el certificado',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/facturas')
+def api_facturas():
+    """API para obtener facturas del usuario a partir de factuiras.csv (filtradas por Receptor)."""
+    try:
+        documento = session.get('user_documento')
+        if not documento:
+            return jsonify({'error': 'No autorizado', 'message': 'Debes iniciar sesión'}), 401
+        print("documento",documento)
+        csv_path = os.path.join(os.getcwd(), 'factuiras.csv')
+        if not os.path.exists(csv_path):
+            return jsonify({'facturas': []})
+
+        facturas = []
+        # usar utf-8-sig para eliminar BOM en la primera cabecera
+        with open(csv_path, newline='', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                # cubrir posible cabecera con BOM
+                factura = (row.get('Factura') or row.get('\ufeffFactura') or '').strip()
+                print(factura)
+                receptor = (row.get('Receptor') or '').strip()
+                print(receptor)
+                if not factura or not receptor:
+                    continue
+                if str(receptor) != str(documento):
+                    continue
+                facturas.append({
+                    'id': factura,  # usamos el número como id
+                    'numero': factura,
+                    'fecha': '',
+                    'total': 0
+                })
+                print("facturas",facturas)
+
+        return jsonify({'facturas': facturas})
+    except Exception as e:
+        print(f"Error en api_facturas: {e}")
+        return jsonify({'error': str(e), 'message': 'Error interno del servidor'}), 500
+
+@app.route('/api/test')
+def api_test():
+    """Ruta de prueba para verificar que las APIs funcionan"""
+    return jsonify({
+        'status': 'success',
+        'message': 'API funcionando correctamente',
+        'timestamp': str(datetime.now())
+    })
+
+@app.route('/api/facturas/<string:numero>/pdf')
+def api_factura_pdf(numero: str):
+    """Obtiene el pdf_url de Dataico para una factura por número y lo retorna como JSON."""
+    try:
+        # Endpoint externo Dataico
+        external_url = 'https://api.dataico.com/direct/dataico_api/v2/invoices'
+        headers = {
+            'Auth-Token': '22f4608a83bad3c2438b8877a3ff12b5',
+            'Content-Type': 'application/json'
+        }
+        params = { 'number': numero }
+
+        resp = requests.get(external_url, headers=headers, params=params, timeout=20)
+        if resp.status_code != 200:
+            return jsonify({'error': 'Error consultando Dataico', 'status': resp.status_code, 'detail': resp.text}), 502
+
+        data = resp.json() if resp.content else {}
+        pdf_url = None
+        if isinstance(data, dict):
+            invoice = data.get('invoice') or {}
+            pdf_url = invoice.get('pdf_url')
+
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado en la respuesta de Dataico'}), 404
+
+        return jsonify({'pdf_url': pdf_url, 'numero': numero})
+    except Exception as e:
+        return jsonify({'error': 'Fallo al obtener el PDF', 'message': str(e)}), 500
+
+def _dataico_pdf_url(numero: str) -> str | None:
+    external_url = 'https://api.dataico.com/direct/dataico_api/v2/invoices'
+    headers = {
+        'Auth-Token': '22f4608a83bad3c2438b8877a3ff12b5',
+        'Content-Type': 'application/json'
+    }
+    params = { 'number': numero }
+    resp = requests.get(external_url, headers=headers, params=params, timeout=20)
+    if resp.status_code != 200:
+        return None
+    data = resp.json() if resp.content else {}
+    invoice = data.get('invoice') or {}
+    return invoice.get('pdf_url')
+
+@app.route('/api/facturas/<string:numero>/pdf/stream')
+def api_factura_pdf_stream(numero: str):
+    """Descarga el PDF de Dataico y lo sirve desde nuestro dominio para poder embeber en iframe."""
+    try:
+        pdf_url = _dataico_pdf_url(numero)
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado'}), 404
+
+        upstream = requests.get(pdf_url, timeout=30)
+        if upstream.status_code != 200:
+            return jsonify({'error': 'No se pudo descargar el PDF', 'status': upstream.status_code}), 502
+
+        response = Response(upstream.content, mimetype='application/pdf')
+        # Opcional: permitir que se embeber desde nuestro dominio
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        if request.args.get('download') == '1':
+            response.headers['Content-Disposition'] = f'attachment; filename="factura-{numero}.pdf"'
+        return response
+    except Exception as e:
+        return jsonify({'error': 'Fallo al servir el PDF', 'message': str(e)}), 500
+
+@app.route('/api/certificados')
+def api_certificados():
+    """API para obtener certificados del usuario a partir de factuiras.csv (filtradas por Receptor).
+    Sólo se listan filas con enlace NSYS no vacío.
+    """
+    try:
+        documento = session.get('user_documento')
+        if not documento:
+            return jsonify({'error': 'No autorizado', 'message': 'Debes iniciar sesión'}), 401
+
+        csv_path = os.path.join(os.getcwd(), 'factuiras.csv')
+        if not os.path.exists(csv_path):
+            return jsonify({'certificados': []})
+
+        certificados = []
+        with open(csv_path, newline='', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                factura = (row.get('Factura') or row.get('\ufeffFactura') or '').strip()
+                receptor = (row.get('Receptor') or '').strip()
+                nsys = (row.get('NSYS') or '').strip()
+                if not factura or not receptor:
+                    continue
+                if str(receptor) != str(documento):
+                    continue
+                if not nsys:
+                    continue
+                certificados.append({
+                    'id': factura,
+                    'numero': factura,
+                    'fecha': '',
+                    'tipo': 'Certificado de diagnóstico',
+                    'link': nsys
+                })
+                print("certificados",certificados)
+
+        return jsonify({'certificados': certificados})
+    except Exception as e:
+        print(f"Error en api_certificados: {e}")
+        return jsonify({'error': str(e), 'message': 'Error interno del servidor'}), 500
+
+@app.route('/api/certificados/<string:numero>/pdf')
+def api_certificado_pdf(numero: str):
+    """Obtiene el pdf_url (vía Dataico) para un certificado por número y lo retorna como JSON.
+    Nota: Si certificados usan la misma numeración que facturas en Dataico, este método funciona tal cual.
+    """
+    try:
+        pdf_url = _dataico_pdf_url(numero)
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado para el certificado'}), 404
+        return jsonify({'pdf_url': pdf_url, 'numero': numero})
+    except Exception as e:
+        return jsonify({'error': 'Fallo al obtener el PDF de certificado', 'message': str(e)}), 500
+
+@app.route('/api/certificados/<string:numero>/pdf/stream')
+def api_certificado_pdf_stream(numero: str):
+    """Descarga el PDF del certificado desde Dataico y lo sirve desde nuestro dominio."""
+    try:
+        # Permite forzar un link específico (ej. NSYS) desde el frontend
+        forced_url = request.args.get('url')
+        # Intentar primero con NSYS si existe en CSV para este usuario cuando no viene forzado
+        nsys_url = forced_url if forced_url else None
+        documento = session.get('user_documento')
+        csv_path = os.path.join(os.getcwd(), 'factuiras.csv')
+        if not nsys_url and documento and os.path.exists(csv_path):
+            with open(csv_path, newline='', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    fac = (row.get('Factura') or row.get('\ufeffFactura') or '').strip()
+                    rec = (row.get('Receptor') or '').strip()
+                    if fac == numero and str(rec) == str(documento):
+                        nsys_url = (row.get('NSYS') or '').strip()
+                        break
+
+        if not nsys_url:
+            return jsonify({'error': 'No hay enlace de certificado (NSYS) para este número'}), 404
+        upstream = requests.get(nsys_url, timeout=30)
+        if upstream.status_code != 200:
+            return jsonify({'error': 'No se pudo descargar el PDF del certificado', 'status': upstream.status_code}), 502
+        response = Response(upstream.content, mimetype='application/pdf')
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        if request.args.get('download') == '1':
+            response.headers['Content-Disposition'] = f'attachment; filename="certificado-{numero}.pdf"'
+        return response
+    except Exception as e:
+        return jsonify({'error': 'Fallo al servir el PDF de certificado', 'message': str(e)}), 500
+
 @app.route('/mhistorialcompras')
 @login_required
 def mhistorialcompras():
@@ -561,6 +814,7 @@ def mhistorialcompras():
             db.session.commit()
             total_puntos = total_puntos_nuevos
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
+        
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
@@ -3219,5 +3473,5 @@ def enviar_correos_dia3(hoy, resultados):
 
 
 
-if __name__ == '__app__':
-    app.run(port=os.getenv("PORT", default=5000))
+if __name__ == '__main__':
+    app.run(debug=True, port=os.getenv("PORT", default=5000))
