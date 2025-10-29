@@ -383,6 +383,147 @@ def loginn():
     return render_template('login.html')
 
 #--------------------RUTA HISTORIAL --------------------------------------------------
+@app.route('/factura/<int:factura_id>/pdf')
+@login_required
+def ver_factura_pdf(factura_id):
+    """Ruta para servir PDFs de facturas"""
+    try:
+        # Aquí deberías implementar la lógica para obtener el PDF de la factura
+        # Por ahora, devolvemos un PDF de ejemplo o un error
+        documento = session.get('user_documento')
+        if not documento:
+            return redirect(url_for('login'))
+        
+        # TODO: Implementar lógica para obtener el PDF real de la factura
+        
+        # Ejemplo de respuesta (reemplazar con lógica real)
+        return jsonify({
+            'error': 'PDF no disponible',
+            'message': 'Esta funcionalidad está en desarrollo'
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Error al cargar la factura',
+            'message': str(e)
+        }), 500
+
+@app.route('/certificado/<int:certificado_id>/pdf')
+@login_required
+def ver_certificado_pdf(certificado_id):
+    """Ruta para servir PDFs de certificados"""
+    try:
+        # Aquí deberías implementar la lógica para obtener el PDF del certificado
+        # Por ahora, devolvemos un PDF de ejemplo o un error
+        documento = session.get('user_documento')
+        if not documento:
+            return redirect(url_for('login'))
+        
+        # TODO: Implementar lógica para obtener el PDF real del certificado
+        
+        # Ejemplo de respuesta (reemplazar con lógica real)
+        return jsonify({
+            'error': 'PDF no disponible',
+            'message': 'Esta funcionalidad está en desarrollo'
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Error al cargar el certificado',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/facturas')
+def api_facturas():
+    """API para obtener facturas del usuario"""
+    try:
+        documento = session.get('user_documento')
+        if not documento:
+            return jsonify({'error': 'No autorizado', 'message': 'Debes iniciar sesión'}), 401
+        
+        # Datos de ejemplo para facturas (reemplazar con lógica real)
+        facturas = [
+            {
+                'id': 1,
+                'numero': 'FAC-001-2024',
+                'fecha': '2024-01-15',
+                'total': 150000
+            },
+            {
+                'id': 2,
+                'numero': 'FAC-002-2024',
+                'fecha': '2024-02-20',
+                'total': 275000
+            },
+            {
+                'id': 3,
+                'numero': 'FAC-003-2024',
+                'fecha': '2024-03-10',
+                'total': 89000
+            },
+            {
+                'id': 4,
+                'numero': 'FAC-004-2024',
+                'fecha': '2024-04-05',
+                'total': 320000
+            }
+        ]
+        
+        return jsonify({'facturas': facturas})
+    except Exception as e:
+        print(f"Error en api_facturas: {e}")
+        return jsonify({'error': str(e), 'message': 'Error interno del servidor'}), 500
+
+@app.route('/api/test')
+def api_test():
+    """Ruta de prueba para verificar que las APIs funcionan"""
+    return jsonify({
+        'status': 'success',
+        'message': 'API funcionando correctamente',
+        'timestamp': str(datetime.now())
+    })
+
+@app.route('/api/certificados')
+def api_certificados():
+    """API para obtener certificados del usuario"""
+    try:
+        documento = session.get('user_documento')
+        if not documento:
+            return jsonify({'error': 'No autorizado', 'message': 'Debes iniciar sesión'}), 401
+        
+        # Datos de ejemplo para certificados (reemplazar con lógica real)
+        certificados = [
+            {
+                'id': 1,
+                'numero': 'CERT-001-2024',
+                'fecha': '2024-01-20',
+                'tipo': 'Garantía Extendida'
+            },
+            {
+                'id': 2,
+                'numero': 'CERT-002-2024',
+                'fecha': '2024-02-25',
+                'tipo': 'Certificado de Calidad'
+            },
+            {
+                'id': 3,
+                'numero': 'CERT-003-2024',
+                'fecha': '2024-03-15',
+                'tipo': 'Certificado de Instalación'
+            },
+            {
+                'id': 4,
+                'numero': 'CERT-004-2024',
+                'fecha': '2024-04-10',
+                'tipo': 'Certificado de Mantenimiento'
+            }
+        ]
+        
+        return jsonify({'certificados': certificados})
+    except Exception as e:
+        print(f"Error en api_certificados: {e}")
+        return jsonify({'error': str(e), 'message': 'Error interno del servidor'}), 500
+
 @app.route('/mhistorialcompras')
 @login_required
 def mhistorialcompras():
@@ -561,6 +702,7 @@ def mhistorialcompras():
             db.session.commit()
             total_puntos = total_puntos_nuevos
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
+        
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
@@ -3219,5 +3361,5 @@ def enviar_correos_dia3(hoy, resultados):
 
 
 
-if __name__ == '__app__':
-    app.run(port=os.getenv("PORT", default=5000))
+if __name__ == '__main__':
+    app.run(debug=True, port=os.getenv("PORT", default=5000))

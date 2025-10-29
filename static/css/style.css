@@ -885,13 +885,13 @@ body {
   /*historial*/
   
   .historial{
-    width: 95%;
+    width: 90%;
     margin: 35px;
     
   }
   
   .titulohistorial{
-    display: block; 
+    display: inline-block; 
     text-align: center; 
     margin: 0 auto; 
     font-weight: bold;
@@ -915,40 +915,7 @@ body {
     background-color: #f4f4f4;
   }
   
-  /* Estilo responsivo para vista móvil */
-  @media (max-width: 600px) {
-    table, thead, tbody, th, td, tr {
-        display: block;
-        width: 100%;
-    }
-    thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
-    tr {
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-        padding: 8px 0;
-    }
-    td {
-        border: none;
-        padding-left: 50%;
-        position: relative;
-        text-align: right;
-    }
-    td:before {
-        position: absolute;
-        top: 8px;
-        left: 10px;
-        width: 45%;
-        padding-right: 10px;
-        white-space: nowrap;
-        content: attr(data-label);
-        text-align: left;
-        font-weight: bold;
-    }
-  }
+
   
   
  /*menu*/
@@ -1336,11 +1303,432 @@ input[type="email"], input[type="tel"] {
 /*---estilos historial totalpuntos*/
 .fw-bold1{
   font-size: 15px;
-  text-align: center;
+  text-align: left;
   font-weight: bold;
   font-family: 'Poppins', sans-serif;
   color: #000000;
+}
 
+/* Contenedor de puntos totales - sobrescribe Bootstrap */
+.puntos-container {
+  background-color: #f8f9fa !important;
+  border: 1px solid #dee2e6 !important;
+  border-radius: 5px !important;
+  padding: 8px 16px !important;
+  margin: 10px auto !important;
+  width: fit-content !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.puntos-texto {
+  font-size: 15px !important;
+  font-weight: bold !important;
+  color: #000000 !important;
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.puntos-badge {
+  display: inline !important;
+  background-color: #31C0CA !important;
+  color: white !important;
+  padding: 0 12px !important;
+  margin-left: 8px !important;
+  border-radius: 4px !important;
+  font-size: 15px !important;
+  font-weight: bold !important;
+}
+
+/* Tabla responsive centrada */
+.table-responsive {
+  width: 90% !important;
+  margin: 0 auto !important;
+}
+
+.table-responsive .table {
+  margin-bottom: 0 !important;
+  text-align: center !important;
+}
+
+.table-responsive .table th {
+  text-align: center !important;
+  font-weight: bold !important;
+  background-color: #f8f9fa !important;
+  border-bottom: 2px solid #dee2e6 !important;
+  padding: 12px 8px !important;
+  font-family: 'Poppins', sans-serif !important;
+  color: #185F64 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.table-responsive .table td {
+  text-align: center !important;
+  padding: 10px 8px !important;
+  border-bottom: 1px solid #dee2e6 !important;
+  font-family: 'Poppins', sans-serif !important;
+  color: #333 !important;
+}
+
+.table-responsive .table tbody tr:nth-child(even) {
+  background-color: #f8f9fa !important;
+}
+
+.table-responsive .table tbody tr:hover {
+  background-color: #e9ecef !important;
+}
+
+/* Responsive para encabezados en pantallas pequeñas */
+@media (max-width: 768px) {
+  .table-responsive .table th {
+    font-size: 12px !important;
+    padding: 8px 4px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-responsive .table th {
+    font-size: 11px !important;
+    padding: 6px 2px !important;
+  }
+}
+
+/* Sección Mis Facturas - Desplegable */
+.mis-facturas-section {
+  width: 80% !important;
+  margin: 30px auto !important;
+  padding: 20px 0 !important;
+}
+
+.mis-facturas-section .card {
+  border: none !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 12px !important;
+}
+
+.mis-facturas-section .card-header {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border: none !important;
+  border-radius: 12px 12px 0 0 !important;
+  padding: 20px !important;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: none !important;
+}
+
+.titulo-facturas {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: bold !important;
+  font-size: 20px !important;
+  color: #185F64 !important;
+  text-decoration: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Iconos en el encabezado de Facturas */
+.titulo-facturas i.fa-file-pdf {
+  font-size: 28px !important;
+  color: #dc3545 !important;
+  margin-right: 10px !important;
+  line-height: 1 !important;
+}
+
+.titulo-facturas i.fa-chevron-down {
+  font-size: 18px !important;
+}
+
+.titulo-facturas:hover {
+  text-decoration: none !important;
+  color: #185F64 !important;
+}
+
+.titulo-facturas i.fa-chevron-down {
+  transition: transform 0.3s ease !important;
+}
+
+.titulo-facturas[aria-expanded="true"] i.fa-chevron-down {
+  transform: rotate(180deg) !important;
+}
+
+.facturas-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 20px !important;
+  padding: 0 10px !important;
+}
+
+.factura-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border: 2px solid #dee2e6 !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.factura-card:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2) !important;
+  border-color: #31C0CA !important;
+}
+
+.factura-icon {
+  font-size: 60px !important;
+  color: #dc3545 !important;
+  margin-bottom: 25px !important;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
+  line-height: 1 !important;
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
+.factura-icon i {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.factura-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.factura-numero {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  color: #185F64 !important;
+}
+
+.factura-fecha {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 14px !important;
+  color: #6c757d !important;
+}
+
+.factura-total {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: bold !important;
+  font-size: 18px !important;
+  color: #185F64 !important;
+  padding: 5px 10px !important;
+  border-radius: 6px !important;
+}
+
+/* Modal de factura */
+.pdf-container {
+  width: 100% !important;
+  height: 600px !important;
+  border: 1px solid #dee2e6 !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+#pdfViewer {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+
+/* Responsive para facturas */
+@media (max-width: 768px) {
+  .facturas-grid {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+  
+  .mis-facturas-section {
+    width: 95% !important;
+    margin: 20px auto !important;
+  }
+}
+
+/* Sección Mis Certificados - Desplegable */
+.mis-certificados-section {
+  width: 80% !important;
+  margin: 30px auto !important;
+  padding: 20px 0 !important;
+}
+
+.mis-certificados-section .card {
+  border: none !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 12px !important;
+}
+
+.mis-certificados-section .card-header {
+  background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%) !important;
+  border: none !important;
+  border-radius: 12px 12px 0 0 !important;
+  padding: 20px !important;
+}
+
+.titulo-certificados {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: bold !important;
+  font-size: 20px !important;
+  color: #185F64 !important;
+  text-decoration: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Iconos en el encabezado de Certificados */
+.titulo-certificados i.fa-certificate {
+  font-size: 28px !important;
+  color: #28a745 !important;
+  margin-right: 10px !important;
+  line-height: 1 !important;
+}
+
+.titulo-certificados i.fa-chevron-down {
+  font-size: 18px !important;
+}
+
+.titulo-certificados:hover {
+  text-decoration: none !important;
+  color: #185F64 !important;
+}
+
+.titulo-certificados i.fa-chevron-down {
+  transition: transform 0.3s ease !important;
+}
+
+.titulo-certificados[aria-expanded="true"] i.fa-chevron-down {
+  transform: rotate(180deg) !important;
+}
+
+.certificados-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 20px !important;
+  padding: 0 10px !important;
+}
+
+.certificado-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border: 2px solid #c3e6cb !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.certificado-card:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2) !important;
+  border-color: #28a745 !important;
+}
+
+.certificado-icon {
+  font-size: 60px !important;
+  color: #28a745 !important;
+  margin-bottom: 25px !important;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
+  line-height: 1 !important;
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
+.certificado-icon i {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.certificado-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.certificado-numero {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  color: #185F64 !important;
+}
+
+.certificado-fecha {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 14px !important;
+  color: #6c757d !important;
+}
+
+.certificado-tipo {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: bold !important;
+  font-size: 18px !important;
+  color: #28a745 !important;
+  background-color: rgba(40, 167, 69, 0.1) !important;
+  padding: 5px 10px !important;
+  border-radius: 6px !important;
+}
+
+/* Responsive para certificados */
+@media (max-width: 768px) {
+  .certificados-grid {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+  
+  .mis-certificados-section {
+    width: 95% !important;
+    margin: 20px auto !important;
+  }
+}
+
+/* Estilos para spinners de carga */
+.spinner-border {
+  width: 3rem !important;
+  height: 3rem !important;
+  border-width: 0.3em !important;
+}
+
+.text-center .spinner-border {
+  margin: 20px auto !important;
+}
+
+/* Estilos para el contenido de carga */
+.card-body .text-center {
+  padding: 40px 20px !important;
+}
+
+.card-body .text-center p {
+  margin-top: 15px !important;
+  font-family: 'Poppins', sans-serif !important;
+  color: #6c757d !important;
 }
 /*--- estilos para el cuadro de los puntos*/
 .custom-badge {
@@ -1356,10 +1744,10 @@ input[type="email"], input[type="tel"] {
 }
 .custom-badge1 {
   display: inline-block; 
-  width: 100%; 
+  width: auto; 
   height: 25px; 
   font-size: 20px; 
-  line-height: 32px; 
+  line-height: 30px; 
   text-align: center; 
   padding: 0; 
   background-color: #31C0CA; 
