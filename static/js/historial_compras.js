@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="factura-info">
                                 <span class="factura-numero">Factura #${factura.numero}</span>
                                 <span class="factura-fecha">${factura.fecha}</span>
-                                <span class="factura-total">$${factura.total.toLocaleString()}</span>
                             </div>
                         </div>
                     `;
@@ -162,9 +161,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Datos recibidos:', data);
             let html = '';
             if (data.certificados && data.certificados.length > 0) {
-                data.certificados.forEach(function(certificado) {
+                        data.certificados.forEach(function(certificado) {
                     html += `
-                        <div class="certificado-card" data-certificado-id="${certificado.id}" data-certificado-numero="${certificado.numero}">
+                        <div class="certificado-card" data-certificado-id="${certificado.id}" data-certificado-numero="${certificado.numero}" data-certificado-link="${certificado.link ? certificado.link : ''}">
                             <div class="certificado-icon">
                                 <i class="fas fa-certificate"></i>
                             </div>
@@ -227,11 +226,14 @@ document.addEventListener('DOMContentLoaded', function() {
         certificadoCards.forEach(card => {
             card.addEventListener('click', function() {
                 const certificadoId = this.getAttribute('data-certificado-id');
-                // const certificadoNumero = this.getAttribute('data-certificado-numero');
-                const certificadoNumero = "MCFE11184";
+                const certificadoNumero = this.getAttribute('data-certificado-numero');
+                const certificadoLink = this.getAttribute('data-certificado-link');
                 document.getElementById('certificadoModalLabel').textContent = 'Certificado #' + certificadoNumero;
-                // Usar streaming desde backend para evitar X-Frame-Options
-                const streamUrl = '/api/certificados/' + encodeURIComponent(certificadoNumero) + '/pdf/stream';
+                // Usar streaming desde backend. Si tenemos el link NSYS, lo forzamos vía query param
+                let streamUrl = '/api/certificados/' + encodeURIComponent(certificadoNumero) + '/pdf/stream';
+                if (certificadoLink) {
+                    streamUrl += '?url=' + encodeURIComponent(certificadoLink);
+                }
                 document.getElementById('certificadoViewer').src = streamUrl;
                 const modal = new bootstrap.Modal(document.getElementById('certificadoModal'));
                 modal.show();

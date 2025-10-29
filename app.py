@@ -8,6 +8,8 @@ import string
 import msal
 from time import timezone
 from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for, Response
+import csv
+import os
 from flask_sqlalchemy import SQLAlchemy
 import pyodbc
 from flask_bcrypt import Bcrypt  
@@ -435,40 +437,38 @@ def ver_certificado_pdf(certificado_id):
 
 @app.route('/api/facturas')
 def api_facturas():
-    """API para obtener facturas del usuario"""
+    """API para obtener facturas del usuario a partir de factuiras.csv (filtradas por Receptor)."""
     try:
         documento = session.get('user_documento')
         if not documento:
             return jsonify({'error': 'No autorizado', 'message': 'Debes iniciar sesión'}), 401
-        
-        # Datos de ejemplo para facturas (reemplazar con lógica real)
-        facturas = [
-            {
-                'id': 1,
-                'numero': 'FAC-001-2024',
-                'fecha': '2024-01-15',
-                'total': 150000
-            },
-            {
-                'id': 2,
-                'numero': 'FAC-002-2024',
-                'fecha': '2024-02-20',
-                'total': 275000
-            },
-            {
-                'id': 3,
-                'numero': 'FAC-003-2024',
-                'fecha': '2024-03-10',
-                'total': 89000
-            },
-            {
-                'id': 4,
-                'numero': 'FAC-004-2024',
-                'fecha': '2024-04-05',
-                'total': 320000
-            }
-        ]
-        
+        print("documento",documento)
+        csv_path = os.path.join(os.getcwd(), 'factuiras.csv')
+        if not os.path.exists(csv_path):
+            return jsonify({'facturas': []})
+
+        facturas = []
+        # usar utf-8-sig para eliminar BOM en la primera cabecera
+        with open(csv_path, newline='', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                # cubrir posible cabecera con BOM
+                factura = (row.get('Factura') or row.get('\ufeffFactura') or '').strip()
+                print(factura)
+                receptor = (row.get('Receptor') or '').strip()
+                print(receptor)
+                if not factura or not receptor:
+                    continue
+                if str(receptor) != str(documento):
+                    continue
+                facturas.append({
+                    'id': factura,  # usamos el número como id
+                    'numero': factura,
+                    'fecha': '',
+                    'total': 0
+                })
+                print("facturas",facturas)
+
         return jsonify({'facturas': facturas})
     except Exception as e:
         print(f"Error en api_facturas: {e}")
@@ -550,40 +550,40 @@ def api_factura_pdf_stream(numero: str):
 
 @app.route('/api/certificados')
 def api_certificados():
-    """API para obtener certificados del usuario"""
+    """API para obtener certificados del usuario a partir de factuiras.csv (filtradas por Receptor).
+    Sólo se listan filas con enlace NSYS no vacío.
+    """
     try:
         documento = session.get('user_documento')
         if not documento:
             return jsonify({'error': 'No autorizado', 'message': 'Debes iniciar sesión'}), 401
-        
-        # Datos de ejemplo para certificados (reemplazar con lógica real)
-        certificados = [
-            {
-                'id': 1,
-                'numero': 'CERT-001-2024',
-                'fecha': '2024-01-20',
-                'tipo': 'Garantía Extendida'
-            },
-            {
-                'id': 2,
-                'numero': 'CERT-002-2024',
-                'fecha': '2024-02-25',
-                'tipo': 'Certificado de Calidad'
-            },
-            {
-                'id': 3,
-                'numero': 'CERT-003-2024',
-                'fecha': '2024-03-15',
-                'tipo': 'Certificado de Instalación'
-            },
-            {
-                'id': 4,
-                'numero': 'CERT-004-2024',
-                'fecha': '2024-04-10',
-                'tipo': 'Certificado de Mantenimiento'
-            }
-        ]
-        
+
+        csv_path = os.path.join(os.getcwd(), 'factuiras.csv')
+        if not os.path.exists(csv_path):
+            return jsonify({'certificados': []})
+
+        certificados = []
+        with open(csv_path, newline='', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                factura = (row.get('Factura') or row.get('\ufeffFactura') or '').strip()
+                receptor = (row.get('Receptor') or '').strip()
+                nsys = (row.get('NSYS') or '').strip()
+                if not factura or not receptor:
+                    continue
+                if str(receptor) != str(documento):
+                    continue
+                if not nsys:
+                    continue
+                certificados.append({
+                    'id': factura,
+                    'numero': factura,
+                    'fecha': '',
+                    'tipo': 'Certificado de diagnóstico',
+                    'link': nsys
+                })
+                print("certificados",certificados)
+
         return jsonify({'certificados': certificados})
     except Exception as e:
         print(f"Error en api_certificados: {e}")
@@ -606,10 +606,25 @@ def api_certificado_pdf(numero: str):
 def api_certificado_pdf_stream(numero: str):
     """Descarga el PDF del certificado desde Dataico y lo sirve desde nuestro dominio."""
     try:
-        pdf_url = _dataico_pdf_url(numero)
-        if not pdf_url:
-            return jsonify({'error': 'pdf_url no encontrado para el certificado'}), 404
-        upstream = requests.get(pdf_url, timeout=30)
+        # Permite forzar un link específico (ej. NSYS) desde el frontend
+        forced_url = request.args.get('url')
+        # Intentar primero con NSYS si existe en CSV para este usuario cuando no viene forzado
+        nsys_url = forced_url if forced_url else None
+        documento = session.get('user_documento')
+        csv_path = os.path.join(os.getcwd(), 'factuiras.csv')
+        if not nsys_url and documento and os.path.exists(csv_path):
+            with open(csv_path, newline='', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    fac = (row.get('Factura') or row.get('\ufeffFactura') or '').strip()
+                    rec = (row.get('Receptor') or '').strip()
+                    if fac == numero and str(rec) == str(documento):
+                        nsys_url = (row.get('NSYS') or '').strip()
+                        break
+
+        if not nsys_url:
+            return jsonify({'error': 'No hay enlace de certificado (NSYS) para este número'}), 404
+        upstream = requests.get(nsys_url, timeout=30)
         if upstream.status_code != 200:
             return jsonify({'error': 'No se pudo descargar el PDF del certificado', 'status': upstream.status_code}), 502
         response = Response(upstream.content, mimetype='application/pdf')

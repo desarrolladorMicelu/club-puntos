@@ -1467,7 +1467,6 @@ input[type="email"], input[type="tel"] {
 .facturas-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-  gap: 20px !important;
   padding: 0 10px !important;
 }
 
@@ -1626,7 +1625,6 @@ input[type="email"], input[type="tel"] {
 .certificados-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-  gap: 20px !important;
   padding: 0 10px !important;
 }
 
