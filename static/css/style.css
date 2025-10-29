@@ -1309,30 +1309,6 @@ input[type="email"], input[type="tel"] {
   color: #000000;
 }
 
-/* MOBILE FIX - Hacer el texto del saludo muy pequeño */
-@media (max-width: 991px) {
-  .fw-bold1 {
-    font-size: 10px !important;
-    font-weight: 400 !important;
-    line-height: 1.2 !important;
-    color: #ffffff !important;
-    max-width: 200px !important;
-    word-break: break-word !important;
-    hyphens: auto !important;
-  }
-}
-
-@media (max-width: 768px) {
-  .fw-bold1 {
-    font-size: 9px !important;
-    max-width: 180px !important;
-  }
-}
-
-@media (max-width: 576px) {
-  .fw-bold1 {
-    font-size: 8px !important;
-    max-width: 160px !important;
 /* Contenedor de puntos totales - sobrescribe Bootstrap */
 .puntos-container {
   background-color: #f8f9fa !important;
@@ -1416,10 +1392,6 @@ input[type="email"], input[type="tel"] {
 }
 
 @media (max-width: 480px) {
-  .fw-bold1 {
-    font-size: 7px !important;
-    max-width: 140px !important;
-  }
   .table-responsive .table th {
     font-size: 11px !important;
     padding: 6px 2px !important;
@@ -1495,6 +1467,7 @@ input[type="email"], input[type="tel"] {
 .facturas-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 20px !important;
   padding: 0 10px !important;
 }
 
@@ -1653,6 +1626,7 @@ input[type="email"], input[type="tel"] {
 .certificados-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 20px !important;
   padding: 0 10px !important;
 }
 
