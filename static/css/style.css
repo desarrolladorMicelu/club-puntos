@@ -1340,7 +1340,40 @@ input[type="email"], input[type="tel"] {
   font-weight: bold;
   font-family: 'Poppins', sans-serif;
   color: #000000;
+}
 
+/* MOBILE FIX - Hacer el texto del saludo muy pequeño */
+@media (max-width: 991px) {
+  .fw-bold1 {
+    font-size: 10px !important;
+    font-weight: 400 !important;
+    line-height: 1.2 !important;
+    color: #ffffff !important;
+    max-width: 200px !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .fw-bold1 {
+    font-size: 9px !important;
+    max-width: 180px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .fw-bold1 {
+    font-size: 8px !important;
+    max-width: 160px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .fw-bold1 {
+    font-size: 7px !important;
+    max-width: 140px !important;
+  }
 }
 /*--- estilos para el cuadro de los puntos*/
 .custom-badge {

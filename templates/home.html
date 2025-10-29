@@ -40,6 +40,8 @@
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/beneficios.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/home-modern.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/header-improvements.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
 
@@ -63,29 +65,22 @@
           </button>
 
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <div class="navbar navbar-expand-lg custom_nav-container ">
-              <ul class="navbar-nav  ">
-                <li class="nav-item active">
-                  <a class="nav-link" href="/homepuntos">Personas</a>
-                </li>
-              </ul>
-            </div>
-            <ul class="navbar-nav  ">
-              <li class="nav-item ">
-                <a class="nav-link active " href="/redimir">Redimir</a>
+            <ul class="navbar-nav mx-auto">
+              <li class="nav-item active">
+                <a class="nav-link" href="/homepuntos">Personas</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link active" href="/redimir">Redimir</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link active" href="/acumulapuntos">Acumula</a>
               </li>
             </ul>
-              <ul class="navbar-nav  ">
-                <li class="nav-item ">
-                  <a class="nav-link active " href="/acumulapuntos">Acumula</a>
-                </li>
-              </ul>
-                
-                <ul class="navbar-nav  ">
-                  <li class="nav-item ">
-                    <a class="nav-link login-button" href="/iniciosesion">Iniciar Sesion</a>
-                  </li>
-                </ul>
+            <ul class="navbar-nav ml-auto">
+              <li class="nav-item">
+                <a class="nav-link login-button" href="/iniciosesion">Iniciar Sesion</a>
+              </li>
+            </ul>
           </div>
       </div>
 
@@ -94,57 +89,81 @@
   </header>
   <!-- end header section -->
   <!------ inicio carrusel-->
-  <!<div class="section">
+  <div class="section">
     <img src="{{ url_for('static', filename='images/banner1.png') }}" class="imgcelu">
-    </div>
+  </div>
 
-    <h1 class="titulo1">Disfruta de tus Puntos Micelu.co</h1>
-    <div class="container custom-container">
-      <div class="row">
-        <div class="col-md-4">
-          <div class="custom-card">
-            <img src="{{ url_for('static', filename='images/REGISTRATE.png') }}" class="custom-card-img" alt="...">
-            <div class="custom-card-body">
-              <button onclick="location.href='/iniciosesion'" class="btn btn-dark">Registrate ahora</button>
+  <h1 class="titulo1">Disfruta de tus Puntos Micelu.co</h1>
+
+  <!-- Features Section -->
+  <div class="features-section">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="feature-content">
+              <h3>Regístrate con tu número de documento</h3>
+              <p>Crea tu cuenta de forma rápida y segura para comenzar a acumular puntos</p>
+            </div>
+            <div class="feature-action">
+              <button onclick="location.href='/iniciosesion'" class="feature-btn">Regístrate ahora</button>
             </div>
           </div>
         </div>
-        <div class="col-md-4">
-          <div class="custom-card">
-            <img src="{{ url_for('static', filename='images/ACUMULA.png') }}" class="custom-card-img" alt="...">
-            <div class="custom-card-body">
-              <button onclick="location.href='/acumulapuntos'" class="btn btn-dark">Acumular</button>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-coins"></i>
+            </div>
+            <div class="feature-content">
+              <h3>Por cada compra en efectivo estarás acumulando puntos</h3>
+              <p>Cada peso que gastes se convierte en puntos que podrás usar después</p>
+            </div>
+            <div class="feature-action">
+              <button onclick="location.href='/acumulapuntos'" class="feature-btn">Acumular</button>
             </div>
           </div>
         </div>
-        <div class="col-md-4">
-          <div class="custom-card">
-            <img src="{{ url_for('static', filename='images/REDIME.png') }}" class="custom-card-img" alt="...">
-            <div class="custom-card-body">
-              <button onclick="location.href='/redimir'" class="btn btn-dark">Descubre</button>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-gift"></i>
+            </div>
+            <div class="feature-content">
+              <h3>Podrás redimir tus puntos en accesorios o equipos disponibles</h3>
+              <p>Cambia tus puntos por productos increíbles en nuestra tienda</p>
+            </div>
+            <div class="feature-action">
+              <button onclick="location.href='/redimir'" class="feature-btn">Descubre</button>
             </div>
           </div>
         </div>
       </div>
-    </div> <!-- Esta es la última div que cierra el contenedor principal -->
-   
-    <!-- menu section -->
-    <div class="footer">
-      <div class="footer1">
-          <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
-      </div>
     </div>
+  </div>
+
+  <!-- menu section -->
+  <div class="footer">
+    <div class="footer1">
+      <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
+    </div>
+  </div>
 
 
 
 
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-      crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
 </body>
 
 </html>
