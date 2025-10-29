@@ -7,7 +7,7 @@ import secrets
 import string
 import msal
 from time import timezone
-from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for
+from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for, Response
 from flask_sqlalchemy import SQLAlchemy
 import pyodbc
 from flask_bcrypt import Bcrypt  
@@ -483,6 +483,71 @@ def api_test():
         'timestamp': str(datetime.now())
     })
 
+@app.route('/api/facturas/<string:numero>/pdf')
+def api_factura_pdf(numero: str):
+    """Obtiene el pdf_url de Dataico para una factura por número y lo retorna como JSON."""
+    try:
+        # Endpoint externo Dataico
+        external_url = 'https://api.dataico.com/direct/dataico_api/v2/invoices'
+        headers = {
+            'Auth-Token': '22f4608a83bad3c2438b8877a3ff12b5',
+            'Content-Type': 'application/json'
+        }
+        params = { 'number': numero }
+
+        resp = requests.get(external_url, headers=headers, params=params, timeout=20)
+        if resp.status_code != 200:
+            return jsonify({'error': 'Error consultando Dataico', 'status': resp.status_code, 'detail': resp.text}), 502
+
+        data = resp.json() if resp.content else {}
+        pdf_url = None
+        if isinstance(data, dict):
+            invoice = data.get('invoice') or {}
+            pdf_url = invoice.get('pdf_url')
+
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado en la respuesta de Dataico'}), 404
+
+        return jsonify({'pdf_url': pdf_url, 'numero': numero})
+    except Exception as e:
+        return jsonify({'error': 'Fallo al obtener el PDF', 'message': str(e)}), 500
+
+def _dataico_pdf_url(numero: str) -> str | None:
+    external_url = 'https://api.dataico.com/direct/dataico_api/v2/invoices'
+    headers = {
+        'Auth-Token': '22f4608a83bad3c2438b8877a3ff12b5',
+        'Content-Type': 'application/json'
+    }
+    params = { 'number': numero }
+    resp = requests.get(external_url, headers=headers, params=params, timeout=20)
+    if resp.status_code != 200:
+        return None
+    data = resp.json() if resp.content else {}
+    invoice = data.get('invoice') or {}
+    return invoice.get('pdf_url')
+
+@app.route('/api/facturas/<string:numero>/pdf/stream')
+def api_factura_pdf_stream(numero: str):
+    """Descarga el PDF de Dataico y lo sirve desde nuestro dominio para poder embeber en iframe."""
+    try:
+        pdf_url = _dataico_pdf_url(numero)
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado'}), 404
+
+        upstream = requests.get(pdf_url, timeout=30)
+        if upstream.status_code != 200:
+            return jsonify({'error': 'No se pudo descargar el PDF', 'status': upstream.status_code}), 502
+
+        response = Response(upstream.content, mimetype='application/pdf')
+        # Opcional: permitir que se embeber desde nuestro dominio
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        if request.args.get('download') == '1':
+            response.headers['Content-Disposition'] = f'attachment; filename="factura-{numero}.pdf"'
+        return response
+    except Exception as e:
+        return jsonify({'error': 'Fallo al servir el PDF', 'message': str(e)}), 500
+
 @app.route('/api/certificados')
 def api_certificados():
     """API para obtener certificados del usuario"""
@@ -523,6 +588,38 @@ def api_certificados():
     except Exception as e:
         print(f"Error en api_certificados: {e}")
         return jsonify({'error': str(e), 'message': 'Error interno del servidor'}), 500
+
+@app.route('/api/certificados/<string:numero>/pdf')
+def api_certificado_pdf(numero: str):
+    """Obtiene el pdf_url (vía Dataico) para un certificado por número y lo retorna como JSON.
+    Nota: Si certificados usan la misma numeración que facturas en Dataico, este método funciona tal cual.
+    """
+    try:
+        pdf_url = _dataico_pdf_url(numero)
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado para el certificado'}), 404
+        return jsonify({'pdf_url': pdf_url, 'numero': numero})
+    except Exception as e:
+        return jsonify({'error': 'Fallo al obtener el PDF de certificado', 'message': str(e)}), 500
+
+@app.route('/api/certificados/<string:numero>/pdf/stream')
+def api_certificado_pdf_stream(numero: str):
+    """Descarga el PDF del certificado desde Dataico y lo sirve desde nuestro dominio."""
+    try:
+        pdf_url = _dataico_pdf_url(numero)
+        if not pdf_url:
+            return jsonify({'error': 'pdf_url no encontrado para el certificado'}), 404
+        upstream = requests.get(pdf_url, timeout=30)
+        if upstream.status_code != 200:
+            return jsonify({'error': 'No se pudo descargar el PDF del certificado', 'status': upstream.status_code}), 502
+        response = Response(upstream.content, mimetype='application/pdf')
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        if request.args.get('download') == '1':
+            response.headers['Content-Disposition'] = f'attachment; filename="certificado-{numero}.pdf"'
+        return response
+    except Exception as e:
+        return jsonify({'error': 'Fallo al servir el PDF de certificado', 'message': str(e)}), 500
 
 @app.route('/mhistorialcompras')
 @login_required

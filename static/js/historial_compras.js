@@ -195,16 +195,28 @@ document.addEventListener('DOMContentLoaded', function() {
         const facturaCards = document.querySelectorAll('.factura-card');
         facturaCards.forEach(card => {
             card.addEventListener('click', function() {
-                const facturaId = this.getAttribute('data-factura-id');
-                const facturaNumero = this.getAttribute('data-factura-numero');
-                
+                // const facturaNumero = this.getAttribute('data-factura-numero');
+                const facturaNumero = "MCFE11184";
                 document.getElementById('facturaModalLabel').textContent = 'Factura #' + facturaNumero;
-                const pdfUrl = '/factura/' + facturaId + '/pdf';
-                document.getElementById('pdfViewer').src = pdfUrl;
-                
-                // Usar Bootstrap modal con JavaScript vanilla
-                const modal = new bootstrap.Modal(document.getElementById('facturaModal'));
-                modal.show();
+                // Consultar a nuestro backend para que proxeé y sirva el PDF embebible
+                fetch('/api/facturas/' + encodeURIComponent(facturaNumero) + '/pdf')
+                  .then(r => {
+                      if (!r.ok) throw new Error('HTTP ' + r.status);
+                      return r.json();
+                  })
+                  .then(data => {
+                      if (!data.pdf_url) throw new Error('No se encontró pdf_url');
+                      // Usar el endpoint de streaming para evitar X-Frame-Options del dominio externo
+                      const streamUrl = '/api/facturas/' + encodeURIComponent(facturaNumero) + '/pdf/stream';
+                      document.getElementById('pdfViewer').src = streamUrl;
+                      const modal = new bootstrap.Modal(document.getElementById('facturaModal'));
+                      modal.show();
+                  })
+                  .catch(err => {
+                      console.error('Error obteniendo PDF:', err);
+                      document.getElementById('pdfViewer').src = '';
+                      alert('No fue posible cargar el PDF de la factura.');
+                  });
             });
         });
     }
@@ -215,13 +227,12 @@ document.addEventListener('DOMContentLoaded', function() {
         certificadoCards.forEach(card => {
             card.addEventListener('click', function() {
                 const certificadoId = this.getAttribute('data-certificado-id');
-                const certificadoNumero = this.getAttribute('data-certificado-numero');
-                
+                // const certificadoNumero = this.getAttribute('data-certificado-numero');
+                const certificadoNumero = "MCFE11184";
                 document.getElementById('certificadoModalLabel').textContent = 'Certificado #' + certificadoNumero;
-                const pdfUrl = '/certificado/' + certificadoId + '/pdf';
-                document.getElementById('certificadoViewer').src = pdfUrl;
-                
-                // Usar Bootstrap modal con JavaScript vanilla
+                // Usar streaming desde backend para evitar X-Frame-Options
+                const streamUrl = '/api/certificados/' + encodeURIComponent(certificadoNumero) + '/pdf/stream';
+                document.getElementById('certificadoViewer').src = streamUrl;
                 const modal = new bootstrap.Modal(document.getElementById('certificadoModal'));
                 modal.show();
             });
@@ -233,9 +244,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (descargarFactura) {
         descargarFactura.addEventListener('click', function() {
             const pdfUrl = document.getElementById('pdfViewer').src;
-            if (pdfUrl) {
-                window.open(pdfUrl, '_blank');
-            }
+            if (!pdfUrl) return;
+            const downloadUrl = pdfUrl.includes('?') ? pdfUrl + '&download=1' : pdfUrl + '?download=1';
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         });
     }
     
@@ -244,9 +260,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (descargarCertificado) {
         descargarCertificado.addEventListener('click', function() {
             const pdfUrl = document.getElementById('certificadoViewer').src;
-            if (pdfUrl) {
-                window.open(pdfUrl, '_blank');
-            }
+            if (!pdfUrl) return;
+            const downloadUrl = pdfUrl.includes('?') ? pdfUrl + '&download=1' : pdfUrl + '?download=1';
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         });
     }
     
