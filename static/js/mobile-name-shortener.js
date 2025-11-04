@@ -1,6 +1,7 @@
 /**
- * Mobile Name Shortener - Acorta el nombre del usuario en móvil
- * Solo muestra el primer nombre + "Tienes:" en lugar del nombre completo
+ * Name Shortener - Acorta el nombre del usuario en PC y móvil
+ * Solo muestra el primer nombre en lugar del nombre completo
+ * PC: "Hola Juan, tienes" | Móvil: "Hola Juan! Tienes:"
  */
 
 (function() {
@@ -11,29 +12,34 @@
         return window.innerWidth <= 991;
     }
     
-    // Función para acortar el nombre
+    // Función para acortar el nombre (AHORA APLICA EN PC Y MÓVIL)
     function shortenUserName() {
         const greetingElement = document.querySelector('.fw-bold1');
         
         if (!greetingElement) return;
         
-        const originalText = greetingElement.textContent || greetingElement.innerText;
+        const currentText = greetingElement.textContent || greetingElement.innerText;
         
         // Guardar el texto original si no está guardado
         if (!greetingElement.dataset.originalText) {
-            greetingElement.dataset.originalText = originalText;
+            greetingElement.dataset.originalText = currentText;
         }
         
-        if (isMobile()) {
-            // Extraer el primer nombre del texto original
-            const match = originalText.match(/Hola\s+([^\s]+)/i);
-            if (match && match[1]) {
-                const firstName = match[1];
+        // USAR SIEMPRE EL TEXTO ORIGINAL GUARDADO
+        const originalText = greetingElement.dataset.originalText;
+        
+        // APLICAR ACORTAMIENTO TANTO EN MÓVIL COMO EN PC
+        // Extraer el primer nombre del texto original
+        const match = originalText.match(/Hola\s+([^\s]+)/i);
+        if (match && match[1]) {
+            const firstName = match[1];
+            if (isMobile()) {
+                // En móvil: "Hola Juan! Tienes:"
                 greetingElement.textContent = `Hola ${firstName}! Tienes:`;
+            } else {
+                // En PC: "Hola Juan, tienes" (mantiene el formato original pero con primer nombre)
+                greetingElement.textContent = `Hola ${firstName}, tienes`;
             }
-        } else {
-            // Restaurar texto original en desktop
-            greetingElement.textContent = greetingElement.dataset.originalText;
         }
     }
     
@@ -77,16 +83,35 @@
     // Inicializar
     applyMobileNameShortener();
     
+    // FORZAR EJECUCIÓN INMEDIATA PARA PC
+    setTimeout(function() {
+        shortenUserName();
+        console.log('🔧 Acortador de nombres ejecutado para PC');
+    }, 100);
+    
+    // FORZAR EJECUCIÓN ADICIONAL
+    setTimeout(function() {
+        shortenUserName();
+        console.log('🔧 Acortador de nombres ejecutado nuevamente');
+    }, 500);
+    
+    // FUNCIÓN GLOBAL PARA EJECUTAR MANUALMENTE
+    window.forceNameShortening = function() {
+        shortenUserName();
+        console.log('✅ Acortamiento de nombres forzado');
+    };
+    
     // Función de debug (solo en desarrollo)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        window.debugMobileNameShortener = function() {
+        window.debugNameShortener = function() {
             const greetingElement = document.querySelector('.fw-bold1');
-            console.log('Mobile Name Shortener Debug:', {
+            console.log('Name Shortener Debug:', {
                 isMobile: isMobile(),
                 greetingElement: greetingElement,
                 originalText: greetingElement ? greetingElement.dataset.originalText : 'No encontrado',
                 currentText: greetingElement ? greetingElement.textContent : 'No encontrado',
-                windowWidth: window.innerWidth
+                windowWidth: window.innerWidth,
+                platform: isMobile() ? 'Móvil' : 'PC'
             });
         };
     }

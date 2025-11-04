@@ -140,17 +140,21 @@
 .user-greeting-container {
     display: flex;
     align-items: center;
+    justify-content: center;
     margin-left: 15px;
     margin-right: 10px;
-    padding: 8px 14px;
+    padding: 10px 14px;
     border-radius: 12px;
     background: linear-gradient(135deg, rgba(49, 192, 202, 0.1) 0%, rgba(49, 192, 202, 0.05) 100%);
     border: 1px solid rgba(49, 192, 202, 0.2);
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
     min-height: 40px;
+    height: 40px;
     gap: 10px;
     flex-shrink: 0;
+    min-width: fit-content;
+    overflow: visible;
 }
 
 .user-greeting-container:hover {
@@ -163,8 +167,12 @@
 .icon-text-container {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     flex-shrink: 0;
+    min-width: fit-content;
+    overflow: visible;
+    height: 100%;
 }
 
 .icon-text-container i {
@@ -172,16 +180,32 @@
     font-size: 16px;
     flex-shrink: 0;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.fw-bold1 {
-    font-size: 13px;
-    font-weight: 600;
+/* Estilos base para el saludo del usuario */
+.user-greeting-container .fw-bold1 {
+    font-size: 13px !important;
+    font-weight: 600 !important;
     color: #ffffff !important;
-    font-family: 'Poppins', sans-serif;
-    margin: 0;
-    white-space: nowrap;
-    line-height: 1.2;
+    font-family: 'Poppins', sans-serif !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    line-height: 1.4 !important;
+    overflow: visible !important;
+    text-overflow: none !important;
+    max-width: none !important;
+    text-decoration: none !important;
+    word-break: normal !important;
+    hyphens: none !important;
+    letter-spacing: normal !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    vertical-align: middle !important;
 }
 
 /* Points badge improvements */
@@ -302,43 +326,59 @@
     }
     
     .custom_nav-container {
-        padding: 5px 0;
-        min-height: 50px;
+        padding: 8px 0;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     
     .navbar-brand {
         margin-right: 10px;
         flex-shrink: 0;
+        order: 1;
     }
     
     .navbar-brand .imgcelu {
-        width: 70px;
+        width: 80px;
+        transition: transform 0.3s ease;
     }
     
-    /* Ajustes para el navbar toggler */
+    .navbar-brand:hover .imgcelu {
+        transform: scale(1.05);
+    }
+    
+    /* BOTÓN HAMBURGUESA MEJORADO PARA MENÚ LATERAL */
     .navbar-toggler {
-        padding: 4px 8px;
+        padding: 8px 10px;
         margin-left: auto;
-        border: 1px solid rgba(49, 192, 202, 0.3);
-        background: rgba(49, 192, 202, 0.1);
-        border-radius: 6px;
+        border: 2px solid rgba(49, 192, 202, 0.4);
+        background: linear-gradient(135deg, rgba(49, 192, 202, 0.15) 0%, rgba(49, 192, 202, 0.08) 100%);
+        border-radius: 8px;
+        order: 3;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
     
-    /* MOBILE HEADER REDESIGN - Diseño profesional compacto */
+    .navbar-toggler:hover {
+        background: linear-gradient(135deg, rgba(49, 192, 202, 0.25) 0%, rgba(49, 192, 202, 0.15) 100%);
+        border-color: rgba(49, 192, 202, 0.6);
+        transform: scale(1.05);
+    }
+    
+    .navbar-toggler:focus {
+        box-shadow: 0 0 0 3px rgba(49, 192, 202, 0.3);
+        outline: none;
+    }
+    
+    .navbar-toggler:active {
+        transform: scale(0.95);
+    }
+    
+    /* OCULTAR NAVBAR COLLAPSE EN MÓVIL - USAR MENÚ LATERAL */
     .navbar-collapse {
-        background: linear-gradient(135deg, rgba(0, 0, 0, 0.98) 0%, rgba(26, 26, 26, 0.98) 100%);
-        margin-top: 8px;
-        border-radius: 8px;
-        padding: 12px;
-        border: 1px solid rgba(49, 192, 202, 0.2);
-        backdrop-filter: blur(15px);
-        width: 100%;
-        box-sizing: border-box;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 10px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: none !important;
     }
     
     /* SECCIÓN 1: Saludo del usuario compacto - PRIMERA FILA */
@@ -969,12 +1009,62 @@ Additional animations and effects */
     align-items: center !important;
 }
 
-/* Prevent text from wrapping in desktop screens */
+/* FORZAR ALINEACIÓN PERFECTA EN DESKTOP - SÚPER ESPECÍFICO */
 @media (min-width: 992px) {
-    .fw-bold1 {
-        text-overflow: ellipsis;
-        overflow: hidden;
-        max-width: 150px;
+    /* Contenedor principal - FORZAR centrado */
+    .header_section .user-greeting-container {
+        height: 40px !important;
+        padding: 0 14px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Contenedor de icono y texto - FORZAR centrado */
+    .header_section .user-greeting-container .icon-text-container {
+        height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 8px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Icono - FORZAR centrado */
+    .header_section .user-greeting-container .icon-text-container i {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 16px !important;
+        width: 16px !important;
+        font-size: 16px !important;
+        line-height: 1 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* TEXTO - FORZAR centrado vertical perfecto */
+    .header_section .user-greeting-container .icon-text-container .fw-bold1 {
+        display: inline-block !important;
+        height: auto !important;
+        line-height: 40px !important;
+        vertical-align: middle !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+        font-family: 'Poppins', sans-serif !important;
+        white-space: nowrap !important;
+        text-overflow: none !important;
+        overflow: visible !important;
+        max-width: none !important;
+        word-break: normal !important;
+        hyphens: none !important;
+        text-decoration: none !important;
+        letter-spacing: normal !important;
     }
 }
 
@@ -1812,5 +1902,45 @@ AJUSTES FINALES - Botón más pequeño y puntos más legibles */
         padding: 2px 4px !important;
         min-height: 14px !important;
         border-radius: 7px !important;
+    }
+}
+/* ÚLTI
+MO RECURSO - FORZAR ALINEACIÓN CON MÁXIMA ESPECIFICIDAD */
+.header_section .container-fluid .navbar .navbar-collapse .user-greeting-container .icon-text-container .fw-bold1 {
+    line-height: 40px !important;
+    height: auto !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative !important;
+    top: 0 !important;
+    transform: none !important;
+}
+
+/* ALTERNATIVA CON FLEXBOX FORZADO */
+@media (min-width: 992px) {
+    .user-greeting-container .icon-text-container {
+        min-height: 40px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+    
+    .user-greeting-container .icon-text-container .fw-bold1 {
+        align-self: center !important;
+        flex: 0 0 auto !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        position: static !important;
+    }
+}
+
+/* FORZAR CON PADDING SI TODO LO DEMÁS FALLA */
+@media (min-width: 992px) {
+    .fw-bold1 {
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
     }
 }
