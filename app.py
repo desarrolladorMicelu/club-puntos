@@ -647,7 +647,7 @@ def mhistorialcompras():
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
             "SERVER=172.200.231.95;"
-            "DATABASE=MICELU;"
+            "DATABASE=MICELU1;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
             "TrustServerCertificate=yes"
@@ -1022,7 +1022,7 @@ def quesonpuntos():
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
             "SERVER=172.200.231.95;"
-            "DATABASE=MICELU;"
+            "DATABASE=MICELU1;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
             "TrustServerCertificate=yes"
@@ -1259,7 +1259,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
         connection_string = (
             "DRIVER={ODBC Driver 18 for SQL Server};"
             "SERVER=172.200.231.95;"
-            "DATABASE=MICELU;"
+            "DATABASE=MICELU1;"
             "UID=db_read;"
             "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
             "TrustServerCertificate=yes"
@@ -1565,7 +1565,7 @@ def check_coupon_status():
 #inicio de la cobertura
     
 def obtener_conexion_bd():
-    conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=172.200.231.95;DATABASE=MICELU;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
+    conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=172.200.231.95;DATABASE=MICELU1;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
     return conn
 
 def buscar_por_imei(imei):
