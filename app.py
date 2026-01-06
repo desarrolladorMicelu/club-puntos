@@ -1425,7 +1425,9 @@ def administrar():
 
 @app.route('/')
 def inicio():
-    return render_template("home.html")
+    # TEMPORAL: Página de mantenimiento - Eliminar estas líneas cuando termine el mantenimiento
+    return render_template("mantenimiento.html")
+    # return render_template("home.html")  # Descomentar esta línea cuando termine el mantenimiento
 
 @app.route('/redimir')
 def redimiendo():
