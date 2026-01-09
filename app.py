@@ -12,6 +12,7 @@ import csv
 import os
 from flask_sqlalchemy import SQLAlchemy
 import pyodbc
+import psycopg2
 from flask_bcrypt import Bcrypt  
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta
@@ -643,77 +644,74 @@ def mhistorialcompras():
     usuario = Usuario.query.filter_by(documento=documento).first()
     if not documento:
         return redirect(url_for('login'))
+    
     try:
-        connection_string = (
-            "DRIVER={ODBC Driver 18 for SQL Server};"
-            "SERVER=172.200.231.95;"
-            "DATABASE=MICELU1;"
-            "UID=db_read;"
-            "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
-            "TrustServerCertificate=yes"
-        )
-        conn = pyodbc.connect(connection_string)
-        cursor = conn.cursor()
-        # Verificar si el cliente existe
-        check_query = """
-        SELECT COUNT(*) as count
-        FROM Clientes c
-        WHERE c.HABILITADO = 'S' AND c.NIT = ?
-        """
-        cursor.execute(check_query, documento)
-        # Consulta de facturas modificada para evitar duplicados
-        query = """
+        print(f"🔍 DEBUG: Probando historial para documento: {documento}")
+        
+        # Consulta PostgreSQL simple - las fechas están como texto en formato DD/MM/YYYY
+        query_postgres = """
         SELECT DISTINCT
-         m.NOMBRE AS PRODUCTO_NOMBRE,
-         m.VLRVENTA,
-         m.FHCOMPRA,
-         m.TIPODCTO,
-         m.NRODCTO,
-         mt.CODLINEA AS LINEA,
-         vv.MEDIOPAG,
-         m.PRODUCTO
-        FROM
-            Clientes c
-        JOIN
-            V_CLIENTES_FAC vc ON c.NOMBRE = vc.NOMBRE
-        JOIN
-            Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
-        JOIN
-            MtMercia mt ON mt.CODIGO = m.PRODUCTO
-        LEFT JOIN
-            v_ventas vv ON vv.TipoDcto = m.Tipodcto AND vv.nrodcto = m.NRODCTO
-        WHERE
-            c.HABILITADO = 'S'
-            AND (c.NIT = ? OR c.NIT LIKE ?)
-            AND m.VLRVENTA > 0
-            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
-        ORDER BY
-            m.FHCOMPRA DESC;
+         m.nombre AS PRODUCTO_NOMBRE,
+         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+         m.fhcompra AS FHCOMPRA,
+         m.tipodcto AS TIPODCTO,
+         m.nrodcto AS NRODCTO,
+         'CEL' AS LINEA,
+         '' AS MEDIOPAG,
+         m.producto AS PRODUCTO
+        FROM micelu_backup.mvtrade m
+        WHERE m.nit = %s
+            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+        ORDER BY m.fhcompra DESC;
         """
-        cursor.execute(query, (documento, f"{documento}%"))
-        results = cursor.fetchall()
+        
+        # Ejecutar directamente en PostgreSQL
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        cursor_pg.execute(query_postgres, (documento,))
+        results = cursor_pg.fetchall()
+        cursor_pg.close()
+        conn_pg.close()
+        
+        print(f"🔍 DEBUG: PostgreSQL devolvió {len(results)} registros")
+        
         historial = []
         total_puntos_nuevos = 0
-        # Agrupamos por factura usando un identificador único para cada producto
+        
+        # LÓGICA ORIGINAL COMPLETA - Agrupamos por factura usando un identificador único para cada producto
         facturas_dict = {}
         for row in results:
-            key = f"{row.TIPODCTO}-{row.NRODCTO}"
+            key = f"{row[3]}-{row[4]}"  # TIPODCTO-NRODCTO
             # Identificador único por producto
-            producto_key = f"{key}-{row.PRODUCTO}"
+            producto_key = f"{key}-{row[7]}"  # key-PRODUCTO
+            # Convertir fecha de texto DD/MM/YYYY a datetime
+            fecha_str = row[2]  # FHCOMPRA como texto
+            try:
+                if isinstance(fecha_str, str) and '/' in fecha_str:
+                    # Formato DD/MM/YYYY
+                    fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
+                else:
+                    # Si ya es datetime o otro formato, usar como está
+                    fecha_compra = fecha_str if isinstance(fecha_str, datetime) else datetime.now()
+            except:
+                fecha_compra = datetime.now()
+            
             if key not in facturas_dict:
                 facturas_dict[key] = {
                     'items': {},  # Cambiado a diccionario para evitar duplicados
                     'lineas': set(),
-                    'mediopag': row.MEDIOPAG.strip() if row.MEDIOPAG else '',
+                    'mediopag': row[6].strip() if row[6] else '',  # MEDIOPAG
                     'total_venta': 0,
-                    'fecha_compra': row.FHCOMPRA
+                    'fecha_compra': fecha_compra  # FHCOMPRA convertida
                 }
             # Solo agregar el producto si no existe
             if producto_key not in facturas_dict[key]['items']:
                 facturas_dict[key]['items'][producto_key] = row
-                facturas_dict[key]['total_venta'] += float(row.VLRVENTA)
-                if row.LINEA:
-                    facturas_dict[key]['lineas'].add(row.LINEA.upper())
+                facturas_dict[key]['total_venta'] += float(row[1])  # VLRVENTA
+                if row[5]:  # LINEA
+                    facturas_dict[key]['lineas'].add(row[5].upper())
+        
         # Procesamos cada factura
         for factura_key, factura_info in facturas_dict.items():
             lineas = factura_info['lineas']
@@ -721,20 +719,26 @@ def mhistorialcompras():
             es_individual = len(factura_info['items']) == 1
             fecha_compra = factura_info['fecha_compra']
             total_venta_factura = factura_info['total_venta']
+            
             # Condición 1: Líneas específicas
             tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
             tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
             solo_gdgt_acce = all(
                 'GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
+            
             # Condición 2: Medio de pago y factura individual
             medio_pago_valido = mediopag in ['01', '02']
+            
             # Determinar si aplicar multiplicador
             aplicar_multiplicador = False
+            
             # Calcular puntos para toda la factura
             puntos_factura = 0
+            
             # Obtener el valor base para el cálculo de puntos
             obtener_puntos = maestros.query.with_entities(
                 maestros.obtener_puntos).first()[0]
+            
             # Diferentes cálculos según el año
             if fecha_compra.year == 2024:
                 # Para 2024, dividir los puntos entre 2
@@ -758,31 +762,35 @@ def mhistorialcompras():
                     aplicar_multiplicador = True
                 if aplicar_multiplicador:
                     puntos_factura *= 2
+            
             total_puntos_nuevos += puntos_factura
+            
             # Procesar cada item único de la factura
             for producto_key, row in factura_info['items'].items():
-                venta_item = float(row.VLRVENTA)
+                venta_item = float(row[1])  # VLRVENTA
                 proporcion = venta_item / total_venta_factura if total_venta_factura > 0 else 0
                 puntos_item = int(puntos_factura * proporcion)
-                tipo_documento = "Factura Medellín" if row.TIPODCTO == "FM" else "Factura Bogotá" if row.TIPODCTO == "FB" else row.TIPODCTO
+                tipo_documento = "Factura Medellín" if row[3] == "FM" else "Factura Bogotá" if row[3] == "FB" else row[3]
+                
                 historial.append({
-                    "PRODUCTO_NOMBRE": row.PRODUCTO_NOMBRE,
+                    "PRODUCTO_NOMBRE": row[0],  # PRODUCTO_NOMBRE
                     "VLRVENTA": venta_item,
                     "FHCOMPRA": fecha_compra.strftime('%Y-%m-%d'),
                     "PUNTOS_GANADOS": puntos_item,
                     "TIPODCTO": tipo_documento,
-                    "NRODCTO": row.NRODCTO,
-                    "LINEA": row.LINEA,
-                    "MEDIOPAG": row.MEDIOPAG,
+                    "NRODCTO": row[4],  # NRODCTO
+                    "LINEA": row[5],    # LINEA
+                    "MEDIOPAG": row[6], # MEDIOPAG
                     "TIPO_REGISTRO": "COMPRA"
                 })
-        cursor.close()
-        conn.close()
+        
+        # Agregar referidos (lógica original)
         referidos = Referidos.query.filter_by(
             documento_referido=documento).all()
         total_referidos_puntos = sum(
             referido.puntos_obtenidos for referido in referidos)
         total_puntos_nuevos += total_referidos_puntos
+        
         for referido in referidos:
             historial.append({
                 "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
@@ -794,8 +802,9 @@ def mhistorialcompras():
                 "LINEA": "REFERIDO",
                 "MEDIOPAG": ""
             })
-        puntos_usuario = Puntos_Clientes.query.filter_by(
-            documento=documento).first()
+        
+        # Actualizar puntos del usuario (lógica original)
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_regalo = puntos_usuario.puntos_regalo or 0
             puntos_usuario.total_puntos = total_puntos_nuevos
@@ -813,6 +822,7 @@ def mhistorialcompras():
             db.session.add(nuevo_usuario)
             db.session.commit()
             total_puntos = total_puntos_nuevos
+        
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
         
         return render_template(
@@ -822,10 +832,13 @@ def mhistorialcompras():
             usuario=usuario,
             puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
         )
+        
     except Exception as e:
-        print(f"Error: {e}")
-        return redirect(url_for('error_page'))
-    
+        print(f"❌ Error en mhistorialcompras: {e}")
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('login'))
+
 @app.route('/mpuntosprincipal')
 @login_required
 def mpuntosprincipal():
@@ -1019,72 +1032,70 @@ def quesonpuntos():
         return redirect(url_for('login'))
     
     try:
-        connection_string = (
-            "DRIVER={ODBC Driver 18 for SQL Server};"
-            "SERVER=172.200.231.95;"
-            "DATABASE=MICELU1;"
-            "UID=db_read;"
-            "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
-            "TrustServerCertificate=yes"
-        )
-        conn = pyodbc.connect(connection_string)
-        cursor = conn.cursor()
+        print(f"🔍 DEBUG quesonpuntos: Consultando puntos para documento: {documento}")
         
-        # Consulta de facturas
-        query = """
+        # Usar la misma consulta simple que funciona en mhistorialcompras
+        query_postgres = """
         SELECT DISTINCT
-         m.NOMBRE AS PRODUCTO_NOMBRE,
-         m.VLRVENTA,
-         m.FHCOMPRA,
-         m.TIPODCTO,
-         m.NRODCTO,
-         mt.CODLINEA AS LINEA,
-         vv.MEDIOPAG,
-         m.PRODUCTO
-        FROM
-            Clientes c
-        JOIN
-            V_CLIENTES_FAC vc ON c.NOMBRE = vc.NOMBRE
-        JOIN
-            Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
-        JOIN
-            MtMercia mt ON mt.CODIGO = m.PRODUCTO
-        LEFT JOIN
-            v_ventas vv ON vv.TipoDcto = m.Tipodcto AND vv.nrodcto = m.NRODCTO
-        WHERE
-            c.HABILITADO = 'S'
-            AND (c.NIT = ? OR c.NIT LIKE ?)
-            AND m.VLRVENTA > 0
-            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
-        ORDER BY
-            m.FHCOMPRA DESC;
+         m.nombre AS PRODUCTO_NOMBRE,
+         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+         m.fhcompra AS FHCOMPRA,
+         m.tipodcto AS TIPODCTO,
+         m.nrodcto AS NRODCTO,
+         'CEL' AS LINEA,
+         '' AS MEDIOPAG,
+         m.producto AS PRODUCTO
+        FROM micelu_backup.mvtrade m
+        WHERE m.nit = %s
+            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+        ORDER BY m.fhcompra DESC;
         """
-        cursor.execute(query, (documento, f"{documento}%"))
-        results = cursor.fetchall()
-        historial = []
+        
+        # Ejecutar directamente en PostgreSQL
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        cursor_pg.execute(query_postgres, (documento,))
+        results = cursor_pg.fetchall()
+        cursor_pg.close()
+        conn_pg.close()
+        
+        print(f"🔍 DEBUG quesonpuntos: PostgreSQL devolvió {len(results)} registros")
+        
         total_puntos_nuevos = 0
         
-        # Agrupamos por factura usando un identificador único para cada producto
+        # Usar la misma lógica de agrupación que en mhistorialcompras
         facturas_dict = {}
         for row in results:
-            key = f"{row.TIPODCTO}-{row.NRODCTO}"
-            producto_key = f"{key}-{row.PRODUCTO}"
+            key = f"{row[3]}-{row[4]}"  # TIPODCTO-NRODCTO
+            producto_key = f"{key}-{row[7]}"  # key-PRODUCTO
+            
+            # Convertir fecha de texto DD/MM/YYYY a datetime
+            fecha_str = row[2]  # FHCOMPRA como texto
+            try:
+                if isinstance(fecha_str, str) and '/' in fecha_str:
+                    fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
+                else:
+                    fecha_compra = fecha_str if isinstance(fecha_str, datetime) else datetime.now()
+            except:
+                fecha_compra = datetime.now()
+            
             if key not in facturas_dict:
                 facturas_dict[key] = {
                     'items': {},
                     'lineas': set(),
-                    'mediopag': row.MEDIOPAG.strip() if row.MEDIOPAG else '',
+                    'mediopag': row[6].strip() if row[6] else '',
                     'total_venta': 0,
-                    'fecha_compra': row.FHCOMPRA
+                    'fecha_compra': fecha_compra
                 }
             
             if producto_key not in facturas_dict[key]['items']:
                 facturas_dict[key]['items'][producto_key] = row
-                facturas_dict[key]['total_venta'] += float(row.VLRVENTA)
-                if row.LINEA:
-                    facturas_dict[key]['lineas'].add(row.LINEA.upper())
+                facturas_dict[key]['total_venta'] += float(row[1])
+                if row[5]:
+                    facturas_dict[key]['lineas'].add(row[5].upper())
         
-        # Procesamos cada factura (mismo código que en mhistorialcompras)
+        # Procesamos cada factura con la misma lógica que mhistorialcompras
         for factura_key, factura_info in facturas_dict.items():
             lineas = factura_info['lineas']
             mediopag = factura_info['mediopag']
@@ -1092,23 +1103,20 @@ def quesonpuntos():
             fecha_compra = factura_info['fecha_compra']
             total_venta_factura = factura_info['total_venta']
             
-            # Condiciones de cálculo de puntos (igual que en mhistorialcompras)
+            # Condiciones de cálculo de puntos
             tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
             tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
-            solo_gdgt_acce = all(
-                'GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
+            solo_gdgt_acce = all('GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
             medio_pago_valido = mediopag in ['01', '02']
             aplicar_multiplicador = False
             puntos_factura = 0
             
             # Obtener el valor base para el cálculo de puntos
-            obtener_puntos = maestros.query.with_entities(
-                maestros.obtener_puntos).first()[0]
+            obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
             
-            # Cálculo de puntos (igual que en mhistorialcompras)
+            # Cálculo de puntos según el año
             if fecha_compra.year == 2024:
-                puntos_factura = int(
-                    (total_venta_factura // obtener_puntos) / 2)
+                puntos_factura = int((total_venta_factura // obtener_puntos) / 2)
                 if fecha_compra >= datetime(2024, 11, 25):
                     if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
                         aplicar_multiplicador = True
@@ -1127,21 +1135,17 @@ def quesonpuntos():
             
             total_puntos_nuevos += puntos_factura
         
-        cursor.close()
-        conn.close()
-        
         # Agregar puntos de referidos
-        referidos = Referidos.query.filter_by(
-            documento_referido=documento).all()
-        total_referidos_puntos = sum(
-            referido.puntos_obtenidos for referido in referidos)
+        referidos = Referidos.query.filter_by(documento_referido=documento).all()
+        total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
         total_puntos_nuevos += total_referidos_puntos
+        
+        print(f"🔍 DEBUG quesonpuntos: Total puntos calculados: {total_puntos_nuevos}")
         
         # Buscar o crear registro de puntos para el usuario
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         
         if not puntos_usuario:
-            # Crear nuevo registro de puntos si no existe
             puntos_usuario = Puntos_Clientes(
                 documento=documento,
                 total_puntos=total_puntos_nuevos,
@@ -1150,24 +1154,554 @@ def quesonpuntos():
             )
             db.session.add(puntos_usuario)
         else:
-            # Actualizar puntos si ya existe
             puntos_usuario.total_puntos = total_puntos_nuevos
         
         db.session.commit()
         
-        # Calcular puntos totales con manejo seguro de valores nulos
+        # Calcular puntos totales
         puntos_redimidos = int(puntos_usuario.puntos_redimidos or 0)
         puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
         total_puntos = max(0, (puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos))
         
+        print(f"🔍 DEBUG quesonpuntos: Total puntos finales: {total_puntos}")
+        
         return render_template('puntos.html', 
                                total_puntos=total_puntos, 
-                               usuario=usuario)
+                               usuario=usuario,
+                               puntos_regalo=puntos_regalo)
     
     except Exception as e:
-        print(f"Error en quesonpuntos: {e}")
-        # Registrar el error en un log si es posible
-        return redirect(url_for('login'))  # Redirigir al login en caso de error
+        print(f"❌ Error en quesonpuntos: {e}")
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('login'))
+
+@app.route('/test_imei_samples')
+@login_required
+def test_imei_samples():
+    """Ver ejemplos de IMEIs en la base de datos"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Ver algunos ejemplos de series
+        cursor_pg.execute("""
+            SELECT serie, tipo_documento, documento, referencia, valor, nit
+            FROM micelu_backup.vseries_utilidad 
+            WHERE serie IS NOT NULL AND serie != ''
+            ORDER BY fecha_inicial DESC
+            LIMIT 10
+        """)
+        
+        ejemplos = cursor_pg.fetchall()
+        
+        # Ver si hay algún IMEI que contenga parte del que buscamos
+        imei_parcial = "355843800846903"
+        cursor_pg.execute("""
+            SELECT serie, tipo_documento, documento, referencia, valor, nit
+            FROM micelu_backup.vseries_utilidad 
+            WHERE serie LIKE %s OR serie LIKE %s OR serie LIKE %s
+            LIMIT 5
+        """, (f"%{imei_parcial[:10]}%", f"%{imei_parcial[:8]}%", f"%{imei_parcial[:6]}%"))
+        
+        similares = cursor_pg.fetchall()
+        
+        # Ver estadísticas de longitud de series
+        cursor_pg.execute("""
+            SELECT 
+                LENGTH(serie) as longitud,
+                COUNT(*) as cantidad,
+                MIN(serie) as ejemplo_min,
+                MAX(serie) as ejemplo_max
+            FROM micelu_backup.vseries_utilidad 
+            WHERE serie IS NOT NULL AND serie != ''
+            GROUP BY LENGTH(serie)
+            ORDER BY cantidad DESC
+            LIMIT 10
+        """)
+        
+        estadisticas = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify({
+            'ejemplos_recientes': [
+                {
+                    'serie': row[0],
+                    'tipo_documento': row[1],
+                    'documento': row[2],
+                    'referencia': row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'nit': row[5]
+                } for row in ejemplos
+            ],
+            'similares_al_buscado': [
+                {
+                    'serie': row[0],
+                    'tipo_documento': row[1],
+                    'documento': row[2],
+                    'referencia': row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'nit': row[5]
+                } for row in similares
+            ],
+            'estadisticas_longitud': [
+                {
+                    'longitud': row[0],
+                    'cantidad': row[1],
+                    'ejemplo_min': row[2],
+                    'ejemplo_max': row[3]
+                } for row in estadisticas
+            ]
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR test_imei_samples: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test_simple_imei/<imei>')
+@login_required
+def test_simple_imei(imei):
+    """Función de prueba simple para debuggear búsqueda de IMEI"""
+    try:
+        print(f"🔍 TEST SIMPLE: Probando IMEI: {imei}")
+        
+        # Probar consulta directa en PostgreSQL
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Consulta muy simple usando vseries_utilidad
+        query_simple = """
+        SELECT serie, tipo_documento, documento, referencia, valor, nit, fecha_inicial
+        FROM micelu_backup.vseries_utilidad 
+        WHERE serie = %s OR LEFT(serie, 15) = %s
+        LIMIT 1
+        """
+        
+        cursor_pg.execute(query_simple, (imei, imei[:15]))
+        result = cursor_pg.fetchone()
+        
+        if result:
+            print(f"✅ TEST SIMPLE: Encontrado: {result}")
+            return jsonify({
+                'encontrado': True,
+                'serie': result[0],
+                'tipo_documento': result[1],
+                'documento': result[2],
+                'referencia': result[3],
+                'valor': float(result[4]) if result[4] else 0,
+                'nit': result[5],
+                'fecha_inicial': str(result[6]) if result[6] else None
+            })
+        else:
+            print(f"❌ TEST SIMPLE: No encontrado")
+            # Buscar similares
+            cursor_pg.execute("SELECT serie FROM micelu_backup.vseries_utilidad WHERE serie LIKE %s LIMIT 5", (f"%{imei[:10]}%",))
+            similares = cursor_pg.fetchall()
+            
+            # También contar total de registros
+            cursor_pg.execute("SELECT COUNT(*) FROM micelu_backup.vseries_utilidad")
+            total = cursor_pg.fetchone()[0]
+            
+            return jsonify({
+                'encontrado': False,
+                'imei_buscado': imei,
+                'similares': [row[0] for row in similares],
+                'total_registros_en_tabla': total
+            })
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+    except Exception as e:
+        print(f"❌ ERROR test_simple_imei: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)})
+
+@app.route('/mis_productos/<nit>')
+@login_required
+def mis_productos(nit):
+    """Ver qué productos/códigos tiene un usuario específico"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Buscar productos en mvtrade
+        cursor_pg.execute("""
+            SELECT DISTINCT
+                producto,
+                nombre,
+                tipodcto,
+                nrodcto,
+                vlrventa,
+                fhcompra
+            FROM micelu_backup.mvtrade 
+            WHERE nit = %s
+            ORDER BY fhcompra DESC
+            LIMIT 10
+        """, (nit,))
+        
+        productos = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify({
+            'nit': nit,
+            'productos_disponibles': [
+                {
+                    'codigo_producto': row[0],
+                    'nombre': row[1],
+                    'tipo_documento': row[2],
+                    'numero_documento': row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'fecha': str(row[5]) if row[5] else None
+                } for row in productos
+            ],
+            'total': len(productos)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/test_vseries_status')
+@login_required
+def test_vseries_status():
+    """Verificar el estado de la tabla vseries_utilidad después de la reimportación"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Contar total de registros
+        cursor_pg.execute("SELECT COUNT(*) FROM micelu_backup.vseries_utilidad")
+        total_registros = cursor_pg.fetchone()[0]
+        
+        # Ver algunos ejemplos de series
+        cursor_pg.execute("""
+            SELECT serie, tipo_documento, documento, referencia, valor, fecha_inicial, nit
+            FROM micelu_backup.vseries_utilidad 
+            WHERE serie IS NOT NULL AND serie != ''
+            ORDER BY fecha_inicial DESC
+            LIMIT 10
+        """)
+        ejemplos = cursor_pg.fetchall()
+        
+        # Ver qué NITs únicos hay
+        cursor_pg.execute("""
+            SELECT nit, COUNT(*) as cantidad
+            FROM micelu_backup.vseries_utilidad 
+            GROUP BY nit
+            ORDER BY cantidad DESC
+            LIMIT 10
+        """)
+        nits_frecuentes = cursor_pg.fetchall()
+        
+        # Buscar NITs similares al tuyo
+        cursor_pg.execute("""
+            SELECT DISTINCT nit
+            FROM micelu_backup.vseries_utilidad 
+            WHERE nit LIKE %s OR nit LIKE %s
+            LIMIT 5
+        """, ('%1036689216%', '%103668%'))
+        nits_similares = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify({
+            'total_registros': total_registros,
+            'ejemplos_series': [
+                {
+                    'serie': row[0],
+                    'tipo_documento': row[1],
+                    'documento': row[2],
+                    'referencia': row[3][:50] + '...' if row[3] and len(row[3]) > 50 else row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'fecha_inicial': str(row[5]) if row[5] else None,
+                    'nit': row[6]
+                } for row in ejemplos
+            ],
+            'nits_mas_frecuentes': [
+                {
+                    'nit': row[0],
+                    'cantidad': row[1]
+                } for row in nits_frecuentes
+            ],
+            'nits_similares_al_tuyo': [row[0] for row in nits_similares]
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR test_vseries_status: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test_real_imeis/<nit>')
+@login_required
+def test_real_imeis(nit):
+    """Ver los IMEIs reales después de la reimportación"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Ver IMEIs reales del usuario
+        cursor_pg.execute("""
+            SELECT 
+                serie,
+                tipo_documento, 
+                documento, 
+                referencia, 
+                valor, 
+                fecha_inicial
+            FROM micelu_backup.vseries_utilidad 
+            WHERE nit = %s OR nit LIKE %s
+            ORDER BY fecha_inicial DESC
+            LIMIT 5
+        """, (nit, f"{nit}%"))
+        
+        resultados = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify({
+            'nit_buscado': nit,
+            'imeis_reales': [
+                {
+                    'serie': row[0],
+                    'tipo_documento': row[1],
+                    'documento': row[2],
+                    'referencia': row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'fecha_inicial': str(row[5]) if row[5] else None
+                } for row in resultados
+            ],
+            'total_encontrados': len(resultados)
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR test_real_imeis: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test_other_tables')
+@login_required
+def test_other_tables():
+    """Ver qué datos hay en otras tablas que podrían tener IMEIs"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        resultados = {}
+        
+        # Revisar tabla mvtrade (que sabemos que funciona para puntos)
+        try:
+            cursor_pg.execute("""
+                SELECT COUNT(*) FROM micelu_backup.mvtrade
+                WHERE nit = %s
+            """, ('1036689216',))
+            count_mvtrade = cursor_pg.fetchone()[0]
+            
+            if count_mvtrade > 0:
+                cursor_pg.execute("""
+                    SELECT tipodcto, nrodcto, producto, nombre, vlrventa, fhcompra, nit
+                    FROM micelu_backup.mvtrade
+                    WHERE nit = %s
+                    LIMIT 3
+                """, ('1036689216',))
+                ejemplos_mvtrade = cursor_pg.fetchall()
+                resultados['mvtrade'] = {
+                    'count': count_mvtrade,
+                    'ejemplos': [list(row) for row in ejemplos_mvtrade]
+                }
+        except Exception as e:
+            resultados['mvtrade'] = {'error': str(e)}
+        
+        # Revisar otras tablas
+        tablas_a_revisar = ['clientes', 'v_clientes_fac', 'v_ventas']
+        
+        for tabla in tablas_a_revisar:
+            try:
+                cursor_pg.execute(f"""
+                    SELECT column_name, data_type 
+                    FROM information_schema.columns 
+                    WHERE table_schema = 'micelu_backup' 
+                    AND table_name = '{tabla}'
+                    ORDER BY ordinal_position
+                """)
+                columnas = cursor_pg.fetchall()
+                
+                cursor_pg.execute(f"SELECT COUNT(*) FROM micelu_backup.{tabla}")
+                count = cursor_pg.fetchone()[0]
+                
+                resultados[tabla] = {
+                    'count': count,
+                    'columnas': [{'nombre': col[0], 'tipo': col[1]} for col in columnas]
+                }
+                
+            except Exception as e:
+                resultados[tabla] = {'error': str(e)}
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify(resultados)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/test_convert_imei/<nit>')
+@login_required
+def test_convert_imei(nit):
+    """Convertir los IMEIs de notación científica a formato normal"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Convertir series de notación científica a formato normal
+        cursor_pg.execute("""
+            SELECT 
+                serie as serie_original,
+                CASE 
+                    WHEN serie ~ '^[0-9.E+-]+$' THEN 
+                        LPAD(CAST(CAST(serie AS DECIMAL(20,0)) AS TEXT), 15, '0')
+                    ELSE serie
+                END AS serie_convertida,
+                tipo_documento, 
+                documento, 
+                referencia, 
+                valor, 
+                fecha_inicial
+            FROM micelu_backup.vseries_utilidad 
+            WHERE nit = %s OR nit LIKE %s
+            ORDER BY fecha_inicial DESC
+            LIMIT 5
+        """, (nit, f"{nit}%"))
+        
+        resultados = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify({
+            'nit_buscado': nit,
+            'imeis_convertidos': [
+                {
+                    'serie_original': row[0],
+                    'serie_convertida': row[1],
+                    'tipo_documento': row[2],
+                    'documento': row[3],
+                    'referencia': row[4],
+                    'valor': float(row[5]) if row[5] else 0,
+                    'fecha_inicial': str(row[6]) if row[6] else None
+                } for row in resultados
+            ],
+            'total_encontrados': len(resultados)
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR test_convert_imei: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test_imei_by_nit/<nit>')
+@login_required
+def test_imei_by_nit(nit):
+    """Ver qué IMEIs tiene un NIT específico"""
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Buscar IMEIs por NIT
+        cursor_pg.execute("""
+            SELECT serie, tipo_documento, documento, referencia, valor, fecha_inicial
+            FROM micelu_backup.vseries_utilidad 
+            WHERE nit = %s OR nit LIKE %s
+            ORDER BY fecha_inicial DESC
+            LIMIT 10
+        """, (nit, f"{nit}%"))
+        
+        imeis_del_nit = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        return jsonify({
+            'nit_buscado': nit,
+            'imeis_encontrados': [
+                {
+                    'serie': row[0],
+                    'tipo_documento': row[1],
+                    'documento': row[2],
+                    'referencia': row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'fecha_inicial': str(row[5]) if row[5] else None
+                } for row in imeis_del_nit
+            ],
+            'total_encontrados': len(imeis_del_nit)
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR test_imei_by_nit: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test_imei/<imei>')
+@login_required
+def test_imei(imei):
+    """Función de prueba para debuggear búsqueda de IMEI"""
+    try:
+        print(f"🔍 TEST: Probando IMEI: {imei}")
+        
+        # Probar consulta directa en PostgreSQL
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        
+        # Consulta simple para ver qué hay en la tabla series
+        query_test = """
+        SELECT COUNT(*) FROM micelu_backup.series 
+        WHERE serie LIKE %s OR LEFT(serie, 15) LIKE %s
+        """
+        
+        cursor_pg.execute(query_test, (f"%{imei}%", f"%{imei}%"))
+        count = cursor_pg.fetchone()[0]
+        print(f"🔍 TEST: Encontrados {count} registros con IMEI similar")
+        
+        # Buscar algunos ejemplos
+        query_examples = """
+        SELECT serie, tipo_documento, documento, referencia, valor, nit
+        FROM micelu_backup.series 
+        WHERE serie LIKE %s OR LEFT(serie, 15) LIKE %s
+        LIMIT 5
+        """
+        
+        cursor_pg.execute(query_examples, (f"%{imei}%", f"%{imei}%"))
+        examples = cursor_pg.fetchall()
+        
+        cursor_pg.close()
+        conn_pg.close()
+        
+        # Probar la función buscar_por_imei
+        resultado_busqueda = buscar_por_imei(imei)
+        
+        return jsonify({
+            'imei_buscado': imei,
+            'registros_encontrados': count,
+            'ejemplos': [
+                {
+                    'serie': row[0],
+                    'tipo_documento': row[1], 
+                    'documento': row[2],
+                    'referencia': row[3],
+                    'valor': float(row[4]) if row[4] else 0,
+                    'nit': row[5]
+                } for row in examples
+            ],
+            'resultado_buscar_por_imei': resultado_busqueda
+        })
+        
+    except Exception as e:
+        print(f"❌ ERROR test_imei: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)})
 
 @app.route('/homepuntos')
 def homepuntos():
@@ -1255,20 +1789,8 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
         # Extraer solo los primeros dígitos antes del guion o espacios
         documento = cedula.split('-')[0].split()[0]
  
-        # Conexión a la base de datos
-        connection_string = (
-            "DRIVER={ODBC Driver 18 for SQL Server};"
-            "SERVER=172.200.231.95;"
-            "DATABASE=MICELU1;"
-            "UID=db_read;"
-            "PWD=mHRL_<='(],#aZ)T\"A3QeD;"
-            "TrustServerCertificate=yes"
-        )
-        conn = pyodbc.connect(connection_string)
-        cursor = conn.cursor()
- 
-        # Consulta SQL modificada para usar los primeros dígitos
-        query = """
+        # Consulta SQL Server (MICELU1)
+        query_sql_server = """
         SELECT DISTINCT
             c.NOMBRE AS CLIENTE_NOMBRE,
             c.NIT,
@@ -1297,17 +1819,40 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
         ORDER BY
             c.NOMBRE;
         """
+        
+        # Consulta PostgreSQL (backup histórico)
+        query_postgres = """
+        SELECT DISTINCT
+            c.nombre AS CLIENTE_NOMBRE,
+            c.nit AS NIT,
+            CASE 
+                WHEN c.tel1 IS NOT NULL AND c.tel1 != '' THEN c.tel1 
+                ELSE c.tel2 
+            END AS telefono,
+            c.email AS EMAIL,
+            c.ciudad AS CIUDAD,
+            c.descrip_tipo_cli AS DescripTipoCli
+        FROM
+            micelu_backup.clientes c
+        JOIN
+            micelu_backup.v_clientes_fac vc ON c.nombre = vc.nombre
+        JOIN
+            micelu_backup.mvtrade m ON vc.tipodcto = m.tipodcto AND vc.nrodcto = m.nrodcto
+        WHERE
+            c.habilitado = 'S'
+            AND (m.tipodcto='FM' OR m.tipodcto='FB' OR m.tipodcto='FC')
+            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (c.nit = %s OR c.nit LIKE %s)
+        ORDER BY
+            c.nombre;
+        """
  
-        # Ejecutar la consulta con el parámetro de cédula limpia
-        cursor.execute(query, (documento, f"{documento}%"))
- 
- 
-        # Obtener todos los resultados
-        results = cursor.fetchall()
- 
-        # Cerrar la conexión
-        cursor.close()
-        conn.close()
+        # Ejecutar consulta con fallback
+        results, fuente = ejecutar_consulta_con_fallback(
+            query_sql_server, 
+            query_postgres, 
+            (documento, f"{documento}%")
+        )
  
         # Si no hay resultados, la cédula no está registrada
         if not results:
@@ -1385,7 +1930,7 @@ def get_product_info(product_id):
 @login_required
 def infobeneficios(product_id):
     product = get_product_info(product_id)
-        # Asumimos que el documento del usuario está en la sesión
+    # Asumimos que el documento del usuario está en la sesión
     documento = session.get('user_documento')
   
     total_puntos = 0
@@ -1393,7 +1938,9 @@ def infobeneficios(product_id):
         # Consulta a la base de datos para obtener los puntos del usuario
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
-            total_puntos = puntos_usuario.total_puntos
+            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+            puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
+            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
     
     return render_template("infobeneficios.html", product=product, total_puntos=total_puntos)
 
@@ -1423,11 +1970,201 @@ def acumulapuntos():
 def administrar():
     return render_template("admin.html")
 
+@app.route('/test_historial_postgres')
+def test_historial_postgres():
+    """Probar la consulta de historial en PostgreSQL"""
+    try:
+        documento = session.get('user_documento', '1036689216')
+        
+        # Consulta simple que sabemos que funciona
+        query_simple = """
+        SELECT DISTINCT
+         m.nombre AS PRODUCTO_NOMBRE,
+         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+         '2025-01-01'::DATE AS FHCOMPRA,
+         m.tipodcto AS TIPODCTO,
+         m.nrodcto AS NRODCTO,
+         'CEL' AS LINEA,
+         '' AS MEDIOPAG,
+         m.producto AS PRODUCTO
+        FROM micelu_backup.mvtrade m
+        WHERE m.nit = %s
+            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+        ORDER BY m.tipodcto, m.nrodcto;
+        """
+        
+        conn = obtener_conexion_bd_backup()
+        cursor = conn.cursor()
+        cursor.execute(query_simple, (documento,))
+        resultados = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        html = f"<h2>Test Historial PostgreSQL</h2>"
+        html += f"<p>Documento: {documento}</p>"
+        html += f"<p>Resultados: {len(resultados)}</p>"
+        
+        for i, row in enumerate(resultados):
+            html += f"<p>Registro {i+1}: {row}</p>"
+            
+        return html
+        
+    except Exception as e:
+        import traceback
+        return f"<h2>❌ Error</h2><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+
+@app.route('/test_postgres_simple')
+def test_postgres_simple():
+    """Prueba simple de PostgreSQL"""
+    try:
+        documento = session.get('user_documento', '1000644140')
+        
+        # Consulta simple sin JOINs complejos
+        query_simple = """
+        SELECT m.tipodcto, m.nrodcto, m.nombre, m.vlrventa, m.fhcompra, m.nit
+        FROM micelu_backup.mvtrade m
+        WHERE m.nit = %s
+        LIMIT 10
+        """
+        
+        conn = obtener_conexion_bd_backup()
+        cursor = conn.cursor()
+        cursor.execute(query_simple, (documento,))
+        resultados = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        html = f"<h2>Prueba PostgreSQL Simple</h2>"
+        html += f"<p>Documento: {documento}</p>"
+        html += f"<p>Resultados encontrados: {len(resultados)}</p>"
+        
+        for i, row in enumerate(resultados[:5]):
+            html += f"<p>Registro {i+1}: {row}</p>"
+            
+        return html
+        
+    except Exception as e:
+        import traceback
+        return f"<h2>❌ Error</h2><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+
+@app.route('/actualizar_fechas_postgres')
+@login_required
+def actualizar_fechas_postgres():
+    """Función para actualizar las fechas en PostgreSQL desde el CSV"""
+    try:
+        import csv
+        actualizaciones = 0
+        errores = 0
+        
+        # Leer el CSV con las fechas correctas
+        with open('series (1).csv', 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            
+            for row in reader:
+                try:
+                    # Limpiar datos del CSV
+                    tipo_doc = row['Tipo_Documento'].strip()
+                    documento = row['Documento'].strip().replace('"', '').strip()
+                    nit = row['NIT'].strip().replace('"', '').strip()
+                    fecha_str = row['Fecha_Inicial'].strip()
+                    
+                    # Parsear fecha
+                    if ' ' in fecha_str:
+                        fecha_real = fecha_str.split(' ')[0]  # Solo la parte de fecha
+                    else:
+                        fecha_real = fecha_str
+                    
+                    # Actualizar PostgreSQL
+                    update_query = """
+                    UPDATE micelu_backup.mvtrade 
+                    SET fhcompra = %s 
+                    WHERE tipodcto = %s AND nrodcto = %s AND nit = %s
+                    """
+                    
+                    cursor_pg.execute(update_query, (fecha_real, tipo_doc, documento, nit))
+                    
+                    if cursor_pg.rowcount > 0:
+                        actualizaciones += cursor_pg.rowcount
+                    
+                except Exception as e:
+                    errores += 1
+                    print(f"Error procesando fila: {e}")
+            
+            conn_pg.commit()
+            cursor_pg.close()
+            conn_pg.close()
+        
+        return jsonify({
+            'success': True,
+            'actualizaciones': actualizaciones,
+            'errores': errores,
+            'message': f'Actualizadas {actualizaciones} fechas en PostgreSQL. Errores: {errores}'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Error al actualizar fechas en PostgreSQL'
+        })
+
+@app.route('/test_postgres')
+def test_postgres():
+    """Ruta de prueba para verificar PostgreSQL"""
+    try:
+        conn = obtener_conexion_bd_backup()
+        cursor = conn.cursor()
+        
+        # Probar consulta simple
+        cursor.execute("SELECT COUNT(*) FROM micelu_backup.mvtrade")
+        count_mvtrade = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM micelu_backup.clientes")
+        count_clientes = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM micelu_backup.v_clientes_fac")
+        count_v_clientes_fac = cursor.fetchone()[0]
+        
+        # Probar consulta específica con tu documento
+        documento = session.get('user_documento', '1000644140')  # Usar tu documento o uno de prueba
+        
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM micelu_backup.clientes c
+            JOIN micelu_backup.v_clientes_fac vc ON c.nombre = vc.nombre
+            JOIN micelu_backup.mvtrade m ON vc.tipodcto = m.tipodcto AND vc.nrodcto = m.nrodcto
+            WHERE c.nit = %s OR c.nit LIKE %s
+        """, (documento, f"{documento}%"))
+        
+        count_user_data = cursor.fetchone()[0]
+        
+        cursor.close()
+        conn.close()
+        
+        return f"""
+        <h2>Test PostgreSQL Backup</h2>
+        <p>✅ Conexión exitosa</p>
+        <p>📊 Registros en mvtrade: {count_mvtrade}</p>
+        <p>👥 Registros en clientes: {count_clientes}</p>
+        <p>🔗 Registros en v_clientes_fac: {count_v_clientes_fac}</p>
+        <p>🎯 Datos para documento {documento}: {count_user_data}</p>
+        """
+        
+    except Exception as e:
+        import traceback
+        return f"""
+        <h2>❌ Error PostgreSQL</h2>
+        <p>Error: {str(e)}</p>
+        <pre>{traceback.format_exc()}</pre>
+        """
+
 @app.route('/')
 def inicio():
-    # TEMPORAL: Página de mantenimiento - Eliminar estas líneas cuando termine el mantenimiento
-    return render_template("mantenimiento.html")
-    # return render_template("home.html")  # Descomentar esta línea cuando termine el mantenimiento
+    return render_template("home.html")
 
 @app.route('/redimir')
 def redimiendo():
@@ -1440,7 +2177,8 @@ def redimiendo():
             puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
             if puntos_usuario:
                 puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                total_puntos = puntos_usuario.total_puntos - puntos_redimidos
+                puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
+                total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
    
     return render_template("redimir.html",total_puntos=total_puntos)
     
@@ -1570,104 +2308,255 @@ def obtener_conexion_bd():
     conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=172.200.231.95;DATABASE=MICELU1;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
     return conn
 
+def obtener_conexion_bd_backup():
+    """Conexión a PostgreSQL con datos históricos"""
+    try:
+        conn = psycopg2.connect(
+            host="junction.proxy.rlwy.net",
+            port=47834,
+            database="railway", 
+            user="postgres",
+            password="vWUiwzFrdvcyroebskuHXMlBoAiTfgzP"
+        )
+        print("✅ Conexión PostgreSQL exitosa")
+        return conn
+    except Exception as e:
+        print(f"❌ Error conectando a PostgreSQL: {e}")
+        raise
+
+def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros):
+    """
+    Ejecuta consulta en SQL Server primero, si no hay resultados consulta PostgreSQL
+    Devuelve resultados en formato consistente
+    """
+    # Manejar diferentes tipos de parámetros
+    if isinstance(parametros, tuple) and len(parametros) == 2 and isinstance(parametros[0], list):
+        # Caso especial para buscar_por_imei con parámetros diferentes
+        params_sql, params_pg = parametros
+    else:
+        # Caso normal con los mismos parámetros para ambas consultas
+        params_sql = parametros
+        # Para PostgreSQL, usar solo el primer parámetro (documento exacto)
+        params_pg = (parametros[0],) if isinstance(parametros, tuple) else parametros
+    
+    # 1. Intentar primero en SQL Server (MICELU1)
+    try:
+        conn_sql = obtener_conexion_bd()
+        cursor_sql = conn_sql.cursor()
+        cursor_sql.execute(query_sql_server, params_sql)
+        resultados = cursor_sql.fetchall()
+        cursor_sql.close()
+        conn_sql.close()
+        
+        if resultados:
+            print(f"✅ SQL Server devolvió {len(resultados)} registros")
+            return resultados, 'sql_server'
+            
+    except Exception as e:
+        print(f"⚠️ SQL Server falló: {e}")
+        pass  # Silenciar errores de SQL Server
+    
+    # 2. Si no hay resultados, consultar PostgreSQL backup
+    try:
+        print("🔄 Consultando PostgreSQL backup...")
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        cursor_pg.execute(query_postgres, params_pg)
+        resultados_pg = cursor_pg.fetchall()
+        cursor_pg.close()
+        conn_pg.close()
+        
+        print(f"✅ PostgreSQL devolvió {len(resultados_pg)} registros")
+        
+        # Convertir tuplas de PostgreSQL a objetos con atributos para compatibilidad
+        class ResultRow:
+            def __init__(self, row):
+                self.PRODUCTO_NOMBRE = row[0]
+                self.VLRVENTA = row[1]
+                self.FHCOMPRA = row[2]
+                self.TIPODCTO = row[3]
+                self.NRODCTO = row[4]
+                self.LINEA = row[5]
+                self.MEDIOPAG = row[6]
+                self.PRODUCTO = row[7]
+        
+        resultados_convertidos = [ResultRow(row) for row in resultados_pg]
+        return resultados_convertidos, 'postgres'
+        
+    except Exception as e:
+        print(f"❌ PostgreSQL también falló: {e}")
+        return [], 'error'
+
 def buscar_por_imei(imei):
     """
-    Busca información asociada a un IMEI específico
-    Maneja casos especiales de IMEIs con sufijo 'A' (equipos de recompra)
+    Busca información asociada a un IMEI específico con fallback a PostgreSQL
+    Usa múltiples tablas para encontrar el IMEI
     """
-    conn = obtener_conexion_bd()
-    cursor = conn.cursor()
-    
-    # Limpiar el IMEI para manejar diferentes formatos
     imei_limpio = imei.strip()
+    print(f"🔍 DEBUG buscar_por_imei: Buscando IMEI: {imei_limpio}")
     
-    # Preparamos diferentes variantes del IMEI para la búsqueda
-    imei_variantes = [imei_limpio]  # La versión original tal como viene
-    
-    # Si el IMEI termina con 'A', agregamos versión sin la 'A'
+    # Preparar variantes del IMEI
+    imei_variantes = [imei_limpio]
     if imei_limpio.endswith('A'):
         imei_variantes.append(imei_limpio[:-1])
     else:
-        # Si no termina con 'A', agregamos versión con 'A'
         imei_variantes.append(imei_limpio + 'A')
     
-    # Construimos la parte dinámica de la consulta SQL
-    condiciones_imei = []
-    parametros = []
-    
-    for variante in imei_variantes:
-        condiciones_imei.append("v.Serie = ?")
-        parametros.append(variante)
-        
-        # También buscamos en los primeros 15 caracteres
-        condiciones_imei.append("LEFT(v.Serie, 15) = ?")
-        parametros.append(variante[:15])
-    
-    consulta = f"""
-    SELECT DISTINCT TOP 1
-        v.Tipo_Documento,
-        v.Documento,
-        v.Tipo_Documento + v.Documento AS Factura,
-        v.Serie AS Serie_Completa,
-        LEFT(v.Serie, 15) AS IMEI,
-        v.Referencia AS Producto,
-        v.Valor,
-        v.Fecha_Inicial AS Fecha,
-        v.NIT,
-        m.codgrupo,
-        c.EMAIL AS Correo,
-        CASE 
-            WHEN c.TEL1 IS NOT NULL AND c.TEL1 != '' THEN c.TEL1 
-            ELSE c.TEL2 
-        END AS Telefono,
-        c.Nombre AS Nombre_Cliente
-    FROM 
-        VSeriesUtilidad v WITH (NOLOCK)
-    JOIN
-        MTMercia m ON v.Producto = m.CODIGO
-    JOIN
-        MTPROCLI c ON v.nit = c.NIT
-    WHERE 
-        v.Tipo_Documento IN ('FB', 'FM', 'FC')
-        AND v.Valor > 0
-        AND m.CODLINEA = 'CEL'
-        AND m.CODGRUPO = 'SEMI'
-        AND v.NIT NOT IN ('1152718000', '1053817613', '1000644140', '01')
-        AND ({" OR ".join(condiciones_imei)})
-    ORDER BY 
-        v.Fecha_Inicial DESC  -- Obtener el registro más reciente
-    """
+    print(f"🔍 DEBUG buscar_por_imei: Variantes: {imei_variantes}")
     
     try:
-        cursor.execute(consulta, parametros)
-        resultado = cursor.fetchone()
+        for variante in imei_variantes:
+            print(f"🔍 DEBUG buscar_por_imei: Probando variante: {variante}")
+            
+            # Intentar SQL Server primero
+            try:
+                print("🔍 Intentando SQL Server...")
+                conn_sql = obtener_conexion_bd()
+                cursor_sql = conn_sql.cursor()
+                
+                query_sql_server = """
+                SELECT DISTINCT TOP 1
+                    v.Tipo_Documento, v.Documento, v.Tipo_Documento + v.Documento AS Factura,
+                    v.Serie AS Serie_Completa, LEFT(v.Serie, 15) AS IMEI, v.Referencia AS Producto,
+                    v.Valor, v.Fecha_Inicial AS Fecha, v.NIT, m.codgrupo, c.EMAIL AS Correo,
+                    CASE WHEN c.TEL1 IS NOT NULL AND c.TEL1 != '' THEN c.TEL1 ELSE c.TEL2 END AS Telefono,
+                    c.Nombre AS Nombre_Cliente
+                FROM VSeriesUtilidad v WITH (NOLOCK)
+                JOIN MTMercia m ON v.Producto = m.CODIGO
+                JOIN MTPROCLI c ON v.nit = c.NIT
+                WHERE v.Tipo_Documento IN ('FB', 'FM', 'FC') AND v.Valor > 0
+                    AND m.CODLINEA = 'CEL' AND m.CODGRUPO = 'SEMI'
+                    AND v.NIT NOT IN ('1152718000', '1053817613', '1000644140', '01')
+                    AND (v.Serie = ? OR LEFT(v.Serie, 15) = ?)
+                ORDER BY v.Fecha_Inicial DESC
+                """
+                
+                cursor_sql.execute(query_sql_server, (variante, variante[:15]))
+                resultados = cursor_sql.fetchall()
+                cursor_sql.close()
+                conn_sql.close()
+                
+                if resultados:
+                    print(f"✅ SQL Server encontró resultado")
+                    resultado = resultados[0]
+                    return {
+                        'imei': resultado[3],  # Serie_Completa
+                        'imei_limpio': resultado[4],  # IMEI
+                        'referencia': resultado[5],  # Producto
+                        'valor': float(resultado[6]),  # Valor
+                        'fecha': resultado[7].strftime('%Y-%m-%d') if resultado[7] else None,
+                        'nit': resultado[8],  # NIT
+                        'nombre': resultado[12] if len(resultado) > 12 else '',
+                        'correo': resultado[10] if len(resultado) > 10 else '',
+                        'telefono': resultado[11] if len(resultado) > 11 else ''
+                    }
+                    
+            except Exception as e:
+                print(f"⚠️ SQL Server falló: {e}")
+            
+            # Intentar PostgreSQL
+            try:
+                print("🔄 Consultando PostgreSQL backup...")
+                conn_pg = obtener_conexion_bd_backup()
+                cursor_pg = conn_pg.cursor()
+                
+                # Buscar en vseries_utilidad primero
+                query_vseries = """
+                SELECT 
+                    v.tipo_documento, v.documento, v.tipo_documento || v.documento AS factura,
+                    v.serie, LEFT(v.serie, 15) AS imei, v.referencia,
+                    CAST(v.valor AS DECIMAL(15,2)) AS valor,
+                    CASE 
+                        WHEN v.fecha_inicial ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' THEN TO_DATE(v.fecha_inicial, 'DD/MM/YYYY')
+                        ELSE '2025-01-01'::DATE
+                    END AS fecha,
+                    v.nit, 'SEMI' AS codgrupo,
+                    COALESCE(c.email, '') AS correo, COALESCE(c.tel1, c.tel2, '') AS telefono,
+                    COALESCE(c.nombre, '') AS nombre_cliente
+                FROM micelu_backup.vseries_utilidad v
+                LEFT JOIN micelu_backup.clientes c ON TRIM(v.nit) = TRIM(c.nit)
+                WHERE v.tipo_documento IN ('FB', 'FM', 'FC')
+                    AND CAST(v.valor AS DECIMAL(15,2)) > 0
+                    AND v.nit NOT IN ('1152718000', '1053817613', '1000644140', '01')
+                    AND (v.serie = %s OR LEFT(v.serie, 15) = %s)
+                ORDER BY fecha DESC
+                LIMIT 1
+                """
+                
+                cursor_pg.execute(query_vseries, (variante, variante[:15]))
+                resultado = cursor_pg.fetchone()
+                
+                if resultado:
+                    print(f"✅ PostgreSQL vseries_utilidad encontró resultado")
+                    cursor_pg.close()
+                    conn_pg.close()
+                    return {
+                        'imei': resultado[3],  # serie
+                        'imei_limpio': resultado[4],  # imei
+                        'referencia': resultado[5],  # referencia
+                        'valor': float(resultado[6]),  # valor
+                        'fecha': resultado[7].strftime('%Y-%m-%d') if resultado[7] else None,
+                        'nit': resultado[8],  # nit
+                        'nombre': resultado[12] if len(resultado) > 12 else '',
+                        'correo': resultado[10] if len(resultado) > 10 else '',
+                        'telefono': resultado[11] if len(resultado) > 11 else ''
+                    }
+                
+                # Si no encuentra en vseries_utilidad, buscar en mvtrade
+                print("🔍 Buscando en mvtrade...")
+                query_mvtrade = """
+                SELECT 
+                    m.tipodcto, m.nrodcto, m.tipodcto || m.nrodcto AS factura,
+                    m.producto, LEFT(TRIM(m.producto), 15) AS imei, m.nombre,
+                    CAST(m.vlrventa AS DECIMAL(15,2)) AS valor,
+                    CASE 
+                        WHEN m.fhcompra ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' THEN TO_DATE(m.fhcompra, 'DD/MM/YYYY')
+                        ELSE '2025-01-01'::DATE
+                    END AS fecha,
+                    m.nit, 'CEL' AS codgrupo,
+                    COALESCE(c.email, '') AS correo, COALESCE(c.tel1, c.tel2, '') AS telefono,
+                    COALESCE(c.nombre, '') AS nombre_cliente
+                FROM micelu_backup.mvtrade m
+                LEFT JOIN micelu_backup.clientes c ON TRIM(m.nit) = TRIM(c.nit)
+                WHERE m.tipodcto IN ('FB', 'FM', 'FC')
+                    AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                    AND m.nit NOT IN ('1152718000', '1053817613', '1000644140', '01')
+                    AND (TRIM(m.producto) = %s OR LEFT(TRIM(m.producto), 15) = %s OR m.producto = %s)
+                ORDER BY fecha DESC
+                LIMIT 1
+                """
+                
+                cursor_pg.execute(query_mvtrade, (variante.strip(), variante[:15].strip(), variante))
+                resultado = cursor_pg.fetchone()
+                
+                cursor_pg.close()
+                conn_pg.close()
+                
+                if resultado:
+                    print(f"✅ PostgreSQL mvtrade encontró resultado")
+                    return {
+                        'imei': resultado[3],  # producto
+                        'imei_limpio': resultado[4],  # imei
+                        'referencia': resultado[5],  # nombre
+                        'valor': float(resultado[6]),  # valor
+                        'fecha': resultado[7].strftime('%Y-%m-%d') if resultado[7] else None,
+                        'nit': resultado[8],  # nit
+                        'nombre': resultado[12] if len(resultado) > 12 else '',
+                        'correo': resultado[10] if len(resultado) > 10 else '',
+                        'telefono': resultado[11] if len(resultado) > 11 else ''
+                    }
+                
+            except Exception as e:
+                print(f"❌ PostgreSQL falló: {e}")
         
-        if resultado:
-            # Usamos el IMEI guardado tal como está en la base de datos
-            imei_guardado = resultado.Serie_Completa
-            imei_limpio_15 = resultado.IMEI  # Los primeros 15 caracteres
-            
-            return {
-                'imei': imei_guardado,  # IMEI completo como está en la BD
-                'imei_limpio': imei_limpio_15,  # Los primeros 15 caracteres
-                'referencia': resultado.Producto,
-                'valor': float(resultado.Valor),
-                'fecha': resultado.Fecha.strftime('%Y-%m-%d') if resultado.Fecha else None,
-                'nit': resultado.NIT,
-                'nombre': resultado.Nombre_Cliente,
-                'correo': resultado.Correo,
-                'telefono': resultado.Telefono
-            }
-            
-        app.logger.debug(f"No se encontraron resultados para el IMEI: {imei_limpio}")
+        print(f"❌ DEBUG buscar_por_imei: No se encontraron resultados para el IMEI: {imei_limpio}")
         return None
         
     except Exception as e:
-        app.logger.error(f"Error en la consulta de buscar_por_imei: {str(e)}")
+        print(f"❌ ERROR buscar_por_imei: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise
-    finally:
-        cursor.close()
-        conn.close()
 
 class CoberturaEmailService:
     def __init__(self):
@@ -2127,10 +3016,13 @@ def cobertura():
             }), 400
 
         if accion == 'buscar':
+            print(f"🔍 DEBUG cobertura: Buscando cobertura para IMEI: {imei}, Usuario: {documento}")
             app.logger.debug(f"Buscando cobertura para IMEI: {imei}, Usuario: {documento}")
             datos_cobertura = buscar_por_imei(imei)
+            print(f"🔍 DEBUG cobertura: Resultado buscar_por_imei: {datos_cobertura}")
 
             if not datos_cobertura:
+                print(f"❌ DEBUG cobertura: No se encontró información para el IMEI: {imei}")
                 return jsonify({
                     'exito': False,
                     'mensaje': 'No se encontró información para el IMEI ingresado',
@@ -2140,11 +3032,13 @@ def cobertura():
 
             nit_cobertura = str(datos_cobertura.get('nit', '')).split('-')[0].strip()
             documento_sesion = str(documento).strip()
+            print(f"🔍 DEBUG cobertura: NIT cobertura: {nit_cobertura}, Documento sesión: {documento_sesion}")
 
             imei_limpio = datos_cobertura.get('imei', imei)[:15]
             cobertura_existente = cobertura_clientes.query.filter_by(imei=imei_limpio).first()
 
             if cobertura_existente:
+                print(f"❌ DEBUG cobertura: Ya existe cobertura para IMEI: {imei_limpio}")
                 return jsonify({
                     'exito': False,
                     'mensaje': 'Ya existe una cobertura activa para este IMEI',
@@ -2153,8 +3047,10 @@ def cobertura():
                 }), 400
 
             es_recompra = imei.endswith('A')
+            print(f"🔍 DEBUG cobertura: Es recompra: {es_recompra}")
 
             if nit_cobertura != documento_sesion and not es_recompra:
+                print(f"❌ DEBUG cobertura: Sin permisos. NIT: {nit_cobertura} != Documento: {documento_sesion}")
                 return jsonify({
                     'exito': False,
                     'mensaje': 'No tiene permisos para acceder a la información de este IMEI.',
@@ -2163,6 +3059,7 @@ def cobertura():
                 }), 403
 
             datos_cobertura['es_recompra'] = es_recompra
+            print(f"✅ DEBUG cobertura: Datos encontrados correctamente: {datos_cobertura}")
 
             return jsonify({
                 'exito': True,
@@ -2469,10 +3366,8 @@ def coberturas_inactivas():
 def obtener_datos_consulta(fecha_inicio, fecha_fin):
     #logger.info(f"Consultando datos desde {fecha_inicio} hasta {fecha_fin}")
     
-    conn = obtener_conexion_bd()
-    cursor = conn.cursor()
-    
-    query = """
+    # Consulta SQL Server
+    query_sql_server = """
     SELECT 
         v.Tipo_Documento,
         v.Documento,
@@ -2505,33 +3400,77 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
         AND (c.EMAIL IS NULL OR c.EMAIL NOT LIKE '%@exito.com')  -- Excluye todos los correos de exito.com  
     ORDER BY 
         v.Fecha_Inicial DESC
-    """                                                                                                         
+    """
     
-    cursor.execute(query, (fecha_inicio, fecha_fin))
-    resultados = cursor.fetchall()
+    # Consulta PostgreSQL
+    query_postgres = """
+    SELECT 
+        v.tipo_documento AS Tipo_Documento,
+        v.documento AS Documento,
+        v.tipo_documento || v.documento AS Factura,
+        LEFT(v.serie, 15) AS IMEI,
+        v.referencia AS Producto,
+        CAST(v.valor AS DECIMAL(15,2)) AS Valor,
+        CASE 
+            WHEN v.fecha_inicial ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN v.fecha_inicial::DATE
+            ELSE '2025-01-01'::DATE
+        END AS Fecha_Compra,
+        v.nit AS NIT,
+        'SEMI' AS codgrupo,
+        COALESCE(c.email, '') AS Correo,
+        COALESCE(c.tel1, c.tel2, '') AS Telefono,
+        COALESCE(c.nombre, '') AS Nombre
+    FROM 
+        micelu_backup.vseries_utilidad v
+    LEFT JOIN
+        micelu_backup.clientes c ON v.nit = c.nit
+    WHERE 
+        v.tipo_documento IN ('FB', 'FM', 'FC')
+        AND CAST(v.valor AS DECIMAL(15,2)) > 0
+        AND CASE 
+            WHEN v.fecha_inicial ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN v.fecha_inicial::DATE
+            ELSE '2025-01-01'::DATE
+        END BETWEEN %s AND %s
+        AND v.nit NOT IN ('1152718000', '1053817613', '1000644140', '01')
+        AND (c.email IS NULL OR c.email NOT LIKE '%@exito.com')
+    ORDER BY 
+        CASE 
+            WHEN v.fecha_inicial ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN v.fecha_inicial::DATE
+            ELSE '2025-01-01'::DATE
+        END DESC
+    """
     
-    datos_consulta = []
-    for row in resultados:
-        datos_consulta.append({
-            'tipo_documento': row.Tipo_Documento,
-            'documento': row.Documento,
-            'factura': row.Factura,
-            'imei': row.IMEI,
-            'producto': row.Producto,
-            'valor': float(row.Valor),
-            'fecha_compra': row.Fecha_Compra.strftime('%Y-%m-%d'),
-            'nit': row.NIT,
-            'codgrupo': row.codgrupo,
-            'correo': row.Correo if hasattr(row, 'Correo') else "",
-            'telefono': row.Telefono if hasattr(row, 'Telefono') else "",
-            'nombre': row.Nombre if hasattr(row, 'Nombre') else ""
-        })
-    
-    cursor.close()
-    conn.close()
-    
-    #logger.info(f"Se encontraron {len(datos_consulta)} registros")
-    return datos_consulta
+    try:
+        # Ejecutar consulta con fallback
+        resultados, fuente = ejecutar_consulta_con_fallback(
+            query_sql_server, 
+            query_postgres, 
+            ((fecha_inicio, fecha_fin), (fecha_inicio, fecha_fin))
+        )
+        
+        datos_consulta = []
+        for row in resultados:
+            datos_consulta.append({
+                'tipo_documento': row.Tipo_Documento if hasattr(row, 'Tipo_Documento') else row[0],
+                'documento': row.Documento if hasattr(row, 'Documento') else row[1],
+                'factura': row.Factura if hasattr(row, 'Factura') else row[2],
+                'imei': row.IMEI if hasattr(row, 'IMEI') else row[3],
+                'producto': row.Producto if hasattr(row, 'Producto') else row[4],
+                'valor': float(row.Valor if hasattr(row, 'Valor') else row[5]),
+                'fecha_compra': row.Fecha_Compra.strftime('%Y-%m-%d') if hasattr(row, 'Fecha_Compra') and row.Fecha_Compra else (row[6].strftime('%Y-%m-%d') if row[6] else None),
+                'nit': row.NIT if hasattr(row, 'NIT') else row[7],
+                'codgrupo': row.codgrupo if hasattr(row, 'codgrupo') else row[8],
+                'correo': row.Correo if hasattr(row, 'Correo') else (row[9] if len(row) > 9 else ""),
+                'telefono': row.Telefono if hasattr(row, 'Telefono') else (row[10] if len(row) > 10 else ""),
+                'nombre': row.Nombre if hasattr(row, 'Nombre') else (row[11] if len(row) > 11 else "")
+            })
+        
+        #logger.info(f"Se encontraron {len(datos_consulta)} registros desde {fuente}")
+        return datos_consulta
+        
+    except Exception as e:
+        #logger.error(f"Error en obtener_datos_consulta: {str(e)}")
+        return []
 
 def filtrar_coberturas_inactivas(datos_consulta):
     coberturas_inactivas = []
