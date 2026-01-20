@@ -183,8 +183,114 @@ class cobertura_clientes(db.Model):
         target.id = f"{target.documento}-{target.imei}"
  
 db.event.listen(cobertura_clientes, 'before_insert', cobertura_clientes.before_insert)
+
+# ============================================================================
+# FUNCIONES DE RETRASO DE 1 DÍA EN PUNTOS
+# Los puntos de compras de HOY no están disponibles hasta MAÑANA
+# ============================================================================
+def obtener_fecha_limite_puntos():
+    """
+    Retorna la fecha límite para calcular puntos disponibles.
+    Los puntos de compras de HOY no están disponibles, solo los de días anteriores.
+    """
+    # La fecha límite es AYER (las compras de hoy no cuentan)
+    fecha_limite = datetime.now().date() - timedelta(days=1)
+    return fecha_limite
+
+def es_compra_disponible_para_puntos(fecha_compra):
+    """
+    Verifica si una compra ya está disponible para acumular puntos.
+    Retorna True si la compra es de un día anterior a HOY.
+    """
+    if not fecha_compra:
+        return False
     
+    # Convertir a date si es datetime
+    if isinstance(fecha_compra, datetime):
+        fecha_compra = fecha_compra.date()
     
+    fecha_limite = obtener_fecha_limite_puntos()
+    return fecha_compra <= fecha_limite
+
+def calcular_puntos_con_retraso(facturas_dict, documento):
+    """
+    Calcula los puntos aplicando el retraso de 1 día.
+    Solo cuenta puntos de compras anteriores a HOY.
+    Retorna: (total_puntos_disponibles, total_puntos_pendientes, historial)
+    """
+    total_puntos_disponibles = 0
+    total_puntos_pendientes = 0
+    historial = []
+    
+    # Obtener el valor base para el cálculo de puntos
+    obtener_puntos_valor = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
+    
+    for factura_key, factura_info in facturas_dict.items():
+        lineas = factura_info['lineas']
+        mediopag = factura_info['mediopag']
+        es_individual = len(factura_info['items']) == 1
+        fecha_compra = factura_info['fecha_compra']
+        total_venta_factura = factura_info['total_venta']
+        
+        # Verificar si esta compra ya está disponible para puntos
+        compra_disponible = es_compra_disponible_para_puntos(fecha_compra)
+        
+        # Condiciones de cálculo (lógica original sin cambios)
+        tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
+        tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
+        solo_gdgt_acce = all('GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
+        medio_pago_valido = mediopag in ['01', '02']
+        aplicar_multiplicador = False
+        puntos_factura = 0
+        
+        # Cálculo de puntos según el año (lógica original sin cambios)
+        if fecha_compra.year == 2024:
+            puntos_factura = int((total_venta_factura // obtener_puntos_valor) / 2)
+            if fecha_compra >= datetime(2024, 11, 25):
+                if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
+                    aplicar_multiplicador = True
+                if medio_pago_valido and es_individual:
+                    aplicar_multiplicador = True
+                if aplicar_multiplicador:
+                    puntos_factura *= 2
+        elif fecha_compra.year >= 2025:
+            puntos_factura = int(total_venta_factura // obtener_puntos_valor)
+            if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
+                aplicar_multiplicador = True
+            if medio_pago_valido and es_individual:
+                aplicar_multiplicador = True
+            if aplicar_multiplicador:
+                puntos_factura *= 2
+        
+        # Separar puntos disponibles de pendientes
+        if compra_disponible:
+            total_puntos_disponibles += puntos_factura
+        else:
+            total_puntos_pendientes += puntos_factura
+        
+        # Procesar cada item de la factura para el historial
+        for producto_key, row in factura_info['items'].items():
+            venta_item = float(row[1])
+            proporcion = venta_item / total_venta_factura if total_venta_factura > 0 else 0
+            puntos_item = int(puntos_factura * proporcion)
+            tipo_documento = "Factura Medellín" if row[3] == "FM" else "Factura Bogotá" if row[3] == "FB" else row[3]
+            
+            historial.append({
+                "PRODUCTO_NOMBRE": row[0],
+                "VLRVENTA": venta_item,
+                "FHCOMPRA": fecha_compra.strftime('%Y-%m-%d'),
+                "PUNTOS_GANADOS": puntos_item if compra_disponible else 0,
+                "PUNTOS_PENDIENTES": puntos_item if not compra_disponible else 0,
+                "TIPODCTO": tipo_documento,
+                "NRODCTO": row[4],
+                "LINEA": row[5],
+                "MEDIOPAG": row[6],
+                "TIPO_REGISTRO": "COMPRA",
+                "DISPONIBLE": compra_disponible
+            })
+    
+    return total_puntos_disponibles, total_puntos_pendientes, historial
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -676,9 +782,6 @@ def mhistorialcompras():
         
         print(f"🔍 DEBUG: PostgreSQL devolvió {len(results)} registros")
         
-        historial = []
-        total_puntos_nuevos = 0
-        
         # LÓGICA ORIGINAL COMPLETA - Agrupamos por factura usando un identificador único para cada producto
         facturas_dict = {}
         for row in results:
@@ -712,84 +815,18 @@ def mhistorialcompras():
                 if row[5]:  # LINEA
                     facturas_dict[key]['lineas'].add(row[5].upper())
         
-        # Procesamos cada factura
-        for factura_key, factura_info in facturas_dict.items():
-            lineas = factura_info['lineas']
-            mediopag = factura_info['mediopag']
-            es_individual = len(factura_info['items']) == 1
-            fecha_compra = factura_info['fecha_compra']
-            total_venta_factura = factura_info['total_venta']
-            
-            # Condición 1: Líneas específicas
-            tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
-            tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
-            solo_gdgt_acce = all(
-                'GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
-            
-            # Condición 2: Medio de pago y factura individual
-            medio_pago_valido = mediopag in ['01', '02']
-            
-            # Determinar si aplicar multiplicador
-            aplicar_multiplicador = False
-            
-            # Calcular puntos para toda la factura
-            puntos_factura = 0
-            
-            # Obtener el valor base para el cálculo de puntos
-            obtener_puntos = maestros.query.with_entities(
-                maestros.obtener_puntos).first()[0]
-            
-            # Diferentes cálculos según el año
-            if fecha_compra.year == 2024:
-                # Para 2024, dividir los puntos entre 2
-                puntos_factura = int(
-                    (total_venta_factura // obtener_puntos) / 2)
-                # Aplicar multiplicador x2 si cumple las condiciones después del 25 de noviembre
-                if fecha_compra >= datetime(2024, 11, 25):
-                    if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
-                        aplicar_multiplicador = True
-                    if medio_pago_valido and es_individual:
-                        aplicar_multiplicador = True
-                    if aplicar_multiplicador:
-                        puntos_factura *= 2
-            elif fecha_compra.year == 2025:
-                # Para 2025, cálculo normal sin división
-                puntos_factura = int(total_venta_factura // obtener_puntos)
-                # Aplicar multiplicador x2 si cumple las condiciones
-                if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
-                    aplicar_multiplicador = True
-                if medio_pago_valido and es_individual:
-                    aplicar_multiplicador = True
-                if aplicar_multiplicador:
-                    puntos_factura *= 2
-            
-            total_puntos_nuevos += puntos_factura
-            
-            # Procesar cada item único de la factura
-            for producto_key, row in factura_info['items'].items():
-                venta_item = float(row[1])  # VLRVENTA
-                proporcion = venta_item / total_venta_factura if total_venta_factura > 0 else 0
-                puntos_item = int(puntos_factura * proporcion)
-                tipo_documento = "Factura Medellín" if row[3] == "FM" else "Factura Bogotá" if row[3] == "FB" else row[3]
-                
-                historial.append({
-                    "PRODUCTO_NOMBRE": row[0],  # PRODUCTO_NOMBRE
-                    "VLRVENTA": venta_item,
-                    "FHCOMPRA": fecha_compra.strftime('%Y-%m-%d'),
-                    "PUNTOS_GANADOS": puntos_item,
-                    "TIPODCTO": tipo_documento,
-                    "NRODCTO": row[4],  # NRODCTO
-                    "LINEA": row[5],    # LINEA
-                    "MEDIOPAG": row[6], # MEDIOPAG
-                    "TIPO_REGISTRO": "COMPRA"
-                })
+        # ============================================================================
+        # USAR FUNCIÓN DE CÁLCULO CON RETRASO DE 1 DÍA
+        # Los puntos de compras de HOY no están disponibles hasta MAÑANA
+        # ============================================================================
+        total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
         
-        # Agregar referidos (lógica original)
+        # Agregar referidos (lógica original - los referidos son inmediatos)
         referidos = Referidos.query.filter_by(
             documento_referido=documento).all()
         total_referidos_puntos = sum(
             referido.puntos_obtenidos for referido in referidos)
-        total_puntos_nuevos += total_referidos_puntos
+        total_puntos_disponibles += total_referidos_puntos
         
         for referido in referidos:
             historial.append({
@@ -799,15 +836,17 @@ def mhistorialcompras():
                 "TIPODCTO": "Referido",
                 "NRODCTO": str(referido.id),
                 "PUNTOS_GANADOS": referido.puntos_obtenidos,
+                "PUNTOS_PENDIENTES": 0,
                 "LINEA": "REFERIDO",
-                "MEDIOPAG": ""
+                "MEDIOPAG": "",
+                "DISPONIBLE": True
             })
         
-        # Actualizar puntos del usuario (lógica original)
+        # Actualizar puntos del usuario (solo puntos DISPONIBLES)
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         if puntos_usuario:
             puntos_regalo = puntos_usuario.puntos_regalo or 0
-            puntos_usuario.total_puntos = total_puntos_nuevos
+            puntos_usuario.total_puntos = total_puntos_disponibles  # Solo puntos disponibles
             puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
             puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
             total_puntos = max(0, (puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos))
@@ -815,20 +854,23 @@ def mhistorialcompras():
         else:
             nuevo_usuario = Puntos_Clientes(
                 documento=documento,
-                total_puntos=total_puntos_nuevos,
+                total_puntos=total_puntos_disponibles,
                 puntos_redimidos='0',
                 puntos_regalo=0
             )
             db.session.add(nuevo_usuario)
             db.session.commit()
-            total_puntos = total_puntos_nuevos
+            total_puntos = total_puntos_disponibles
         
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
+        
+        print(f"📊 Puntos disponibles: {total_puntos_disponibles}, Puntos pendientes: {total_puntos_pendientes}")
         
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
             total_puntos=total_puntos,
+            puntos_pendientes=total_puntos_pendientes,
             usuario=usuario,
             puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
         )
@@ -911,6 +953,7 @@ wcapi = API(
 def redimir_puntos():
     try:
         documento = session.get('user_documento')
+        
         puntos_a_redimir = int(request.json.get('points'))
         codigo = request.json.get('code')
         horas_expiracion = int(request.json.get('expiration_hours', 12))
@@ -1062,8 +1105,6 @@ def quesonpuntos():
         
         print(f"🔍 DEBUG quesonpuntos: PostgreSQL devolvió {len(results)} registros")
         
-        total_puntos_nuevos = 0
-        
         # Usar la misma lógica de agrupación que en mhistorialcompras
         facturas_dict = {}
         for row in results:
@@ -1095,52 +1136,18 @@ def quesonpuntos():
                 if row[5]:
                     facturas_dict[key]['lineas'].add(row[5].upper())
         
-        # Procesamos cada factura con la misma lógica que mhistorialcompras
-        for factura_key, factura_info in facturas_dict.items():
-            lineas = factura_info['lineas']
-            mediopag = factura_info['mediopag']
-            es_individual = len(factura_info['items']) == 1
-            fecha_compra = factura_info['fecha_compra']
-            total_venta_factura = factura_info['total_venta']
-            
-            # Condiciones de cálculo de puntos
-            tiene_cel_cyt = any('CEL' in l or 'CYT' in l for l in lineas)
-            tiene_gdgt_acce = any('GDGT' in l or 'ACCE' in l for l in lineas)
-            solo_gdgt_acce = all('GDGT' in l or 'ACCE' in l for l in lineas) if lineas else False
-            medio_pago_valido = mediopag in ['01', '02']
-            aplicar_multiplicador = False
-            puntos_factura = 0
-            
-            # Obtener el valor base para el cálculo de puntos
-            obtener_puntos = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
-            
-            # Cálculo de puntos según el año
-            if fecha_compra.year == 2024:
-                puntos_factura = int((total_venta_factura // obtener_puntos) / 2)
-                if fecha_compra >= datetime(2024, 11, 25):
-                    if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
-                        aplicar_multiplicador = True
-                    if medio_pago_valido and es_individual:
-                        aplicar_multiplicador = True
-                    if aplicar_multiplicador:
-                        puntos_factura *= 2
-            elif fecha_compra.year == 2025:
-                puntos_factura = int(total_venta_factura // obtener_puntos)
-                if (tiene_cel_cyt and tiene_gdgt_acce) or (tiene_gdgt_acce and solo_gdgt_acce):
-                    aplicar_multiplicador = True
-                if medio_pago_valido and es_individual:
-                    aplicar_multiplicador = True
-                if aplicar_multiplicador:
-                    puntos_factura *= 2
-            
-            total_puntos_nuevos += puntos_factura
+        # ============================================================================
+        # USAR FUNCIÓN DE CÁLCULO CON RETRASO DE 1 DÍA
+        # Los puntos de compras de HOY no están disponibles hasta MAÑANA
+        # ============================================================================
+        total_puntos_disponibles, total_puntos_pendientes, _ = calcular_puntos_con_retraso(facturas_dict, documento)
         
-        # Agregar puntos de referidos
+        # Agregar puntos de referidos (los referidos son inmediatos)
         referidos = Referidos.query.filter_by(documento_referido=documento).all()
         total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
-        total_puntos_nuevos += total_referidos_puntos
+        total_puntos_disponibles += total_referidos_puntos
         
-        print(f"🔍 DEBUG quesonpuntos: Total puntos calculados: {total_puntos_nuevos}")
+        print(f"🔍 DEBUG quesonpuntos: Puntos disponibles: {total_puntos_disponibles}, Pendientes: {total_puntos_pendientes}")
         
         # Buscar o crear registro de puntos para el usuario
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
@@ -1148,13 +1155,13 @@ def quesonpuntos():
         if not puntos_usuario:
             puntos_usuario = Puntos_Clientes(
                 documento=documento,
-                total_puntos=total_puntos_nuevos,
+                total_puntos=total_puntos_disponibles,
                 puntos_redimidos='0',
                 puntos_regalo=0
             )
             db.session.add(puntos_usuario)
         else:
-            puntos_usuario.total_puntos = total_puntos_nuevos
+            puntos_usuario.total_puntos = total_puntos_disponibles
         
         db.session.commit()
         
@@ -1167,6 +1174,7 @@ def quesonpuntos():
         
         return render_template('puntos.html', 
                                total_puntos=total_puntos, 
+                               puntos_pendientes=total_puntos_pendientes,
                                usuario=usuario,
                                puntos_regalo=puntos_regalo)
     
@@ -1788,6 +1796,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
     try:
         # Extraer solo los primeros dígitos antes del guion o espacios
         documento = cedula.split('-')[0].split()[0]
+        print(f"🔍 DEBUG crear_usuario: Documento limpio: {documento}")
  
         # Consulta SQL Server (MICELU1)
         query_sql_server = """
@@ -1847,20 +1856,131 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
             c.nombre;
         """
  
+        print(f"🔍 DEBUG crear_usuario: Ejecutando consulta con parámetros: {documento}, {documento}%")
+        
+        # DIAGNÓSTICO: Vamos a probar consultas más simples primero
+        try:
+            print("🔍 DIAGNÓSTICO: Probando conexión directa a SQL Server...")
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            
+            # Consulta 1: ¿Existe la cédula en Clientes?
+            cursor_sql.execute("SELECT COUNT(*) FROM Clientes WHERE NIT = ? OR NIT LIKE ?", (documento, f"{documento}%"))
+            count_clientes = cursor_sql.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO: Cédulas encontradas en Clientes: {count_clientes}")
+            
+            # Consulta 2: ¿Está habilitada?
+            cursor_sql.execute("SELECT COUNT(*) FROM Clientes WHERE (NIT = ? OR NIT LIKE ?) AND HABILITADO = 'S'", (documento, f"{documento}%"))
+            count_habilitados = cursor_sql.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO: Cédulas habilitadas: {count_habilitados}")
+            
+            # Consulta 3: ¿Tiene compras?
+            cursor_sql.execute("""
+                SELECT COUNT(*) FROM Clientes c
+                JOIN V_CLIENTES_FAC vc ON c.NOMBRE = vc.NOMBRE
+                JOIN Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
+                WHERE (c.NIT = ? OR c.NIT LIKE ?) 
+                AND c.HABILITADO = 'S'
+                AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB' OR m.TIPODCTO='FC')
+                AND m.VLRVENTA>0
+            """, (documento, f"{documento}%"))
+            count_compras = cursor_sql.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO: Compras válidas encontradas: {count_compras}")
+            
+            # Consulta 4: Ver datos específicos del cliente
+            cursor_sql.execute("SELECT TOP 3 NOMBRE, NIT, HABILITADO, CIUDAD FROM Clientes WHERE NIT = ? OR NIT LIKE ?", (documento, f"{documento}%"))
+            clientes_info = cursor_sql.fetchall()
+            print(f"🔍 DIAGNÓSTICO: Información de clientes:")
+            for cliente in clientes_info:
+                print(f"   - Nombre: {cliente[0]}, NIT: {cliente[1]}, Habilitado: {cliente[2]}, Ciudad: {cliente[3]}")
+            
+            cursor_sql.close()
+            conn_sql.close()
+            
+        except Exception as e:
+            print(f"❌ DIAGNÓSTICO falló: {e}")
+        
+        # DIAGNÓSTICO POSTGRESQL: Vamos a probar consultas más simples
+        try:
+            print("🔍 DIAGNÓSTICO POSTGRESQL: Probando conexión...")
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            
+            # Consulta 1: ¿Existe la cédula en clientes?
+            cursor_pg.execute("SELECT COUNT(*) FROM micelu_backup.clientes WHERE nit = %s OR nit LIKE %s", (documento, f"{documento}%"))
+            count_clientes_pg = cursor_pg.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO PG: Cédulas encontradas en clientes: {count_clientes_pg}")
+            
+            # Consulta 2: ¿Está habilitada?
+            cursor_pg.execute("SELECT COUNT(*) FROM micelu_backup.clientes WHERE (nit = %s OR nit LIKE %s) AND habilitado = 'S'", (documento, f"{documento}%"))
+            count_habilitados_pg = cursor_pg.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO PG: Cédulas habilitadas: {count_habilitados_pg}")
+            
+            # Consulta 3: ¿Tiene compras en mvtrade?
+            cursor_pg.execute("SELECT COUNT(*) FROM micelu_backup.mvtrade WHERE nit = %s AND CAST(vlrventa AS DECIMAL(15,2)) > 0", (documento,))
+            count_mvtrade = cursor_pg.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO PG: Compras en mvtrade: {count_mvtrade}")
+            
+            # Consulta 4: ¿Existe en v_clientes_fac?
+            cursor_pg.execute("SELECT COUNT(*) FROM micelu_backup.v_clientes_fac vc JOIN micelu_backup.clientes c ON c.nombre = vc.nombre WHERE c.nit = %s", (documento,))
+            count_v_clientes_fac = cursor_pg.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO PG: Registros en v_clientes_fac: {count_v_clientes_fac}")
+            
+            # Consulta 5: Ver datos específicos del cliente
+            cursor_pg.execute("SELECT nombre, nit, habilitado, ciudad FROM micelu_backup.clientes WHERE nit = %s OR nit LIKE %s LIMIT 3", (documento, f"{documento}%"))
+            clientes_info_pg = cursor_pg.fetchall()
+            print(f"🔍 DIAGNÓSTICO PG: Información de clientes:")
+            for cliente in clientes_info_pg:
+                print(f"   - Nombre: {cliente[0]}, NIT: {cliente[1]}, Habilitado: {cliente[2]}, Ciudad: {cliente[3]}")
+            
+            # Consulta 6: Probar el JOIN completo paso a paso
+            cursor_pg.execute("""
+                SELECT COUNT(*) FROM micelu_backup.clientes c
+                JOIN micelu_backup.v_clientes_fac vc ON c.nombre = vc.nombre
+                WHERE c.nit = %s AND c.habilitado = 'S'
+            """, (documento,))
+            count_join1 = cursor_pg.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO PG: JOIN clientes + v_clientes_fac: {count_join1}")
+            
+            cursor_pg.execute("""
+                SELECT COUNT(*) FROM micelu_backup.clientes c
+                JOIN micelu_backup.v_clientes_fac vc ON c.nombre = vc.nombre
+                JOIN micelu_backup.mvtrade m ON vc.tipodcto = m.tipodcto AND vc.nrodcto = m.nrodcto
+                WHERE c.nit = %s AND c.habilitado = 'S'
+                AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            """, (documento,))
+            count_join2 = cursor_pg.fetchone()[0]
+            print(f"🔍 DIAGNÓSTICO PG: JOIN completo sin filtro tipo documento: {count_join2}")
+            
+            cursor_pg.close()
+            conn_pg.close()
+            
+        except Exception as e:
+            print(f"❌ DIAGNÓSTICO POSTGRESQL falló: {e}")
+            import traceback
+            traceback.print_exc()
+        
         # Ejecutar consulta con fallback
         results, fuente = ejecutar_consulta_con_fallback(
             query_sql_server, 
             query_postgres, 
-            (documento, f"{documento}%")
+            (documento, f"{documento}%"),
+            tipo_consulta='usuario'
         )
+        
+        print(f"🔍 DEBUG crear_usuario: Fuente: {fuente}, Resultados: {len(results)}")
  
         # Si no hay resultados, la cédula no está registrada
         if not results:
+            print(f"❌ DEBUG crear_usuario: No se encontraron resultados para documento {documento}")
             return False
  
+        print(f"✅ DEBUG crear_usuario: Procesando {len(results)} resultados")
+        
         with app.app_context():
             with db.session.begin():
-                for row in results:
+                for i, row in enumerate(results):
+                    print(f"🔍 DEBUG crear_usuario: Procesando resultado {i+1}: {row.CLIENTE_NOMBRE if hasattr(row, 'CLIENTE_NOMBRE') else 'Sin nombre'}")
                     
                     ciudad= 'Medellin' if ciudad == 'Medellín' else 'Bogota' if ciudad == 'Bogotá' else 'Cali' if ciudad == 'Cali' else ciudad
  
@@ -1882,14 +2002,17 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                     )
                     db.session.add(nuevo_usuario)
                     db.session.commit()
+                    print(f"✅ DEBUG crear_usuario: Usuario creado exitosamente")
  
         return True
  
     except pyodbc.Error as e:
-        print("Error al conectarse a la base de datos:", e)
+        print(f"❌ Error de base de datos en crear_usuario: {e}")
         raise e
     except Exception as e:
-        print("Error al crear el usuario:", e)
+        print(f"❌ Error general en crear_usuario: {e}")
+        import traceback
+        traceback.print_exc()
         raise e
     
 #------------------funciones para traer informacion del carrusel------------------------------------------------
@@ -1965,10 +2088,162 @@ def redime_ahora():
 def acumulapuntos():
     return render_template("acumulapuntos.html")
 
-@app.route('/admin')
-@login_required
-def administrar():
-    return render_template("admin.html")
+@app.route('/debug_documento/<documento>')
+def debug_documento(documento):
+    """Función de debug para verificar si un documento existe en las bases de datos"""
+    try:
+        print(f"🔍 DEBUG: Buscando documento {documento}")
+        
+        # 1. Probar SQL Server
+        try:
+            print("🔄 Probando SQL Server...")
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            
+            # Consulta simple para ver si el cliente existe
+            query_simple_sql = "SELECT TOP 5 NIT, NOMBRE FROM Clientes WHERE NIT = ? OR NIT LIKE ?"
+            cursor_sql.execute(query_simple_sql, (documento, f"{documento}%"))
+            resultados_sql = cursor_sql.fetchall()
+            cursor_sql.close()
+            conn_sql.close()
+            
+            print(f"✅ SQL Server encontró {len(resultados_sql)} clientes")
+            
+        except Exception as e:
+            print(f"❌ SQL Server falló: {e}")
+            resultados_sql = []
+        
+        # 2. Probar PostgreSQL
+        try:
+            print("🔄 Probando PostgreSQL...")
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            
+            # Consulta simple para ver si el cliente existe
+            query_simple_pg = "SELECT nit, nombre FROM micelu_backup.clientes WHERE nit = %s OR nit LIKE %s LIMIT 5"
+            cursor_pg.execute(query_simple_pg, (documento, f"{documento}%"))
+            resultados_pg = cursor_pg.fetchall()
+            cursor_pg.close()
+            conn_pg.close()
+            
+            print(f"✅ PostgreSQL encontró {len(resultados_pg)} clientes")
+            
+        except Exception as e:
+            print(f"❌ PostgreSQL falló: {e}")
+            resultados_pg = []
+        
+        # 3. Probar si tiene compras
+        try:
+            print("🔄 Probando compras en PostgreSQL...")
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            
+            query_compras = """
+            SELECT COUNT(*) as total_compras, 
+                   MIN(fhcompra) as primera_compra, 
+                   MAX(fhcompra) as ultima_compra,
+                   SUM(CAST(vlrventa AS DECIMAL(15,2))) as total_ventas
+            FROM micelu_backup.mvtrade 
+            WHERE nit = %s 
+                AND CAST(vlrventa AS DECIMAL(15,2)) > 0
+                AND (tipodcto = 'FM' OR tipodcto = 'FB' OR tipodcto = 'FC')
+            """
+            cursor_pg.execute(query_compras, (documento,))
+            compras_info = cursor_pg.fetchone()
+            cursor_pg.close()
+            conn_pg.close()
+            
+        except Exception as e:
+            print(f"❌ Error consultando compras: {e}")
+            compras_info = (0, None, None, 0)
+        
+        # Crear respuesta HTML
+        html = f"""
+        <h2>🔍 Debug Documento: {documento}</h2>
+        
+        <h3>📊 SQL Server (MICELU1)</h3>
+        <p>Clientes encontrados: {len(resultados_sql)}</p>
+        <ul>
+        """
+        
+        for row in resultados_sql:
+            html += f"<li>NIT: {row[0]}, Nombre: {row[1]}</li>"
+        
+        html += f"""
+        </ul>
+        
+        <h3>📊 PostgreSQL (Backup)</h3>
+        <p>Clientes encontrados: {len(resultados_pg)}</p>
+        <ul>
+        """
+        
+        for row in resultados_pg:
+            html += f"<li>NIT: {row[0]}, Nombre: {row[1]}</li>"
+        
+        html += f"""
+        </ul>
+        
+        <h3>🛒 Información de Compras (PostgreSQL)</h3>
+        <p>Total compras: {compras_info[0] if compras_info else 0}</p>
+        <p>Primera compra: {compras_info[1] if compras_info and compras_info[1] else 'N/A'}</p>
+        <p>Última compra: {compras_info[2] if compras_info and compras_info[2] else 'N/A'}</p>
+        <p>Total ventas: ${compras_info[3] if compras_info else 0:,.2f}</p>
+        
+        <h3>🔧 Consulta Completa de Registro</h3>
+        """
+        
+        # Probar la consulta completa de registro
+        try:
+            query_registro_pg = """
+            SELECT DISTINCT
+                c.nombre AS CLIENTE_NOMBRE,
+                c.nit AS NIT,
+                CASE 
+                    WHEN c.tel1 IS NOT NULL AND c.tel1 != '' THEN c.tel1 
+                    ELSE c.tel2 
+                END AS telefono,
+                c.email AS EMAIL,
+                c.ciudad AS CIUDAD,
+                c.descrip_tipo_cli AS DescripTipoCli
+            FROM
+                micelu_backup.clientes c
+            JOIN
+                micelu_backup.v_clientes_fac vc ON c.nombre = vc.nombre
+            JOIN
+                micelu_backup.mvtrade m ON vc.tipodcto = m.tipodcto AND vc.nrodcto = m.nrodcto
+            WHERE
+                c.habilitado = 'S'
+                AND (m.tipodcto='FM' OR m.tipodcto='FB' OR m.tipodcto='FC')
+                AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                AND (c.nit = %s OR c.nit LIKE %s)
+            ORDER BY
+                c.nombre;
+            """
+            
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            cursor_pg.execute(query_registro_pg, (documento, f"{documento}%"))
+            registro_resultados = cursor_pg.fetchall()
+            cursor_pg.close()
+            conn_pg.close()
+            
+            html += f"<p>✅ Consulta de registro encontró: {len(registro_resultados)} resultados</p>"
+            
+            for i, row in enumerate(registro_resultados):
+                html += f"<p>Resultado {i+1}: {row[0]} - {row[1]} - {row[3]}</p>"
+                
+        except Exception as e:
+            html += f"<p>❌ Error en consulta de registro: {e}</p>"
+        
+        html += """
+        <br><br>
+        <a href="/crear_pass">← Volver al registro</a>
+        """
+        
+        return html
+        
+    except Exception as e:
+        return f"<h2>❌ Error en debug</h2><p>{str(e)}</p>"
 
 @app.route('/test_historial_postgres')
 def test_historial_postgres():
@@ -2189,6 +2464,7 @@ def redimiendo():
 def redimir_puntos_fisicos():
     try:
         documento = session.get('user_documento')
+        
         puntos_a_redimir = int(request.json.get('points'))
         codigo = request.json.get('code')
         
@@ -2324,7 +2600,7 @@ def obtener_conexion_bd_backup():
         print(f"❌ Error conectando a PostgreSQL: {e}")
         raise
 
-def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros):
+def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros, tipo_consulta='historial'):
     """
     Ejecuta consulta en SQL Server primero, si no hay resultados consulta PostgreSQL
     Devuelve resultados en formato consistente
@@ -2336,11 +2612,11 @@ def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros)
     else:
         # Caso normal con los mismos parámetros para ambas consultas
         params_sql = parametros
-        # Para PostgreSQL, usar solo el primer parámetro (documento exacto)
-        params_pg = (parametros[0],) if isinstance(parametros, tuple) else parametros
+        params_pg = parametros  # Usar los mismos parámetros para PostgreSQL
     
     # 1. Intentar primero en SQL Server (MICELU1)
     try:
+        print("🔄 Consultando SQL Server (MICELU1)...")
         conn_sql = obtener_conexion_bd()
         cursor_sql = conn_sql.cursor()
         cursor_sql.execute(query_sql_server, params_sql)
@@ -2351,10 +2627,13 @@ def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros)
         if resultados:
             print(f"✅ SQL Server devolvió {len(resultados)} registros")
             return resultados, 'sql_server'
+        else:
+            print("⚠️ SQL Server no devolvió resultados")
             
     except Exception as e:
-        print(f"⚠️ SQL Server falló: {e}")
-        pass  # Silenciar errores de SQL Server
+        print(f"❌ SQL Server falló: {e}")
+        import traceback
+        traceback.print_exc()
     
     # 2. Si no hay resultados, consultar PostgreSQL backup
     try:
@@ -2368,23 +2647,67 @@ def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros)
         
         print(f"✅ PostgreSQL devolvió {len(resultados_pg)} registros")
         
-        # Convertir tuplas de PostgreSQL a objetos con atributos para compatibilidad
-        class ResultRow:
-            def __init__(self, row):
-                self.PRODUCTO_NOMBRE = row[0]
-                self.VLRVENTA = row[1]
-                self.FHCOMPRA = row[2]
-                self.TIPODCTO = row[3]
-                self.NRODCTO = row[4]
-                self.LINEA = row[5]
-                self.MEDIOPAG = row[6]
-                self.PRODUCTO = row[7]
+        if not resultados_pg:
+            return [], 'no_results'
         
-        resultados_convertidos = [ResultRow(row) for row in resultados_pg]
+        # Convertir tuplas de PostgreSQL a objetos con atributos para compatibilidad
+        if tipo_consulta == 'historial':
+            # Para consultas de historial de compras (8 campos)
+            class ResultRowHistorial:
+                def __init__(self, row):
+                    self.PRODUCTO_NOMBRE = row[0]
+                    self.VLRVENTA = row[1]
+                    self.FHCOMPRA = row[2]
+                    self.TIPODCTO = row[3]
+                    self.NRODCTO = row[4]
+                    self.LINEA = row[5]
+                    self.MEDIOPAG = row[6]
+                    self.PRODUCTO = row[7]
+            
+            resultados_convertidos = [ResultRowHistorial(row) for row in resultados_pg]
+        
+        elif tipo_consulta == 'usuario':
+            # Para consultas de registro de usuarios (6 campos)
+            class ResultRowUsuario:
+                def __init__(self, row):
+                    self.CLIENTE_NOMBRE = row[0]
+                    self.NIT = row[1]
+                    self.telefono = row[2]
+                    self.EMAIL = row[3]
+                    self.CIUDAD = row[4]
+                    self.DescripTipoCli = row[5]
+            
+            resultados_convertidos = [ResultRowUsuario(row) for row in resultados_pg]
+        
+        elif tipo_consulta == 'cobertura':
+            # Para consultas de cobertura (12 campos)
+            class ResultRowCobertura:
+                def __init__(self, row):
+                    self.Tipo_Documento = row[0]
+                    self.Documento = row[1]
+                    self.Factura = row[2]
+                    self.IMEI = row[3]
+                    self.Producto = row[4]
+                    self.Valor = row[5]
+                    self.Fecha_Compra = row[6]
+                    self.NIT = row[7]
+                    self.codgrupo = row[8]
+                    self.Correo = row[9] if len(row) > 9 else ""
+                    self.Telefono = row[10] if len(row) > 10 else ""
+                    self.Nombre = row[11] if len(row) > 11 else ""
+            
+            resultados_convertidos = [ResultRowCobertura(row) for row in resultados_pg]
+        
+        else:
+            # Devolver tuplas sin conversión para otros tipos
+            resultados_convertidos = resultados_pg
+        
         return resultados_convertidos, 'postgres'
         
     except Exception as e:
         print(f"❌ PostgreSQL también falló: {e}")
+        import traceback
+        traceback.print_exc()
         return [], 'error'
 
 def buscar_por_imei(imei):
@@ -3445,7 +3768,8 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
         resultados, fuente = ejecutar_consulta_con_fallback(
             query_sql_server, 
             query_postgres, 
-            ((fecha_inicio, fecha_fin), (fecha_inicio, fecha_fin))
+            ((fecha_inicio, fecha_fin), (fecha_inicio, fecha_fin)),
+            tipo_consulta='cobertura'
         )
         
         datos_consulta = []
