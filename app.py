@@ -34,6 +34,14 @@ import traceback
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
+# Importar el módulo de blacklist de vendedores
+from blacklist_vendedores import (
+    blacklist_vendedores, 
+    verificar_blacklist_vendedor, 
+    actualizar_blacklist_periodica,
+    limpiar_puntos_vendedores_blacklist
+)
+
  
 app = Flask(__name__)
 
@@ -216,8 +224,37 @@ def calcular_puntos_con_retraso(facturas_dict, documento):
     """
     Calcula los puntos aplicando el retraso de 1 día.
     Solo cuenta puntos de compras anteriores a HOY.
+    NUEVA FUNCIONALIDAD: Verifica blacklist de vendedores.
     Retorna: (total_puntos_disponibles, total_puntos_pendientes, historial)
     """
+    
+    # ============================================================================
+    # VERIFICACIÓN DE BLACKLIST DE VENDEDORES
+    # Si el documento está en la blacklist, no puede acumular puntos
+    # ============================================================================
+    if verificar_blacklist_vendedor(documento):
+        app.logger.info(f"🚫 BLACKLIST: Usuario {documento} es vendedor, no puede acumular puntos")
+        
+        # Crear historial vacío pero con mensaje informativo
+        historial_blacklist = [{
+            "PRODUCTO_NOMBRE": "VENDEDOR - SIN PUNTOS",
+            "VLRVENTA": 0,
+            "FHCOMPRA": datetime.now().strftime('%Y-%m-%d'),
+            "PUNTOS_GANADOS": 0,
+            "PUNTOS_PENDIENTES": 0,
+            "TIPODCTO": "BLACKLIST",
+            "NRODCTO": "VENDEDOR",
+            "LINEA": "VENDEDOR",
+            "MEDIOPAG": "",
+            "TIPO_REGISTRO": "BLACKLIST_VENDEDOR",
+            "DISPONIBLE": False
+        }]
+        
+        return 0, 0, historial_blacklist
+    
+    # ============================================================================
+    # LÓGICA ORIGINAL DE CÁLCULO DE PUNTOS (sin cambios)
+    # ============================================================================
     total_puntos_disponibles = 0
     total_puntos_pendientes = 0
     historial = []
@@ -4439,8 +4476,50 @@ def configurar_tareas_programadas():
             replace_existing=True
         )
         
+        # 6. BLACKLIST DE VENDEDORES: Actualización diaria a las 6:00 AM
+        scheduler.add_job(
+            actualizar_y_limpiar_blacklist_vendedores, 'cron',
+            hour='6', minute='00',
+            timezone=bogota_tz,
+            id='actualizar_blacklist_vendedores',
+            replace_existing=True
+        )
+        
+        app.logger.info("✅ Todas las tareas programadas configuradas correctamente")
+        
     except Exception as e:
         app.logger.error(f"Error al configurar tareas programadas: {str(e)}")
+
+
+def actualizar_y_limpiar_blacklist_vendedores():
+    """
+    Función programada para actualizar la blacklist de vendedores y limpiar sus puntos.
+    Se ejecuta diariamente a las 6:00 AM.
+    """
+    try:
+        app.logger.info("🔄 SCHEDULER: Iniciando actualización de blacklist de vendedores")
+        
+        # 1. Actualizar la blacklist desde OFIMA
+        exito_actualizacion = actualizar_blacklist_periodica()
+        
+        if exito_actualizacion:
+            app.logger.info("✅ SCHEDULER: Blacklist actualizada exitosamente")
+            
+            # 2. Limpiar puntos de vendedores en blacklist
+            cantidad_limpiados, cedulas_limpiadas = limpiar_puntos_vendedores_blacklist(db.session)
+            
+            app.logger.info(f"✅ SCHEDULER: Puntos limpiados para {cantidad_limpiados} vendedores")
+            
+            if cedulas_limpiadas:
+                app.logger.info(f"📋 SCHEDULER: Vendedores procesados: {cedulas_limpiadas[:5]}...")
+            
+        else:
+            app.logger.warning("⚠️ SCHEDULER: Error al actualizar blacklist de vendedores")
+            
+    except Exception as e:
+        app.logger.error(f"❌ SCHEDULER: Error en actualización de blacklist: {e}")
+        import traceback
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
 try:
     # Configurar tareas
     configurar_tareas_programadas()
