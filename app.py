@@ -47,7 +47,7 @@ app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
     'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
-    #'db3':'postgresql://postgres:123@localhost:5432/cobertura_local'
+    #'db3':'postgresql://postgres:123@localhost:5432/Puntos'
 }
 
 CLIENTE_ID = os.getenv('CLIENTE_ID')
@@ -125,6 +125,7 @@ class Puntos_Clientes(db.Model):
     fecha_registro = db.Column(db.TIMESTAMP(timezone=True))
     puntos_disponibles = db.Column(db.Integer)
     puntos_regalo = db.Column(db.Integer)
+    ultima_actualizacion = db.Column(db.DateTime, nullable=True)  # NUEVO CAMPO
    
 class historial_beneficio(db.Model):
     __bind_key__ = 'db3'
@@ -139,6 +140,8 @@ class historial_beneficio(db.Model):
     tiempo_expiracion = db.Column(db.TIMESTAMP(timezone=True))
     cupon_fisico = db.Column(db.String(70))
     estado = db.Column(db.Boolean, default=False)
+    fecha_uso_real = db.Column(db.DateTime, nullable=True)  # NUEVO CAMPO
+    estado_cupon = db.Column(db.String(20), default='GENERADO')  # NUEVO CAMPO
    
 class maestros(db.Model):
     __bind_key__= 'db3'
@@ -183,6 +186,194 @@ class cobertura_clientes(db.Model):
         target.id = f"{target.documento}-{target.imei}"
  
 db.event.listen(cobertura_clientes, 'before_insert', cobertura_clientes.before_insert)
+
+# ============================================================================
+# NUEVO MODELO: TRANSACCIONES DE PUNTOS (Sistema de Auditoría)
+# ============================================================================
+class Transacciones_Puntos(db.Model):
+    """
+    Tabla de auditoría completa de TODAS las transacciones de puntos.
+    Cada movimiento (acumulación, redención, vencimiento) queda registrado aquí.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'transacciones_puntos'
+    __table_args__ = {'schema': 'plan_beneficios'}
+    
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    documento = db.Column(db.String(50), nullable=False, index=True)
+    tipo_transaccion = db.Column(db.String(20), nullable=False)  # 'ACUMULACION', 'REDENCION', 'VENCIMIENTO', 'REGALO', 'REFERIDO'
+    puntos = db.Column(db.Integer, nullable=False)
+    puntos_disponibles_antes = db.Column(db.Integer, nullable=False, default=0)
+    puntos_disponibles_despues = db.Column(db.Integer, nullable=False, default=0)
+    fecha_transaccion = db.Column(db.DateTime, nullable=False, default=datetime.now, index=True)
+    fecha_vencimiento = db.Column(db.DateTime, nullable=True)
+    referencia_compra = db.Column(db.String(100), nullable=True)
+    referencia_redencion = db.Column(db.String(36), nullable=True)
+    referencia_referido = db.Column(db.String(36), nullable=True)
+    descripcion = db.Column(db.String(500), nullable=True)
+    estado = db.Column(db.String(20), nullable=False, default='ACTIVO')  # 'ACTIVO', 'VENCIDO', 'USADO'
+    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    actualizado_en = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f'<Transaccion {self.tipo_transaccion} {self.puntos}pts Doc:{self.documento}>'
+
+# ============================================================================
+# FUNCIONES DEL NUEVO SISTEMA DE PUNTOS
+# ============================================================================
+
+def cliente_esta_migrado(documento):
+    """Verifica si un cliente ya está en el nuevo sistema"""
+    try:
+        return Transacciones_Puntos.query.filter_by(documento=documento).first() is not None
+    except:
+        return False
+
+def calcular_puntos_nuevo_sistema(documento):
+    """Calcula puntos disponibles usando el nuevo sistema de transacciones"""
+    hoy = datetime.now()
+    
+    # Usar ORM en lugar de SQL raw
+    puntos_activos = db.session.query(
+        db.func.coalesce(db.func.sum(Transacciones_Puntos.puntos), 0)
+    ).filter(
+        Transacciones_Puntos.documento == documento,
+        Transacciones_Puntos.estado == 'ACTIVO',
+        db.or_(
+            Transacciones_Puntos.fecha_vencimiento.is_(None),
+            Transacciones_Puntos.fecha_vencimiento >= hoy
+        )
+    ).scalar()
+    
+    return int(puntos_activos or 0)
+
+def calcular_puntos_sistema_viejo(documento):
+    """Calcula puntos usando el sistema viejo (tu código actual)"""
+    puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+    if puntos_usuario:
+        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
+        puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
+        return max(0, puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos)
+    return 0
+
+def calcular_puntos_con_fallback(documento):
+    """
+    Calcula puntos usando SOLO el sistema nuevo.
+    Si el cliente no está migrado, retorna 0 (debe migrarse primero).
+    """
+    try:
+        if cliente_esta_migrado(documento):
+            return calcular_puntos_nuevo_sistema(documento)
+        else:
+            print(f"⚠️ Cliente {documento} NO está migrado - Retornando 0 puntos")
+            return 0
+    except Exception as e:
+        print(f"❌ Error calculando puntos para {documento}: {e}")
+        # Hacer rollback y cerrar sesión para limpiar el estado
+        try:
+            db.session.rollback()
+            db.session.close()
+        except:
+            pass
+        # NO usar sistema viejo - retornar 0 para forzar migración
+        print(f"❌ Error crítico - Cliente {documento} debe ser migrado manualmente")
+        return 0
+
+def crear_transaccion_manual(documento, tipo, puntos, descripcion, referencia=None, fecha_compra=None):
+    """Crea una transacción manualmente en el nuevo sistema"""
+    if fecha_compra is None:
+        fecha_compra = datetime.now()
+    
+    # Calcular saldo antes
+    saldo_antes = calcular_puntos_con_fallback(documento)
+    
+    # Calcular fecha de vencimiento (1 año para ACUMULACION y REFERIDO)
+    fecha_vencimiento = None
+    if tipo in ['ACUMULACION', 'REFERIDO']:
+        fecha_vencimiento = fecha_compra + timedelta(days=365)
+    
+    # Crear transacción
+    transaccion = Transacciones_Puntos(
+        id=str(uuid.uuid4()),
+        documento=documento,
+        tipo_transaccion=tipo,
+        puntos=puntos,
+        puntos_disponibles_antes=saldo_antes,
+        puntos_disponibles_despues=saldo_antes + puntos,
+        fecha_transaccion=fecha_compra,
+        fecha_vencimiento=fecha_vencimiento,
+        referencia_compra=referencia if tipo in ['ACUMULACION', 'CORRECCION'] else None,
+        referencia_redencion=referencia if tipo == 'REDENCION' else None,
+        referencia_referido=referencia if tipo == 'REFERIDO' else None,
+        descripcion=descripcion,
+        estado='ACTIVO'
+    )
+    
+    db.session.add(transaccion)
+    return transaccion
+
+def migrar_cliente_individual(documento):
+    """Migra un cliente específico al nuevo sistema"""
+    print(f"🔄 Migrando cliente {documento}...")
+    
+    # 1. Migrar puntos de compras
+    puntos_cliente = Puntos_Clientes.query.filter_by(documento=documento).first()
+    if puntos_cliente and puntos_cliente.total_puntos > 0:
+        crear_transaccion_manual(
+            documento=documento,
+            tipo='ACUMULACION',
+            puntos=puntos_cliente.total_puntos,
+            descripcion='Migración: Puntos históricos de compras',
+            referencia='MIGRACION_COMPRAS',
+            fecha_compra=puntos_cliente.fecha_registro or datetime.now()
+        )
+        print(f"  ✅ Compras: {puntos_cliente.total_puntos} puntos")
+    
+    # 2. Migrar redenciones
+    redenciones = historial_beneficio.query.filter_by(documento=documento).all()
+    total_redimido = 0
+    for redencion in redenciones:
+        crear_transaccion_manual(
+            documento=documento,
+            tipo='REDENCION',
+            puntos=-redencion.puntos_utilizados,  # Negativo
+            descripcion=f'Migración: Cupón {redencion.cupon}',
+            referencia=str(redencion.id),
+            fecha_compra=redencion.fecha_canjeo
+        )
+        total_redimido += redencion.puntos_utilizados
+    if total_redimido > 0:
+        print(f"  ✅ Redenciones: {total_redimido} puntos")
+    
+    # 3. Migrar referidos
+    referidos = Referidos.query.filter_by(documento_cliente=documento).all()
+    total_referidos = 0
+    for referido in referidos:
+        if referido.puntos_obtenidos:
+            crear_transaccion_manual(
+                documento=documento,
+                tipo='REFERIDO',
+                puntos=referido.puntos_obtenidos,
+                descripcion=f'Migración: Referido {referido.nombre_referido}',
+                referencia=str(referido.id),
+                fecha_compra=referido.fecha_referido
+            )
+            total_referidos += referido.puntos_obtenidos
+    if total_referidos > 0:
+        print(f"  ✅ Referidos: {total_referidos} puntos")
+    
+    # 4. Migrar puntos de regalo
+    if puntos_cliente and puntos_cliente.puntos_regalo:
+        crear_transaccion_manual(
+            documento=documento,
+            tipo='REGALO',
+            puntos=puntos_cliente.puntos_regalo,
+            descripcion='Migración: Puntos de regalo históricos',
+            referencia='MIGRACION_REGALOS'
+        )
+        print(f"  ✅ Regalos: {puntos_cliente.puntos_regalo} puntos")
+    
+    print(f"✅ Cliente {documento} migrado exitosamente")
 
 # ============================================================================
 # FUNCIONES DE RETRASO DE 1 DÍA EN PUNTOS
@@ -394,18 +585,11 @@ def miperfil():
     usuario = Usuario.query.filter_by(documento=documento_usuario).first()
    
     if usuario:
-        # Consultar los puntos del usuario
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
-        if puntos_usuario:
-            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')  # Aseguramos que puntos_regalo esté presente
-            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
-        else:
-            total_puntos = 0
+        # Usar sistema híbrido para calcular puntos
+        total_puntos = calcular_puntos_con_fallback(documento_usuario)
        
         # Consultar el último registro de historial_beneficio
         ultimo_historial = Puntos_Clientes.query.filter_by(documento=documento_usuario).order_by(Puntos_Clientes.fecha_registro.desc()).first()
-       
        
         # Pasar los datos a la plantilla
         return render_template('miperfil.html', usuario=usuario, total_puntos=total_puntos, ultimo_historial=ultimo_historial)
@@ -842,25 +1026,68 @@ def mhistorialcompras():
                 "DISPONIBLE": True
             })
         
-        # Actualizar puntos del usuario (solo puntos DISPONIBLES)
+        # ============================================================================
+        # ACTUALIZAR PUNTOS: Sistema híbrido inteligente
+        # ============================================================================
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        if puntos_usuario:
-            puntos_regalo = puntos_usuario.puntos_regalo or 0
-            puntos_usuario.total_puntos = total_puntos_disponibles  # Solo puntos disponibles
-            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
-            total_puntos = max(0, (puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos))
+        
+        # Verificar si es usuario nuevo (ya está en sistema nuevo)
+        if cliente_esta_migrado(documento):
+            print(f"🆕 Usuario {documento} ya está en sistema nuevo - Creando transacción de compra")
+            
+            # Calcular puntos actuales antes de agregar nuevos
+            puntos_actuales = calcular_puntos_con_fallback(documento)
+            puntos_nuevos = total_puntos_disponibles - puntos_actuales
+            
+            # Solo crear transacción si hay puntos nuevos
+            if puntos_nuevos > 0:
+                try:
+                    crear_transaccion_manual(
+                        documento=documento,
+                        tipo='ACUMULACION',
+                        puntos=puntos_nuevos,
+                        descripcion=f'Compras recientes - {len(facturas_dict)} facturas',
+                        referencia='COMPRAS_RECIENTES'
+                    )
+                    print(f"✅ Transacción creada para usuario nuevo: +{puntos_nuevos} puntos")
+                except Exception as e:
+                    print(f"⚠️ Error creando transacción para usuario nuevo: {e}")
+                    db.session.rollback()
+            
+            # Actualizar sistema viejo para compatibilidad
+            if puntos_usuario:
+                puntos_usuario.total_puntos = total_puntos_disponibles
+                puntos_usuario.ultima_actualizacion = datetime.now()
+            else:
+                nuevo_usuario = Puntos_Clientes(
+                    documento=documento,
+                    total_puntos=total_puntos_disponibles,
+                    puntos_redimidos='0',
+                    puntos_regalo=0
+                )
+                db.session.add(nuevo_usuario)
+            
             db.session.commit()
         else:
-            nuevo_usuario = Puntos_Clientes(
-                documento=documento,
-                total_puntos=total_puntos_disponibles,
-                puntos_redimidos='0',
-                puntos_regalo=0
-            )
-            db.session.add(nuevo_usuario)
-            db.session.commit()
-            total_puntos = total_puntos_disponibles
+            # Usuario viejo - usar sistema viejo (se migrará automáticamente después)
+            if puntos_usuario:
+                puntos_usuario.total_puntos = total_puntos_disponibles
+                puntos_usuario.ultima_actualizacion = datetime.now()
+                db.session.commit()
+            else:
+                nuevo_usuario = Puntos_Clientes(
+                    documento=documento,
+                    total_puntos=total_puntos_disponibles,
+                    puntos_redimidos='0',
+                    puntos_regalo=0
+                )
+                db.session.add(nuevo_usuario)
+                db.session.commit()
+        
+        # ============================================================================
+        # USAR SISTEMA HÍBRIDO PARA CALCULAR PUNTOS FINALES
+        # ============================================================================
+        total_puntos = calcular_puntos_con_fallback(documento)
         
         historial.sort(key=lambda x: x['FHCOMPRA'], reverse=True)
         
@@ -887,14 +1114,8 @@ def mpuntosprincipal():
     documento = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento).first()
    
-    total_puntos = 0
-   
-    if documento:
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        if puntos_usuario:
-            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
-            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+    # Usar sistema híbrido para calcular puntos
+    total_puntos = calcular_puntos_con_fallback(documento)
    
     try:
         wcapi = API(
@@ -958,16 +1179,16 @@ def redimir_puntos():
         codigo = request.json.get('code')
         horas_expiracion = int(request.json.get('expiration_hours', 12))
  
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        if not puntos_usuario:
-            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
- 
-        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_regalo= int(puntos_usuario.puntos_regalo or "0")
-        puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
- 
+        # ============================================================================
+        # USAR SISTEMA HÍBRIDO PARA VERIFICAR PUNTOS DISPONIBLES
+        # ============================================================================
+        puntos_disponibles = calcular_puntos_con_fallback(documento)
+        
         if puntos_a_redimir > puntos_disponibles:
-            return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
+            return jsonify({
+                'success': False, 
+                'message': f'No tienes suficientes puntos. Disponibles: {puntos_disponibles}'
+            }), 400
  
         valor_del_punto = maestros.query.with_entities(maestros.valordelpunto).first()[0]
         descuento = puntos_a_redimir * valor_del_punto
@@ -977,9 +1198,9 @@ def redimir_puntos():
         if not woo_coupon:
             return jsonify({'success': False, 'message': 'Error al crear el cupón en WooCommerce'}), 500
  
-        puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
-        puntos_usuario.puntos_disponibles = puntos_usuario.total_puntos - int(puntos_usuario.puntos_redimidos)
- 
+        # ============================================================================
+        # CREAR TRANSACCIÓN EN EL SISTEMA NUEVO
+        # ============================================================================
         nuevo_historial = historial_beneficio(
             id=uuid.uuid4(),
             documento=documento,
@@ -987,20 +1208,45 @@ def redimir_puntos():
             puntos_utilizados=puntos_a_redimir,
             fecha_canjeo=datetime.now(),
             cupon=codigo,
-            tiempo_expiracion=tiempo_expiracion
+            tiempo_expiracion=tiempo_expiracion,
+            estado_cupon='GENERADO'
         )
- 
         db.session.add(nuevo_historial)
+        
+        # Crear transacción de redención en el sistema nuevo
+        if cliente_esta_migrado(documento):
+            crear_transaccion_manual(
+                documento=documento,
+                tipo='REDENCION',
+                puntos=-puntos_a_redimir,  # Negativo porque se están gastando
+                descripcion=f'Redención cupón {codigo} - ${descuento:,.0f}',
+                referencia=str(nuevo_historial.id)
+            )
+        
+        # Actualizar sistema viejo para mantener compatibilidad
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        if puntos_usuario:
+            puntos_redimidos_actual = int(puntos_usuario.puntos_redimidos or '0')
+            puntos_usuario.puntos_redimidos = str(puntos_redimidos_actual + puntos_a_redimir)
+            puntos_usuario.ultima_actualizacion = datetime.now()
+        
         db.session.commit()
+        
+        # Recalcular puntos disponibles después de la redención
+        nuevos_puntos = calcular_puntos_con_fallback(documento)
  
         return jsonify({
             'success': True,
-            'new_total': puntos_usuario.puntos_disponibles,
+            'new_total': nuevos_puntos,
             'codigo': codigo,
             'descuento': descuento,
             'tiempo_expiracion': tiempo_expiracion.isoformat()
         }), 200
  
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error: {e}")
+        return jsonify({'success': False, 'message': f'Error al redimir puntos: {str(e)}'}), 500
     except Exception as e:
         db.session.rollback()
         print(f"Error: {e}")
@@ -1070,119 +1316,49 @@ def ultimo_coupon():
 @login_required
 def quesonpuntos():
     documento = session.get('user_documento')
-    usuario = Usuario.query.filter_by(documento=documento).first()
     if not documento:
         return redirect(url_for('login'))
     
     try:
         print(f"🔍 DEBUG quesonpuntos: Consultando puntos para documento: {documento}")
         
-        # Usar la misma consulta simple que funciona en mhistorialcompras
-        query_postgres = """
-        SELECT DISTINCT
-         m.nombre AS PRODUCTO_NOMBRE,
-         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
-         m.fhcompra AS FHCOMPRA,
-         m.tipodcto AS TIPODCTO,
-         m.nrodcto AS NRODCTO,
-         'CEL' AS LINEA,
-         '' AS MEDIOPAG,
-         m.producto AS PRODUCTO
-        FROM micelu_backup.mvtrade m
-        WHERE m.nit = %s
-            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
-        ORDER BY m.fhcompra DESC;
-        """
-        
-        # Ejecutar directamente en PostgreSQL
-        conn_pg = obtener_conexion_bd_backup()
-        cursor_pg = conn_pg.cursor()
-        cursor_pg.execute(query_postgres, (documento,))
-        results = cursor_pg.fetchall()
-        cursor_pg.close()
-        conn_pg.close()
-        
-        print(f"🔍 DEBUG quesonpuntos: PostgreSQL devolvió {len(results)} registros")
-        
-        # Usar la misma lógica de agrupación que en mhistorialcompras
-        facturas_dict = {}
-        for row in results:
-            key = f"{row[3]}-{row[4]}"  # TIPODCTO-NRODCTO
-            producto_key = f"{key}-{row[7]}"  # key-PRODUCTO
-            
-            # Convertir fecha de texto DD/MM/YYYY a datetime
-            fecha_str = row[2]  # FHCOMPRA como texto
-            try:
-                if isinstance(fecha_str, str) and '/' in fecha_str:
-                    fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
-                else:
-                    fecha_compra = fecha_str if isinstance(fecha_str, datetime) else datetime.now()
-            except:
-                fecha_compra = datetime.now()
-            
-            if key not in facturas_dict:
-                facturas_dict[key] = {
-                    'items': {},
-                    'lineas': set(),
-                    'mediopag': row[6].strip() if row[6] else '',
-                    'total_venta': 0,
-                    'fecha_compra': fecha_compra
-                }
-            
-            if producto_key not in facturas_dict[key]['items']:
-                facturas_dict[key]['items'][producto_key] = row
-                facturas_dict[key]['total_venta'] += float(row[1])
-                if row[5]:
-                    facturas_dict[key]['lineas'].add(row[5].upper())
-        
-        # ============================================================================
-        # USAR FUNCIÓN DE CÁLCULO CON RETRASO DE 1 DÍA
-        # Los puntos de compras de HOY no están disponibles hasta MAÑANA
-        # ============================================================================
-        total_puntos_disponibles, total_puntos_pendientes, _ = calcular_puntos_con_retraso(facturas_dict, documento)
-        
-        # Agregar puntos de referidos (los referidos son inmediatos)
-        referidos = Referidos.query.filter_by(documento_referido=documento).all()
-        total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
-        total_puntos_disponibles += total_referidos_puntos
-        
-        print(f"🔍 DEBUG quesonpuntos: Puntos disponibles: {total_puntos_disponibles}, Pendientes: {total_puntos_pendientes}")
-        
-        # Buscar o crear registro de puntos para el usuario
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        
-        if not puntos_usuario:
-            puntos_usuario = Puntos_Clientes(
-                documento=documento,
-                total_puntos=total_puntos_disponibles,
-                puntos_redimidos='0',
-                puntos_regalo=0
-            )
-            db.session.add(puntos_usuario)
-        else:
-            puntos_usuario.total_puntos = total_puntos_disponibles
-        
-        db.session.commit()
-        
-        # Calcular puntos totales
-        puntos_redimidos = int(puntos_usuario.puntos_redimidos or 0)
-        puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
-        total_puntos = max(0, (puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos))
+        # Calcular puntos usando sistema híbrido
+        total_puntos = calcular_puntos_con_fallback(documento)
         
         print(f"🔍 DEBUG quesonpuntos: Total puntos finales: {total_puntos}")
         
+        # Obtener usuario y puntos DESPUÉS de calcular (para evitar sesión cerrada)
+        usuario = Usuario.query.filter_by(documento=documento).first()
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        
+        # Actualizar timestamp si está migrado
+        try:
+            if puntos_usuario and cliente_esta_migrado(documento):
+                puntos_usuario.ultima_actualizacion = datetime.now()
+                db.session.commit()
+        except Exception as e:
+            print(f"⚠️ Error actualizando timestamp: {e}")
+            db.session.rollback()
+        
         return render_template('puntos.html', 
                                total_puntos=total_puntos, 
-                               puntos_pendientes=total_puntos_pendientes,
+                               puntos_pendientes=0,
                                usuario=usuario,
-                               puntos_regalo=puntos_regalo)
+                               puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0)
     
     except Exception as e:
         print(f"❌ Error en quesonpuntos: {e}")
         import traceback
         traceback.print_exc()
-        return redirect(url_for('login'))
+        db.session.rollback()
+        
+        # NO redirigir al login, mostrar error pero mantener sesión
+        flash('Error al cargar puntos. Por favor intenta de nuevo.', 'error')
+        return render_template('puntos.html', 
+                               total_puntos=0, 
+                               puntos_pendientes=0,
+                               usuario=Usuario.query.filter_by(documento=documento).first(),
+                               puntos_regalo=0)
 
 @app.route('/test_imei_samples')
 @login_required
@@ -1760,7 +1936,7 @@ def crear_pass():
             usuario_creado = crear_usuario(documento, contraseña, habeasdata, genero, ciudad, barrio, fecha_nacimiento)
            
             if usuario_creado:
-                # Crear el registro en la tabla Puntos_Clientes
+                # Crear el registro en la tabla Puntos_Clientes (para compatibilidad)
                 nuevo_punto_cliente = Puntos_Clientes(
                     documento=documento,
                     total_puntos='0',
@@ -1768,6 +1944,25 @@ def crear_pass():
                     puntos_redimidos='0'
                 )
                 db.session.add(nuevo_punto_cliente)
+                
+                # ============================================================================
+                # USUARIOS NUEVOS: Crear transacción inicial en sistema nuevo
+                # ============================================================================
+                print(f"🆕 Usuario nuevo {documento}: Creando en sistema nuevo desde día 1")
+                transaccion_inicial = Transacciones_Puntos(
+                    id=str(uuid.uuid4()),
+                    documento=documento,
+                    tipo_transaccion='REGALO',
+                    puntos=0,  # 0 puntos iniciales
+                    puntos_disponibles_antes=0,
+                    puntos_disponibles_despues=0,
+                    fecha_transaccion=datetime.now(),
+                    fecha_vencimiento=None,  # Los regalos no vencen
+                    descripcion='Usuario nuevo - Registro inicial en sistema nuevo',
+                    estado='ACTIVO'
+                )
+                db.session.add(transaccion_inicial)
+                
                 db.session.commit()
                
                 flash('Usuario creado exitosamente. <a href="/" class="alert-link">Inicia sesión aquí</a>', 'success')
@@ -2053,17 +2248,10 @@ def get_product_info(product_id):
 @login_required
 def infobeneficios(product_id):
     product = get_product_info(product_id)
-    # Asumimos que el documento del usuario está en la sesión
     documento = session.get('user_documento')
   
-    total_puntos = 0
-    if documento:
-        # Consulta a la base de datos para obtener los puntos del usuario
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        if puntos_usuario:
-            puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-            puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
-            total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+    # Usar sistema híbrido para calcular puntos
+    total_puntos = calcular_puntos_con_fallback(documento)
     
     return render_template("infobeneficios.html", product=product, total_puntos=total_puntos)
 
@@ -2071,18 +2259,11 @@ def infobeneficios(product_id):
 def redime_ahora():
     documento_usuario = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento_usuario).first()
-    total_puntos = 0
-    if documento_usuario:
-        usuario = Usuario.query.filter_by(documento=documento_usuario).first()
-       
-        if usuario:
-   
-            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
-            if puntos_usuario:
-                puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                puntos_regalo = int(puntos_usuario.puntos_regalo or 0) 
-                total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
-    return render_template("redime_ahora.html",total_puntos=total_puntos, usuario=usuario)
+    
+    # Usar sistema híbrido para calcular puntos
+    total_puntos = calcular_puntos_con_fallback(documento_usuario)
+    
+    return render_template("redime_ahora.html", total_puntos=total_puntos, usuario=usuario)
 
 @app.route('/acumulapuntos')
 def acumulapuntos():
@@ -2444,18 +2625,11 @@ def inicio():
 @app.route('/redimir')
 def redimiendo():
     documento_usuario = session.get('user_documento')
-    total_puntos = 0
-    if documento_usuario:
-        usuario = Usuario.query.filter_by(documento=documento_usuario).first()
-       
-        if usuario:
-            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento_usuario).first()
-            if puntos_usuario:
-                puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-                puntos_regalo = int(puntos_usuario.puntos_regalo or 0)
-                total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+    
+    # Usar sistema híbrido para calcular puntos
+    total_puntos = calcular_puntos_con_fallback(documento_usuario)
    
-    return render_template("redimir.html",total_puntos=total_puntos)
+    return render_template("redimir.html", total_puntos=total_puntos)
     
 #--------------------------------- Cupon Tienda fisica------------------------------------
 
@@ -2481,9 +2655,8 @@ def redimir_puntos_fisicos():
         if not puntos_usuario:
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
         
-        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_regalo = int(puntos_usuario.puntos_regalo or "0")
-        puntos_disponibles = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+        # Usar sistema híbrido para calcular puntos disponibles
+        puntos_disponibles = calcular_puntos_con_fallback(documento)
         
         if puntos_a_redimir > puntos_disponibles:
             return jsonify({'success': False, 'message': 'No tienes suficientes puntos'}), 400
@@ -2501,9 +2674,9 @@ def redimir_puntos_fisicos():
                     'message': 'El cupón ha expirado'
                 }), 400
             
-            puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
-            # Actualizar puntos_disponibles directamente
-            puntos_usuario.puntos_disponibles = max(0, (puntos_usuario.total_puntos + puntos_regalo - int(puntos_usuario.puntos_redimidos)))
+            # Actualizar puntos usando sistema híbrido
+            puntos_redimidos_actual = int(puntos_usuario.puntos_redimidos or '0')
+            puntos_usuario.puntos_redimidos = str(puntos_redimidos_actual + puntos_a_redimir)
             
             cupon_existente.estado = True
             cupon_existente.valor_descuento = descuento
@@ -2512,9 +2685,8 @@ def redimir_puntos_fisicos():
             
         else:
             # Si no existe un cupón previo, crear uno nuevo
-            puntos_usuario.puntos_redimidos = str(puntos_redimidos + puntos_a_redimir)
-            # Actualizar puntos_disponibles directamente
-            puntos_usuario.puntos_disponibles = max(0, (puntos_usuario.total_puntos + puntos_regalo - int(puntos_usuario.puntos_redimidos)))
+            puntos_redimidos_actual = int(puntos_usuario.puntos_redimidos or '0')
+            puntos_usuario.puntos_redimidos = str(puntos_redimidos_actual + puntos_a_redimir)
             
             nuevo_historial = historial_beneficio(
                 id=uuid.uuid4(),
@@ -3309,14 +3481,8 @@ def cobertura():
     documento = session.get('user_documento')
     usuario = Usuario.query.filter_by(documento=documento).first()
 
-    # Obtener puntos del usuario
-    puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-    total_puntos = 0
-
-    if puntos_usuario:
-        puntos_redimidos = int(puntos_usuario.puntos_redimidos or '0')
-        puntos_regalo = int(puntos_usuario.puntos_regalo or '0')
-        total_puntos = puntos_usuario.total_puntos + puntos_regalo - puntos_redimidos
+    # Usar sistema híbrido para calcular puntos
+    total_puntos = calcular_puntos_con_fallback(documento)
 
     if request.method == 'GET':
         return render_template(
@@ -4777,6 +4943,430 @@ def enviar_correos_dia3(hoy, resultados):
         app.logger.error(f"Error al enviar correos día 3: {str(e)}")
         resultados['errores'].append(f"Error al enviar correos día 3: {str(e)}")
 
+
+# ============================================================================
+# RUTAS DE UTILIDAD PARA EL NUEVO SISTEMA DE PUNTOS
+# ============================================================================
+
+@app.route('/api/test_puntos')
+@login_required
+def test_puntos():
+    """Ruta de prueba para comparar sistema viejo vs nuevo"""
+    documento = session.get('user_documento')
+    
+    puntos_viejo = calcular_puntos_sistema_viejo(documento)
+    migrado = cliente_esta_migrado(documento)
+    puntos_nuevo = calcular_puntos_nuevo_sistema(documento) if migrado else "No migrado"
+    
+    return jsonify({
+        'documento': documento,
+        'migrado': migrado,
+        'puntos_sistema_viejo': puntos_viejo,
+        'puntos_sistema_nuevo': puntos_nuevo,
+        'diferencia': puntos_nuevo - puntos_viejo if migrado else 'N/A'
+    })
+
+@app.route('/api/migrar_mi_cuenta')
+@login_required
+def migrar_mi_cuenta():
+    """Permite al usuario migrar su propia cuenta manualmente"""
+    documento = session.get('user_documento')
+    
+    if cliente_esta_migrado(documento):
+        return jsonify({
+            'success': True,
+            'mensaje': 'Tu cuenta ya está migrada al nuevo sistema',
+            'puntos_disponibles': calcular_puntos_nuevo_sistema(documento)
+        })
+    
+    try:
+        migrar_cliente_individual(documento)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'mensaje': 'Tu cuenta ha sido migrada exitosamente',
+            'puntos_disponibles': calcular_puntos_nuevo_sistema(documento)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/historial_transacciones')
+@login_required
+def ver_historial_transacciones():
+    """Ver historial completo de transacciones de puntos"""
+    documento = session.get('user_documento')
+    
+    if not cliente_esta_migrado(documento):
+        return jsonify({
+            'success': False,
+            'mensaje': 'Tu cuenta aún no está migrada al nuevo sistema'
+        }), 400
+    
+    try:
+        transacciones = Transacciones_Puntos.query.filter_by(
+            documento=documento
+        ).order_by(
+            Transacciones_Puntos.fecha_transaccion.desc()
+        ).limit(100).all()
+        
+        resultado = []
+        for t in transacciones:
+            resultado.append({
+                'id': t.id,
+                'tipo': t.tipo_transaccion,
+                'puntos': t.puntos,
+                'saldo_antes': t.puntos_disponibles_antes,
+                'saldo_despues': t.puntos_disponibles_despues,
+                'fecha': t.fecha_transaccion.strftime('%Y-%m-%d %H:%M:%S'),
+                'fecha_vencimiento': t.fecha_vencimiento.strftime('%Y-%m-%d') if t.fecha_vencimiento else None,
+                'descripcion': t.descripcion,
+                'estado': t.estado
+            })
+        
+        return jsonify({
+            'success': True,
+            'transacciones': resultado,
+            'total': len(resultado)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/info_puntos')
+@login_required
+def info_puntos():
+    """Información detallada de puntos del usuario"""
+    documento = session.get('user_documento')
+    
+    try:
+        puntos_disponibles = calcular_puntos_con_fallback(documento)
+        migrado = cliente_esta_migrado(documento)
+        
+        info = {
+            'documento': documento,
+            'puntos_disponibles': puntos_disponibles,
+            'migrado': migrado,
+            'sistema': 'nuevo' if migrado else 'viejo'
+        }
+        
+        if migrado:
+            # Calcular puntos por vencer usando ORM
+            hoy = datetime.now()
+            fecha_30_dias = hoy + timedelta(days=30)
+            
+            puntos_por_vencer = db.session.query(
+                db.func.coalesce(db.func.sum(Transacciones_Puntos.puntos), 0)
+            ).filter(
+                Transacciones_Puntos.documento == documento,
+                Transacciones_Puntos.estado == 'ACTIVO',
+                Transacciones_Puntos.fecha_vencimiento.between(hoy, fecha_30_dias)
+            ).scalar()
+            
+            info['puntos_por_vencer_30dias'] = int(puntos_por_vencer or 0)
+        
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================================================
+# RUTA DE DEBUG PARA VERIFICAR PUNTOS
+# ============================================================================
+@app.route('/debug/puntos')
+@login_required
+def debug_puntos():
+    """Debug para ver exactamente qué está pasando con los puntos"""
+    documento = session.get('user_documento')
+    
+    try:
+        # Verificar si está migrado
+        migrado = cliente_esta_migrado(documento)
+        
+        # Calcular con sistema viejo
+        puntos_viejo = calcular_puntos_sistema_viejo(documento)
+        
+        # Calcular con sistema nuevo (si está migrado)
+        if migrado:
+            puntos_nuevo = calcular_puntos_nuevo_sistema(documento)
+        else:
+            puntos_nuevo = "No migrado"
+        
+        # Calcular con fallback
+        puntos_fallback = calcular_puntos_con_fallback(documento)
+        
+        # Ver transacciones
+        transacciones = []
+        if migrado:
+            trans = Transacciones_Puntos.query.filter_by(documento=documento).all()
+            for t in trans:
+                transacciones.append({
+                    'tipo': t.tipo_transaccion,
+                    'puntos': t.puntos,
+                    'estado': t.estado,
+                    'fecha': t.fecha_transaccion.strftime('%Y-%m-%d'),
+                    'descripcion': t.descripcion
+                })
+        
+        return jsonify({
+            'documento': documento,
+            'migrado': migrado,
+            'puntos_sistema_viejo': puntos_viejo,
+            'puntos_sistema_nuevo': puntos_nuevo,
+            'puntos_con_fallback': puntos_fallback,
+            'transacciones': transacciones
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+
+# ============================================================================
+# PANEL DE ADMINISTRACIÓN - AUDITORÍA DE PUNTOS
+# ============================================================================
+
+def es_admin(documento):
+    """Verifica si un usuario es administrador"""
+    # Lista de documentos de administradores
+    admins = ['1036689216']  # Agregar más documentos de admin aquí
+    return documento in admins
+
+def admin_required(f):
+    """Decorador para rutas que requieren permisos de administrador"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        documento = session.get('user_documento')
+        if not documento or not es_admin(documento):
+            flash('Acceso denegado. Se requieren permisos de administrador.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/admin/auditoria')
+@login_required
+@admin_required
+def admin_auditoria():
+    """Panel principal de auditoría de puntos"""
+    return render_template('admin_auditoria.html')
+
+@app.route('/admin/api/cliente/<documento>')
+@login_required
+@admin_required
+def admin_get_cliente(documento):
+    """Obtener información de un cliente para auditoría"""
+    try:
+        # Buscar cliente
+        usuario = Usuario.query.filter_by(documento=documento).first()
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'message': 'Cliente no encontrado'
+            }), 404
+        
+        # Calcular puntos disponibles
+        puntos_disponibles = calcular_puntos_con_fallback(documento)
+        
+        cliente_info = {
+            'documento': usuario.documento,
+            'nombre': usuario.nombre,
+            'email': usuario.email,
+            'telefono': usuario.telefono,
+            'puntos_disponibles': puntos_disponibles,
+            'migrado': cliente_esta_migrado(documento)
+        }
+        
+        return jsonify({
+            'success': True,
+            'cliente': cliente_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/transacciones/<documento>')
+@login_required
+@admin_required
+def admin_get_transacciones(documento):
+    """Obtener todas las transacciones de un cliente"""
+    try:
+        if not cliente_esta_migrado(documento):
+            return jsonify({
+                'success': False,
+                'message': 'Cliente no está migrado al nuevo sistema'
+            }), 400
+        
+        transacciones = Transacciones_Puntos.query.filter_by(
+            documento=documento
+        ).order_by(
+            Transacciones_Puntos.fecha_transaccion.desc()
+        ).all()
+        
+        resultado = []
+        for t in transacciones:
+            resultado.append({
+                'id': t.id,
+                'tipo': t.tipo_transaccion,
+                'puntos': t.puntos,
+                'descripcion': t.descripcion,
+                'estado': t.estado,
+                'fecha': t.fecha_transaccion.isoformat(),
+                'fecha_vencimiento': t.fecha_vencimiento.isoformat() if t.fecha_vencimiento else None,
+                'referencia': t.referencia_compra or t.referencia_redencion or t.referencia_referido
+            })
+        
+        return jsonify({
+            'success': True,
+            'transacciones': resultado
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/agregar_transaccion', methods=['POST'])
+@login_required
+@admin_required
+def admin_agregar_transaccion():
+    """Agregar una nueva transacción (corrección, regalo, etc.)"""
+    try:
+        data = request.get_json()
+        documento = data.get('documento')
+        tipo = data.get('tipo')
+        puntos = int(data.get('puntos'))
+        descripcion = data.get('descripcion')
+        referencia = data.get('referencia', '')
+        
+        # Validaciones
+        if not all([documento, tipo, descripcion]):
+            return jsonify({
+                'success': False,
+                'message': 'Faltan campos requeridos'
+            }), 400
+        
+        if tipo not in ['ACUMULACION', 'REDENCION', 'REGALO', 'CORRECCION']:
+            return jsonify({
+                'success': False,
+                'message': 'Tipo de transacción inválido'
+            }), 400
+        
+        # Verificar que el cliente existe
+        usuario = Usuario.query.filter_by(documento=documento).first()
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'message': 'Cliente no encontrado'
+            }), 404
+        
+        # Obtener información del admin que hace la transacción
+        admin_documento = session.get('user_documento')
+        admin_usuario = Usuario.query.filter_by(documento=admin_documento).first()
+        admin_nombre = admin_usuario.nombre if admin_usuario else 'Admin'
+        
+        # Crear descripción completa con información del admin
+        descripcion_completa = f"[ADMIN: {admin_nombre}] {descripcion}"
+        
+        # Crear la transacción
+        crear_transaccion_manual(
+            documento=documento,
+            tipo=tipo,
+            puntos=puntos,
+            descripcion=descripcion_completa,
+            referencia=referencia
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Transacción agregada exitosamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/anular_transaccion', methods=['POST'])
+@login_required
+@admin_required
+def admin_anular_transaccion():
+    """Anular una transacción existente"""
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+        motivo = data.get('motivo')
+        
+        if not all([transaction_id, motivo]):
+            return jsonify({
+                'success': False,
+                'message': 'Faltan campos requeridos'
+            }), 400
+        
+        # Buscar la transacción
+        transaccion = Transacciones_Puntos.query.filter_by(id=transaction_id).first()
+        if not transaccion:
+            return jsonify({
+                'success': False,
+                'message': 'Transacción no encontrada'
+            }), 404
+        
+        if transaccion.estado != 'ACTIVO':
+            return jsonify({
+                'success': False,
+                'message': 'Solo se pueden anular transacciones activas'
+            }), 400
+        
+        # Obtener información del admin
+        admin_documento = session.get('user_documento')
+        admin_usuario = Usuario.query.filter_by(documento=admin_documento).first()
+        admin_nombre = admin_usuario.nombre if admin_usuario else 'Admin'
+        
+        # Marcar la transacción original como anulada
+        transaccion.estado = 'ANULADO'
+        transaccion.actualizado_en = datetime.now()
+        
+        # Crear transacción de anulación (puntos opuestos)
+        descripcion_anulacion = f"[ADMIN: {admin_nombre}] ANULACIÓN: {motivo} (Ref: {transaccion.descripcion})"
+        
+        crear_transaccion_manual(
+            documento=transaccion.documento,
+            tipo='CORRECCION',
+            puntos=-transaccion.puntos,  # Puntos opuestos para anular
+            descripcion=descripcion_anulacion,
+            referencia=f"ANULA_{transaction_id[:8]}"
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Transacción anulada exitosamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 if __name__ == '__main__':
