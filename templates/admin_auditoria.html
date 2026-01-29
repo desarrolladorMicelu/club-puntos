@@ -19,7 +19,7 @@
   <!-- bootstrap core css -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-  
+
   <!-- Enlace a los archivos JS de Bootstrap y Popper.js -->
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
@@ -39,44 +39,44 @@
       max-width: 1200px;
       margin: 0 auto;
     }
-    
+
     .search-section {
       background: white;
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       margin-bottom: 20px;
     }
-    
+
     .results-section {
       background: white;
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    
+
     .transaction-table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 15px;
     }
-    
+
     .transaction-table th,
     .transaction-table td {
       padding: 12px;
       text-align: left;
       border-bottom: 1px solid #ddd;
     }
-    
+
     .transaction-table th {
       background-color: #f8f9fa;
       font-weight: 600;
     }
-    
+
     .transaction-table tr:hover {
       background-color: #f5f5f5;
     }
-    
+
     .btn-action {
       padding: 5px 10px;
       margin: 2px;
@@ -85,40 +85,40 @@
       cursor: pointer;
       font-size: 12px;
     }
-    
+
     .btn-anular {
       background-color: #dc3545;
       color: white;
     }
-    
+
     .btn-corregir {
       background-color: #ffc107;
       color: black;
     }
-    
+
     .status-activo {
       color: #28a745;
       font-weight: bold;
     }
-    
+
     .status-anulado {
       color: #dc3545;
       font-weight: bold;
     }
-    
+
     .status-usado {
       color: #6c757d;
       font-weight: bold;
     }
-    
+
     .points-positive {
       color: #28a745;
     }
-    
+
     .points-negative {
       color: #dc3545;
     }
-    
+
     .client-info {
       background: #f8f9fa;
       padding: 20px;
@@ -126,25 +126,25 @@
       margin-bottom: 20px;
       border: 1px solid #e9ecef;
     }
-    
+
     .modal-content {
       border-radius: 8px;
     }
-    
+
     .form-group {
       margin-bottom: 15px;
     }
-    
+
     .form-control {
       border-radius: 4px;
       border: 1px solid #ced4da;
     }
-    
+
     .alert {
       border-radius: 4px;
       margin-bottom: 15px;
     }
-    
+
     /* Mejoras para el botón de buscar */
     .btn-search {
       height: 38px;
@@ -156,15 +156,177 @@
       padding: 0 20px;
       transition: all 0.2s ease;
     }
-    
+
     .btn-search:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
     }
-    
+
     .btn-search i {
       margin-right: 8px;
       font-size: 14px;
+    }
+
+    /* Estilos para las tarjetas de estadísticas */
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-color: #dee2e6;
+    }
+
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .stat-icon.bg-primary {
+      background: #6c5ce7;
+    }
+
+    .stat-icon.bg-success {
+      background: #e84393;
+    }
+
+    .stat-icon.bg-warning {
+      background: #fdcb6e;
+      color: #2d3436;
+    }
+
+    .stat-icon.bg-info {
+      background: #00cec9;
+    }
+
+    .stat-content h3 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #2d3436;
+      line-height: 1.2;
+    }
+
+    .stat-content p {
+      margin: 5px 0 0 0;
+      font-size: 13px;
+      color: #636e72;
+      font-weight: 400;
+    }
+
+    /* Estilos para los tabs */
+    .nav-tabs {
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .nav-tabs .nav-link {
+      border: none;
+      color: #6c757d;
+      font-weight: 500;
+      padding: 12px 24px;
+      transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+      color: #007bff;
+      border-color: transparent;
+    }
+
+    .nav-tabs .nav-link.active {
+      color: #007bff;
+      background-color: transparent;
+      border-bottom: 3px solid #007bff;
+    }
+
+    .nav-tabs .nav-link i {
+      margin-right: 8px;
+    }
+
+    /* Badge para estado de cupón */
+    .badge-cupon {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-generado {
+      background-color: #ffc107;
+      color: #000;
+    }
+
+    .badge-usado {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .badge-expirado {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    /* Botón de ver detalles */
+    .btn-ver-detalles {
+      background-color: #17a2b8;
+      color: white;
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-ver-detalles:hover {
+      background-color: #138496;
+    }
+
+    /* Spinner de carga */
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+
+    /* Información de paginación */
+    #canjeosInfo {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stat-card {
+        margin-bottom: 15px;
+      }
+
+      .admin-container {
+        padding: 10px;
+      }
+
+      .transaction-table {
+        font-size: 12px;
+      }
+
+      .transaction-table th,
+      .transaction-table td {
+        padding: 8px;
+      }
     }
   </style>
 </head>
@@ -199,7 +361,7 @@
                 <a class="nav-link active" href="/admin/auditoria">Auditoría Admin</a>
               </li>
             </ul>
-            
+
             <!-- User Greeting Section -->
             <div class="user-greeting-container">
               <div class="icon-text-container">
@@ -207,16 +369,19 @@
                 <span class="fw-bold1">Panel Administrativo</span>
               </div>
             </div>
-            
+
             <!-- User Dropdown -->
             <div class="dropdown">
-              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <a class="nav-link custom-dropdown-toggle" href="#" id="userDropdown" role="button"
+                data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="material-icons custom-icon">account_circle</i>
                 <i class="material-icons custom-icon-arrow">arrow_drop_down</i>
               </a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                 <li><a class="custom-dropdown-item" href="/quesonpuntos">Volver a Usuario</a></li>
-                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <hr class="dropdown-divider">
+                </li>
                 <li><a class="custom-dropdown-item" href="#" id="customLogoutButton">Cerrar sesión</a></li>
               </ul>
             </div>
@@ -230,68 +395,284 @@
       <h2>Auditoría de Club de Puntos</h2>
       <p class="text-muted">Busca y gestiona transacciones de puntos de clientes</p>
 
-      <div class="search-section">
-        <h4>Buscar Cliente</h4>
-        <form id="searchForm">
-          <div class="row">
-            <div class="col-md-8">
-              <div class="form-group">
-                <label for="documento">Documento del Cliente:</label>
-                <input type="text" class="form-control" id="documento" name="documento" 
-                       placeholder="Ingrese el número de documento" required>
+      <!-- Tabs de navegación -->
+      <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="buscar-tab" data-bs-toggle="tab" data-bs-target="#buscar-panel"
+            type="button" role="tab" aria-controls="buscar-panel" aria-selected="true">
+            <i class="fas fa-search"></i> Buscar Cliente
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="canjeos-tab" data-bs-toggle="tab" data-bs-target="#canjeos-panel" type="button"
+            role="tab" aria-controls="canjeos-panel" aria-selected="false" onclick="loadUltimosCanjeos()">
+            <i class="fas fa-gift"></i> Últimos Canjeos
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="puntos-tab" data-bs-toggle="tab" data-bs-target="#puntos-panel" type="button"
+            role="tab" aria-controls="puntos-panel" aria-selected="false" onclick="loadPuntosClientes()">
+            <i class="fas fa-coins"></i> Puntos por Cliente
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab Content -->
+      <div class="tab-content" id="adminTabsContent">
+
+        <!-- Panel de Búsqueda de Cliente -->
+        <div class="tab-pane fade show active" id="buscar-panel" role="tabpanel" aria-labelledby="buscar-tab">
+          <div class="search-section">
+            <h4>Buscar Cliente</h4>
+            <form id="searchForm">
+              <div class="row">
+                <div class="col-md-8">
+                  <div class="form-group">
+                    <label for="documento">Documento del Cliente:</label>
+                    <input type="text" class="form-control" id="documento" name="documento"
+                      placeholder="Ingrese el número de documento" required>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-primary btn-search form-control">
+                      <i class="fas fa-search"></i> Buscar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Results Section -->
+          <div class="results-section" id="resultsSection" style="display: none;">
+            <!-- Client Info Header with Actions -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="mb-0">Información del Cliente</h4>
+              <div>
+                <button type="button" class="btn btn-success me-2" onclick="showAddTransactionModal()">
+                  <i class="fas fa-plus"></i> Agregar Transacción
+                </button>
+                <button type="button" class="btn btn-info" onclick="refreshTransactions()">
+                  <i class="fas fa-refresh"></i> Actualizar
+                </button>
               </div>
             </div>
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>&nbsp;</label>
-                <button type="submit" class="btn btn-primary btn-search form-control">
-                  <i class="fas fa-search"></i> Buscar
+
+            <!-- Client Info Content -->
+            <div class="client-info" id="clientInfo">
+              <!-- Se llena dinámicamente -->
+            </div>
+
+            <!-- Transactions Table -->
+            <div class="table-responsive">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Puntos</th>
+                    <th>Descripción</th>
+                    <th>Estado</th>
+                    <th>Vencimiento</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsTableBody">
+                  <!-- Se llena dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel de Últimos Canjeos -->
+        <div class="tab-pane fade" id="canjeos-panel" role="tabpanel" aria-labelledby="canjeos-tab">
+
+          <!-- Estadísticas de Canjeos -->
+          <div class="row mb-4" id="estadisticasCanjeos">
+            <div class="col-md-3">
+              <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                  <i class="fas fa-calendar-day"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="canjeosHoy">-</h3>
+                  <p>Canjeos Hoy</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-card">
+                <div class="stat-icon bg-success">
+                  <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="canjeosMes">-</h3>
+                  <p>Canjeos Este Mes</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                  <i class="fas fa-coins"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="puntosCanjeadosMes">-</h3>
+                  <p>Puntos Canjeados (Mes)</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-card">
+                <div class="stat-icon bg-info">
+                  <i class="fas fa-history"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="totalCanjeos">-</h3>
+                  <p>Total Histórico</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de Últimos Canjeos -->
+          <div class="results-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="mb-0">Últimos Canjeos de Puntos</h4>
+              <button type="button" class="btn btn-info" onclick="loadUltimosCanjeos()">
+                <i class="fas fa-refresh"></i> Actualizar
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Documento</th>
+                    <th>Puntos Utilizados</th>
+                    <th>Cupón</th>
+                    <th>Valor Descuento</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="canjeosTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden"></span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div>
+                <span id="canjeosInfo" style="font-weight: 500;">Mostrando 0 de 0 canjeos</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-secondary" id="btnPrevCanjeos" onclick="cambiarPaginaCanjeos(-1)"
+                  disabled>
+                  <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span id="paginaActual" style="padding: 0 10px; font-weight: 500; color: #495057;">Página 1</span>
+                <button class="btn btn-sm btn-secondary" id="btnNextCanjeos" onclick="cambiarPaginaCanjeos(1)">
+                  Siguiente <i class="fas fa-chevron-right"></i>
                 </button>
               </div>
             </div>
           </div>
-        </form>
-      </div>
+        </div>
 
-      <!-- Results Section -->
-      <div class="results-section" id="resultsSection" style="display: none;">
-        <!-- Client Info Header with Actions -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="mb-0">Información del Cliente</h4>
-          <div>
-            <button type="button" class="btn btn-success me-2" onclick="showAddTransactionModal()">
-              <i class="fas fa-plus"></i> Agregar Transacción
-            </button>
-            <button type="button" class="btn btn-info" onclick="refreshTransactions()">
-              <i class="fas fa-refresh"></i> Actualizar
+        <!-- Panel de Puntos por Cliente -->
+        <div class="tab-pane fade" id="puntos-panel" role="tabpanel" aria-labelledby="puntos-tab">
+          
+          <!-- Buscador de Clientes -->
+          <div class="search-section mb-3">
+            <form id="searchPuntosForm" onsubmit="event.preventDefault(); buscarClientePuntos();">
+              <div class="row">
+                <div class="col-md-10">
+                  <div class="form-group">
+                    <label for="buscarCliente">Buscar Cliente:</label>
+                    <input type="text" class="form-control" id="buscarCliente" name="buscarCliente" 
+                           placeholder="Buscar por documento, nombre, email o teléfono...">
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-primary btn-search form-control">
+                      <i class="fas fa-search"></i> Buscar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="limpiarBusquedaPuntos()">
+              <i class="fas fa-times"></i> Limpiar búsqueda
             </button>
           </div>
-        </div>
-        
-        <!-- Client Info Content -->
-        <div class="client-info" id="clientInfo">
-          <!-- Se llena dinámicamente -->
+
+          <!-- Tabla de Puntos por Cliente -->
+          <div class="results-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="mb-0">Puntos por Cliente</h4>
+              <button type="button" class="btn btn-info" onclick="loadPuntosClientes()">
+                <i class="fas fa-refresh"></i> Actualizar
+              </button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>Documento</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Puntos Disponibles</th>
+                    <th>Última Actualización</th>
+                  </tr>
+                </thead>
+                <tbody id="puntosTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden"></span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div>
+                <span id="puntosInfo" style="font-weight: 500;">Mostrando 0 de 0 clientes</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-secondary" id="btnPrevPuntos" onclick="cambiarPaginaPuntos(-1)"
+                  disabled>
+                  <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span id="paginaActualPuntos" style="padding: 0 10px; font-weight: 500; color: #495057;">Página 1</span>
+                <button class="btn btn-sm btn-secondary" id="btnNextPuntos" onclick="cambiarPaginaPuntos(1)">
+                  Siguiente <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Transactions Table -->
-        <div class="table-responsive">
-          <table class="transaction-table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Puntos</th>
-                <th>Descripción</th>
-                <th>Estado</th>
-                <th>Vencimiento</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="transactionsTableBody">
-              <!-- Se llena dinámicamente -->
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
 
@@ -306,7 +687,7 @@
           <div class="modal-body">
             <form id="addTransactionForm">
               <input type="hidden" id="modalDocumento" name="documento">
-              
+
               <div class="form-group">
                 <label for="tipoTransaccion">Tipo de Transacción:</label>
                 <select class="form-control" id="tipoTransaccion" name="tipo" required>
@@ -317,23 +698,23 @@
                   <option value="CORRECCION">Corrección</option>
                 </select>
               </div>
-              
+
               <div class="form-group">
                 <label for="puntos">Puntos:</label>
                 <input type="number" class="form-control" id="puntos" name="puntos" required>
                 <small class="form-text text-muted">Use números negativos para descontar puntos</small>
               </div>
-              
+
               <div class="form-group">
                 <label for="descripcion">Descripción:</label>
                 <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required
-                          placeholder="Describa el motivo de esta transacción"></textarea>
+                  placeholder="Describa el motivo de esta transacción"></textarea>
               </div>
-              
+
               <div class="form-group">
                 <label for="referencia">Referencia (opcional):</label>
                 <input type="text" class="form-control" id="referencia" name="referencia"
-                       placeholder="Número de factura, cupón, etc.">
+                  placeholder="Número de factura, cupón, etc.">
               </div>
             </form>
           </div>
@@ -359,7 +740,7 @@
             <div class="form-group mt-3">
               <label for="motivoAnulacion">Motivo de la anulación:</label>
               <textarea class="form-control" id="motivoAnulacion" rows="3" required
-                        placeholder="Explique por qué se anula esta transacción"></textarea>
+                placeholder="Explique por qué se anula esta transacción"></textarea>
             </div>
           </div>
           <div class="modal-footer">
@@ -371,7 +752,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="footer" style="margin-top: 50px;">
+    <div class="footer" style="margin-top: 100px; position: relative;">
       <div class="container">
         <div class="row">
           <div class="col-md-12 text-center">
@@ -389,9 +770,12 @@
   <script>
     let currentDocumento = '';
     let transactionToCancel = '';
+    let currentPageCanjeos = 0;
+    let limiteCanjeos = 25;
+    let totalCanjeos = 0;
 
     // Buscar cliente
-    document.getElementById('searchForm').addEventListener('submit', function(e) {
+    document.getElementById('searchForm').addEventListener('submit', function (e) {
       e.preventDefault();
       const documento = document.getElementById('documento').value.trim();
       if (documento) {
@@ -401,7 +785,7 @@
 
     function searchClient(documento) {
       currentDocumento = documento;
-      
+
       fetch(`/admin/api/cliente/${documento}`)
         .then(response => response.json())
         .then(data => {
@@ -454,10 +838,10 @@
 
       transacciones.forEach(t => {
         const row = document.createElement('tr');
-        
+
         const puntosClass = t.puntos >= 0 ? 'points-positive' : 'points-negative';
         const statusClass = `status-${t.estado.toLowerCase()}`;
-        
+
         row.innerHTML = `
           <td>${new Date(t.fecha).toLocaleDateString()}</td>
           <td>${t.tipo}</td>
@@ -473,7 +857,7 @@
             ` : ''}
           </td>
         `;
-        
+
         tbody.appendChild(row);
       });
     }
@@ -487,7 +871,7 @@
     function addTransaction() {
       const form = document.getElementById('addTransactionForm');
       const formData = new FormData(form);
-      
+
       const data = {
         documento: formData.get('documento'),
         tipo: formData.get('tipo'),
@@ -503,21 +887,21 @@
         },
         body: JSON.stringify(data)
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert('Transacción agregada exitosamente');
-          bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')).hide();
-          form.reset();
-          refreshTransactions();
-        } else {
-          alert('Error: ' + data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Error al agregar transacción');
-      });
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Transacción agregada exitosamente');
+            bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')).hide();
+            form.reset();
+            refreshTransactions();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error al agregar transacción');
+        });
     }
 
     function showCancelModal(transactionId, descripcion, puntos) {
@@ -547,21 +931,21 @@
           motivo: motivo
         })
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert('Transacción anulada exitosamente');
-          bootstrap.Modal.getInstance(document.getElementById('cancelTransactionModal')).hide();
-          document.getElementById('motivoAnulacion').value = '';
-          refreshTransactions();
-        } else {
-          alert('Error: ' + data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Error al anular transacción');
-      });
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Transacción anulada exitosamente');
+            bootstrap.Modal.getInstance(document.getElementById('cancelTransactionModal')).hide();
+            document.getElementById('motivoAnulacion').value = '';
+            refreshTransactions();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error al anular transacción');
+        });
     }
 
     function refreshTransactions() {
@@ -569,6 +953,301 @@
         searchClient(currentDocumento);
       }
     }
+
+    // ============================================================================
+    // FUNCIONES PARA ÚLTIMOS CANJEOS
+    // ============================================================================
+
+    function loadUltimosCanjeos() {
+      // Cargar estadísticas
+      loadEstadisticasCanjeos();
+
+      // Mostrar indicador de carga
+      const tbody = document.getElementById('canjeosTableBody');
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden"></span></div></td></tr>';
+
+      // Cargar tabla de canjeos
+      const offset = currentPageCanjeos * limiteCanjeos;
+
+      fetch(`/admin/api/ultimos_canjeos?limite=${limiteCanjeos}&offset=${offset}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            totalCanjeos = data.total;
+            showCanjeos(data.canjeos);
+            updatePaginacionCanjeos();
+          } else {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar canjeos: ' + data.message + '</td></tr>';
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar canjeos. Por favor, intenta de nuevo.</td></tr>';
+        });
+    }
+
+    function loadEstadisticasCanjeos() {
+      fetch('/admin/api/estadisticas_canjeos')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const stats = data.estadisticas;
+            document.getElementById('canjeosHoy').textContent = stats.canjeos_hoy;
+            document.getElementById('canjeosMes').textContent = stats.canjeos_mes;
+            document.getElementById('puntosCanjeadosMes').textContent = stats.puntos_canjeados_mes.toLocaleString();
+            document.getElementById('totalCanjeos').textContent = stats.total_canjeos_historico.toLocaleString();
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    }
+
+    function showCanjeos(canjeos) {
+      const tbody = document.getElementById('canjeosTableBody');
+      tbody.innerHTML = '';
+
+      if (canjeos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay canjeos registrados</td></tr>';
+        return;
+      }
+
+      canjeos.forEach(canjeo => {
+        const row = document.createElement('tr');
+
+        const fechaCanjeo = new Date(canjeo.fecha_canjeo);
+        const cuponInfo = canjeo.cupon_info;
+
+        let estadoCupon = 'N/A';
+        let badgeClass = '';
+        if (cuponInfo) {
+          estadoCupon = cuponInfo.estado_cupon || 'GENERADO';
+          badgeClass = estadoCupon === 'USADO' ? 'badge-usado' :
+            estadoCupon === 'EXPIRADO' ? 'badge-expirado' : 'badge-generado';
+        }
+
+        row.innerHTML = `
+          <td>${fechaCanjeo.toLocaleDateString()} ${fechaCanjeo.toLocaleTimeString()}</td>
+          <td>${canjeo.nombre_cliente}</td>
+          <td>${canjeo.documento}</td>
+          <td class="points-negative">${canjeo.puntos_utilizados.toLocaleString()}</td>
+          <td>${cuponInfo ? cuponInfo.cupon : 'N/A'}</td>
+          <td>$${cuponInfo ? cuponInfo.valor_descuento.toLocaleString() : '0'}</td>
+          <td><span class="badge-cupon ${badgeClass}">${estadoCupon}</span></td>
+          <td>
+            <button class="btn-ver-detalles" onclick="verDetalleCanjeo('${canjeo.id}', ${JSON.stringify(canjeo).replace(/"/g, '&quot;')})">
+              <i class="fas fa-eye"></i> Ver
+            </button>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+      });
+    }
+
+    function verDetalleCanjeo(id, canjeo) {
+      const cuponInfo = canjeo.cupon_info;
+
+      let detalleHTML = `
+        <div style="text-align: left;">
+          <div class="row">
+            <div class="col-md-6">
+              <h6 style="font-size: 14px; font-weight: 600; color: #495057; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 6px;">Información del Cliente</h6>
+              <div style="margin-bottom: 8px;"><strong style="font-size: 13px;">Nombre:</strong> <span style="font-size: 13px;">${canjeo.nombre_cliente}</span></div>
+              <div style="margin-bottom: 8px;"><strong style="font-size: 13px;">Documento:</strong> <span style="font-size: 13px;">${canjeo.documento}</span></div>
+              <div style="margin-bottom: 8px;"><strong style="font-size: 13px;">Email:</strong> <span style="font-size: 13px;">${canjeo.email_cliente || 'N/A'}</span></div>
+              <div style="margin-bottom: 16px;"><strong style="font-size: 13px;">Teléfono:</strong> <span style="font-size: 13px;">${canjeo.telefono_cliente || 'N/A'}</span></div>
+              
+              <h6 style="font-size: 14px; font-weight: 600; color: #495057; margin-bottom: 12px; border-bottom: 2px solid #e9ecef; padding-bottom: 6px;">Información del Canjeo</h6>
+              <div style="margin-bottom: 8px;"><strong style="font-size: 13px;">Fecha:</strong> <span style="font-size: 13px;">${new Date(canjeo.fecha_canjeo).toLocaleString()}</span></div>
+              <div style="margin-bottom: 8px;"><strong style="font-size: 13px;">Puntos Utilizados:</strong> <span style="font-size: 13px; color: #dc3545;">${canjeo.puntos_utilizados.toLocaleString()}</span></div>
+            </div>
+            <div class="col-md-6">
+      `;
+
+      if (cuponInfo) {
+        detalleHTML += `
+          <hr>
+          <h5>Información del Cupón</h5>
+          <p><strong>Cupón Digital:</strong> ${cuponInfo.cupon}</p>
+          <p><strong>Cupón Físico:</strong> ${cuponInfo.cupon_fisico || 'N/A'}</p>
+          <p><strong>Valor Descuento:</strong> $${cuponInfo.valor_descuento.toLocaleString()}</p>
+          <p><strong>Estado:</strong> ${cuponInfo.estado_cupon}</p>
+          <p><strong>Fecha Expiración:</strong> ${cuponInfo.tiempo_expiracion ? new Date(cuponInfo.tiempo_expiracion).toLocaleString() : 'N/A'}</p>
+        `;
+      }
+
+      detalleHTML += '</div>';
+
+      // Mostrar en un modal compacto
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div class="modal fade" id="detalleCanjeoModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+              <div class="modal-header" style="padding: 12px 20px; background: #17a2b8; color: white;">
+                <h5 class="modal-title" style="font-size: 16px; margin: 0;">Detalle del Canjeo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body" style="padding: 20px;">
+                ${detalleHTML}
+              </div>
+              <div class="modal-footer" style="padding: 10px 20px; background: #f8f9fa;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+      const modalInstance = new bootstrap.Modal(document.getElementById('detalleCanjeoModal'));
+      modalInstance.show();
+
+      // Limpiar el modal cuando se cierre
+      document.getElementById('detalleCanjeoModal').addEventListener('hidden.bs.modal', function () {
+        modal.remove();
+      });
+    }
+
+    function cambiarPaginaCanjeos(direccion) {
+      currentPageCanjeos += direccion;
+      if (currentPageCanjeos < 0) currentPageCanjeos = 0;
+      loadUltimosCanjeos();
+    }
+
+    function updatePaginacionCanjeos() {
+      const inicio = currentPageCanjeos * limiteCanjeos + 1;
+      const fin = Math.min((currentPageCanjeos + 1) * limiteCanjeos, totalCanjeos);
+      const totalPaginas = Math.ceil(totalCanjeos / limiteCanjeos);
+
+      document.getElementById('canjeosInfo').textContent =
+        `Mostrando ${inicio} - ${fin} de ${totalCanjeos} canjeos`;
+      
+      document.getElementById('paginaActual').textContent =
+        `Página ${currentPageCanjeos + 1} de ${totalPaginas}`;
+
+      document.getElementById('btnPrevCanjeos').disabled = currentPageCanjeos === 0;
+      document.getElementById('btnNextCanjeos').disabled = fin >= totalCanjeos;
+    }
+
+    // Cargar canjeos automáticamente cuando se abre el tab
+    document.getElementById('canjeos-tab').addEventListener('shown.bs.tab', function () {
+      if (document.getElementById('canjeosTableBody').innerHTML.includes('spinner-border')) {
+        loadUltimosCanjeos();
+      }
+    });
+
+    // ============================================================================
+    // FUNCIONES PARA PUNTOS POR CLIENTE
+    // ============================================================================
+
+    let currentPagePuntos = 0;
+    let limitePuntos = 25;
+    let totalClientesPuntos = 0;
+    let busquedaActualPuntos = '';
+
+    function loadPuntosClientes() {
+      // Mostrar indicador de carga
+      const tbody = document.getElementById('puntosTableBody');
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden"></span></div></td></tr>';
+
+      // Cargar tabla de puntos
+      const offset = currentPagePuntos * limitePuntos;
+      let url = `/admin/api/puntos_clientes?limite=${limitePuntos}&offset=${offset}`;
+      
+      // Agregar búsqueda si existe
+      if (busquedaActualPuntos) {
+        url += `&busqueda=${encodeURIComponent(busquedaActualPuntos)}`;
+      }
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            totalClientesPuntos = data.total;
+            showPuntosClientes(data.clientes);
+            updatePaginacionPuntos();
+          } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error al cargar datos: ' + data.message + '</td></tr>';
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error al cargar datos. Por favor, intenta de nuevo.</td></tr>';
+        });
+    }
+
+    function buscarClientePuntos() {
+      const busqueda = document.getElementById('buscarCliente').value.trim();
+      busquedaActualPuntos = busqueda;
+      currentPagePuntos = 0; // Resetear a primera página
+      loadPuntosClientes();
+    }
+
+    function limpiarBusquedaPuntos() {
+      document.getElementById('buscarCliente').value = '';
+      busquedaActualPuntos = '';
+      currentPagePuntos = 0;
+      loadPuntosClientes();
+    }
+
+    function showPuntosClientes(clientes) {
+      const tbody = document.getElementById('puntosTableBody');
+      tbody.innerHTML = '';
+
+      if (clientes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay clientes registrados</td></tr>';
+        return;
+      }
+
+      clientes.forEach(cliente => {
+        const row = document.createElement('tr');
+        
+        const ultimaActualizacion = cliente.ultima_actualizacion 
+          ? new Date(cliente.ultima_actualizacion).toLocaleDateString() 
+          : 'N/A';
+        
+        row.innerHTML = `
+          <td>${cliente.documento}</td>
+          <td>${cliente.nombre}</td>
+          <td>${cliente.email || 'N/A'}</td>
+          <td>${cliente.telefono || 'N/A'}</td>
+          <td><strong style="color: #28a745;">${cliente.puntos_disponibles.toLocaleString()}</strong></td>
+          <td>${ultimaActualizacion}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    function cambiarPaginaPuntos(direccion) {
+      currentPagePuntos += direccion;
+      if (currentPagePuntos < 0) currentPagePuntos = 0;
+      loadPuntosClientes();
+    }
+
+    function updatePaginacionPuntos() {
+      const inicio = currentPagePuntos * limitePuntos + 1;
+      const fin = Math.min((currentPagePuntos + 1) * limitePuntos, totalClientesPuntos);
+      const totalPaginas = Math.ceil(totalClientesPuntos / limitePuntos);
+
+      document.getElementById('puntosInfo').textContent =
+        `Mostrando ${inicio} - ${fin} de ${totalClientesPuntos} clientes`;
+      
+      document.getElementById('paginaActualPuntos').textContent =
+        `Página ${currentPagePuntos + 1} de ${totalPaginas}`;
+
+      document.getElementById('btnPrevPuntos').disabled = currentPagePuntos === 0;
+      document.getElementById('btnNextPuntos').disabled = fin >= totalClientesPuntos;
+    }
+
+    // Cargar puntos automáticamente cuando se abre el tab
+    document.getElementById('puntos-tab').addEventListener('shown.bs.tab', function () {
+      if (document.getElementById('puntosTableBody').innerHTML.includes('spinner-border')) {
+        loadPuntosClientes();
+      }
+    });
   </script>
 </body>
 

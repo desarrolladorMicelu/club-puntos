@@ -5363,6 +5363,242 @@ def admin_anular_transaccion():
             'message': str(e)
         }), 500
 
+@app.route('/admin/api/ultimos_canjeos')
+@login_required
+def admin_ultimos_canjeos():
+    """Obtener los últimos canjeos de puntos de todos los clientes"""
+    try:
+        # Obtener parámetros de paginación
+        limite = request.args.get('limite', 25, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Consultar redenciones (transacciones de tipo REDENCION)
+        redenciones = Transacciones_Puntos.query.filter_by(
+            tipo_transaccion='REDENCION'
+        ).order_by(
+            Transacciones_Puntos.fecha_transaccion.desc()
+        ).limit(limite).offset(offset).all()
+        
+        resultado = []
+        for redencion in redenciones:
+            # Obtener información del cliente
+            usuario = Usuario.query.filter_by(documento=redencion.documento).first()
+            
+            # Obtener información del cupón si existe
+            cupon_info = None
+            if redencion.referencia_redencion:
+                historial = historial_beneficio.query.filter_by(
+                    id=redencion.referencia_redencion
+                ).first()
+                if historial:
+                    cupon_info = {
+                        'cupon': historial.cupon,
+                        'cupon_fisico': historial.cupon_fisico,
+                        'valor_descuento': historial.valor_descuento,
+                        'estado_cupon': historial.estado_cupon,
+                        'fecha_uso_real': historial.fecha_uso_real.isoformat() if historial.fecha_uso_real else None,
+                        'tiempo_expiracion': historial.tiempo_expiracion.isoformat() if historial.tiempo_expiracion else None
+                    }
+            
+            resultado.append({
+                'id': redencion.id,
+                'documento': redencion.documento,
+                'nombre_cliente': usuario.nombre if usuario else 'Desconocido',
+                'email_cliente': usuario.email if usuario else None,
+                'telefono_cliente': usuario.telefono if usuario else None,
+                'puntos_utilizados': abs(redencion.puntos),  # Valor absoluto porque es negativo
+                'descripcion': redencion.descripcion,
+                'fecha_canjeo': redencion.fecha_transaccion.isoformat(),
+                'estado': redencion.estado,
+                'cupon_info': cupon_info,
+                'puntos_disponibles_antes': redencion.puntos_disponibles_antes,
+                'puntos_disponibles_despues': redencion.puntos_disponibles_despues
+            })
+        
+        # Contar total de redenciones para paginación
+        total_redenciones = Transacciones_Puntos.query.filter_by(
+            tipo_transaccion='REDENCION'
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'canjeos': resultado,
+            'total': total_redenciones,
+            'limite': limite,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/estadisticas_canjeos')
+@login_required
+def admin_estadisticas_canjeos():
+    """Obtener estadísticas de canjeos"""
+    try:
+        hoy = datetime.now()
+        inicio_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # Canjeos del mes actual
+        canjeos_mes = Transacciones_Puntos.query.filter(
+            Transacciones_Puntos.tipo_transaccion == 'REDENCION',
+            Transacciones_Puntos.fecha_transaccion >= inicio_mes
+        ).count()
+        
+        # Puntos canjeados del mes
+        puntos_mes = db.session.query(
+            db.func.sum(Transacciones_Puntos.puntos)
+        ).filter(
+            Transacciones_Puntos.tipo_transaccion == 'REDENCION',
+            Transacciones_Puntos.fecha_transaccion >= inicio_mes
+        ).scalar() or 0
+        
+        # Canjeos de hoy
+        inicio_hoy = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+        canjeos_hoy = Transacciones_Puntos.query.filter(
+            Transacciones_Puntos.tipo_transaccion == 'REDENCION',
+            Transacciones_Puntos.fecha_transaccion >= inicio_hoy
+        ).count()
+        
+        # Total histórico
+        total_canjeos = Transacciones_Puntos.query.filter_by(
+            tipo_transaccion='REDENCION'
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': {
+                'canjeos_hoy': canjeos_hoy,
+                'canjeos_mes': canjeos_mes,
+                'puntos_canjeados_mes': abs(int(puntos_mes)),
+                'total_canjeos_historico': total_canjeos
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/puntos_clientes')
+@login_required
+def admin_puntos_clientes():
+    """Obtener lista de clientes con sus puntos disponibles"""
+    try:
+        # Obtener parámetros de paginación y búsqueda
+        limite = request.args.get('limite', 25, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        busqueda = request.args.get('busqueda', '', type=str).strip()
+        
+        # Construir query base
+        query = Puntos_Clientes.query
+        
+        # Si hay búsqueda, filtrar
+        if busqueda:
+            # Buscar en Usuario por nombre, email, teléfono o documento
+            usuarios_encontrados = Usuario.query.filter(
+                db.or_(
+                    Usuario.documento.ilike(f'%{busqueda}%'),
+                    Usuario.nombre.ilike(f'%{busqueda}%'),
+                    Usuario.email.ilike(f'%{busqueda}%'),
+                    Usuario.telefono.ilike(f'%{busqueda}%')
+                )
+            ).all()
+            
+            # Obtener documentos de usuarios encontrados
+            documentos_encontrados = [u.documento for u in usuarios_encontrados]
+            
+            if documentos_encontrados:
+                query = query.filter(Puntos_Clientes.documento.in_(documentos_encontrados))
+            else:
+                # Si no se encontró nada, retornar vacío
+                return jsonify({
+                    'success': True,
+                    'clientes': [],
+                    'total': 0,
+                    'limite': limite,
+                    'offset': offset
+                })
+        
+        # Aplicar ordenamiento y paginación
+        clientes_query = query.order_by(
+            Puntos_Clientes.puntos_disponibles.desc()
+        ).limit(limite).offset(offset).all()
+        
+        resultado = []
+        for cliente_puntos in clientes_query:
+            # Obtener información del usuario
+            usuario = Usuario.query.filter_by(documento=cliente_puntos.documento).first()
+            
+            # Calcular puntos reales usando el sistema nuevo
+            puntos_reales = calcular_puntos_con_fallback(cliente_puntos.documento)
+            
+            resultado.append({
+                'documento': cliente_puntos.documento,
+                'nombre': usuario.nombre if usuario else 'Desconocido',
+                'email': usuario.email if usuario else None,
+                'telefono': usuario.telefono if usuario else None,
+                'puntos_disponibles': puntos_reales,
+                'ultima_actualizacion': cliente_puntos.ultima_actualizacion.isoformat() if cliente_puntos.ultima_actualizacion else None
+            })
+        
+        # Contar total de clientes (con filtro si aplica)
+        if busqueda and documentos_encontrados:
+            total_clientes = query.count()
+        elif busqueda:
+            total_clientes = 0
+        else:
+            total_clientes = Puntos_Clientes.query.count()
+        
+        return jsonify({
+            'success': True,
+            'clientes': resultado,
+            'total': total_clientes,
+            'limite': limite,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/estadisticas_puntos')
+@login_required
+def admin_estadisticas_puntos():
+    """Obtener estadísticas generales de puntos"""
+    try:
+        # Total de clientes
+        total_clientes = Puntos_Clientes.query.count()
+        
+        # Total de puntos en circulación (suma de puntos disponibles)
+        total_puntos = db.session.query(
+            db.func.sum(Puntos_Clientes.puntos_disponibles)
+        ).scalar() or 0
+        
+        # Promedio de puntos por cliente
+        promedio = int(total_puntos / total_clientes) if total_clientes > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': {
+                'total_clientes': total_clientes,
+                'total_puntos_circulacion': int(total_puntos),
+                'promedio_puntos': promedio
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=os.getenv("PORT", default=5000))
