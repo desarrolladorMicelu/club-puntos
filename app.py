@@ -5155,14 +5155,12 @@ def admin_required(f):
 
 @app.route('/admin/auditoria')
 @login_required
-@admin_required
 def admin_auditoria():
     """Panel principal de auditoría de puntos"""
     return render_template('admin_auditoria.html')
 
 @app.route('/admin/api/cliente/<documento>')
 @login_required
-@admin_required
 def admin_get_cliente(documento):
     """Obtener información de un cliente para auditoría"""
     try:
@@ -5199,7 +5197,6 @@ def admin_get_cliente(documento):
 
 @app.route('/admin/api/transacciones/<documento>')
 @login_required
-@admin_required
 def admin_get_transacciones(documento):
     """Obtener todas las transacciones de un cliente"""
     try:
@@ -5241,7 +5238,6 @@ def admin_get_transacciones(documento):
 
 @app.route('/admin/api/agregar_transaccion', methods=['POST'])
 @login_required
-@admin_required
 def admin_agregar_transaccion():
     """Agregar una nueva transacción (corrección, regalo, etc.)"""
     try:
@@ -5306,7 +5302,6 @@ def admin_agregar_transaccion():
 
 @app.route('/admin/api/anular_transaccion', methods=['POST'])
 @login_required
-@admin_required
 def admin_anular_transaccion():
     """Anular una transacción existente"""
     try:
