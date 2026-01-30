@@ -936,68 +936,114 @@ def mhistorialcompras():
         return redirect(url_for('login'))
     
     try:
-        print(f"🔍 DEBUG: Probando historial para documento: {documento}")
+        print(f"🔍 DEBUG: Consultando historial para documento: {documento}")
         
-        # Consulta PostgreSQL simple - las fechas están como texto en formato DD/MM/YYYY
-        query_postgres = """
-        SELECT DISTINCT
-         m.nombre AS PRODUCTO_NOMBRE,
-         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
-         m.fhcompra AS FHCOMPRA,
-         m.tipodcto AS TIPODCTO,
-         m.nrodcto AS NRODCTO,
-         'CEL' AS LINEA,
-         '' AS MEDIOPAG,
-         m.producto AS PRODUCTO
-        FROM micelu_backup.mvtrade m
-        WHERE m.nit = %s
-            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
-        ORDER BY m.fhcompra DESC;
-        """
+        # ============================================================================
+        # CONSULTAR AMBAS FUENTES: SQL SERVER (2026+) + POSTGRESQL (2025-)
+        # ============================================================================
         
-        # Ejecutar directamente en PostgreSQL
-        conn_pg = obtener_conexion_bd_backup()
-        cursor_pg = conn_pg.cursor()
-        cursor_pg.execute(query_postgres, (documento,))
-        results = cursor_pg.fetchall()
-        cursor_pg.close()
-        conn_pg.close()
+        results_combinados = []
         
-        print(f"🔍 DEBUG: PostgreSQL devolvió {len(results)} registros")
+        # 1. Consultar SQL Server (Ofima) - Compras 2026+
+        try:
+            print("🔄 Consultando SQL Server (2026+)...")
+            query_sql_server = """
+            SELECT DISTINCT
+             m.PRODUCTO_NOMBRE AS PRODUCTO_NOMBRE,
+             CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
+             m.FHCOMPRA AS FHCOMPRA,
+             m.TIPODCTO AS TIPODCTO,
+             m.NRODCTO AS NRODCTO,
+             m.LINEA AS LINEA,
+             '' AS MEDIOPAG,
+             m.PRODUCTO AS PRODUCTO
+            FROM MVTRADE m
+            WHERE m.IDENTIFICACION = ?
+                AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+            ORDER BY m.FHCOMPRA DESC
+            """
+            
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            cursor_sql.execute(query_sql_server, (documento,))
+            results_sql = cursor_sql.fetchall()
+            cursor_sql.close()
+            conn_sql.close()
+            
+            print(f"✅ SQL Server: {len(results_sql)} registros")
+            results_combinados.extend(results_sql)
+        except Exception as e:
+            print(f"⚠️ Error en SQL Server: {e}")
         
-        # LÓGICA ORIGINAL COMPLETA - Agrupamos por factura usando un identificador único para cada producto
+        # 2. Consultar PostgreSQL - Compras 2025-
+        try:
+            print("🔄 Consultando PostgreSQL (2025-)...")
+            query_postgres = """
+            SELECT DISTINCT
+             m.nombre AS PRODUCTO_NOMBRE,
+             CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+             m.fhcompra AS FHCOMPRA,
+             m.tipodcto AS TIPODCTO,
+             m.nrodcto AS NRODCTO,
+             'CEL' AS LINEA,
+             '' AS MEDIOPAG,
+             m.producto AS PRODUCTO
+            FROM micelu_backup.mvtrade m
+            WHERE m.nit = %s
+                AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+            ORDER BY m.fhcompra DESC;
+            """
+            
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            cursor_pg.execute(query_postgres, (documento,))
+            results_pg = cursor_pg.fetchall()
+            cursor_pg.close()
+            conn_pg.close()
+            
+            print(f"✅ PostgreSQL: {len(results_pg)} registros")
+            results_combinados.extend(results_pg)
+        except Exception as e:
+            print(f"⚠️ Error en PostgreSQL: {e}")
+        
+        print(f"📊 Total combinado: {len(results_combinados)} registros")
+        
+        # ============================================================================
+        # PROCESAR RESULTADOS COMBINADOS
+        # ============================================================================
         facturas_dict = {}
-        for row in results:
+        for row in results_combinados:
             key = f"{row[3]}-{row[4]}"  # TIPODCTO-NRODCTO
-            # Identificador único por producto
             producto_key = f"{key}-{row[7]}"  # key-PRODUCTO
-            # Convertir fecha de texto DD/MM/YYYY a datetime
-            fecha_str = row[2]  # FHCOMPRA como texto
+            
+            # Convertir fecha
+            fecha_str = row[2]  # FHCOMPRA
             try:
                 if isinstance(fecha_str, str) and '/' in fecha_str:
-                    # Formato DD/MM/YYYY
                     fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
+                elif isinstance(fecha_str, datetime):
+                    fecha_compra = fecha_str
                 else:
-                    # Si ya es datetime o otro formato, usar como está
-                    fecha_compra = fecha_str if isinstance(fecha_str, datetime) else datetime.now()
+                    fecha_compra = datetime.now()
             except:
                 fecha_compra = datetime.now()
             
             if key not in facturas_dict:
                 facturas_dict[key] = {
-                    'items': {},  # Cambiado a diccionario para evitar duplicados
+                    'items': {},
                     'lineas': set(),
-                    'mediopag': row[6].strip() if row[6] else '',  # MEDIOPAG
+                    'mediopag': row[6].strip() if row[6] else '',
                     'total_venta': 0,
-                    'fecha_compra': fecha_compra  # FHCOMPRA convertida
+                    'fecha_compra': fecha_compra
                 }
-            # Solo agregar el producto si no existe
+            
             if producto_key not in facturas_dict[key]['items']:
                 facturas_dict[key]['items'][producto_key] = row
-                facturas_dict[key]['total_venta'] += float(row[1])  # VLRVENTA
-                if row[5]:  # LINEA
-                    facturas_dict[key]['lineas'].add(row[5].upper())
+                facturas_dict[key]['total_venta'] += float(row[1])
+                if row[5]:
+                    facturas_dict[key]['lineas'].add(str(row[5]).upper())
         
         # ============================================================================
         # USAR FUNCIÓN DE CÁLCULO CON RETRASO DE 1 DÍA
@@ -1322,27 +1368,156 @@ def quesonpuntos():
     try:
         print(f"🔍 DEBUG quesonpuntos: Consultando puntos para documento: {documento}")
         
-        # Calcular puntos usando sistema híbrido
+        # ============================================================================
+        # CONSULTAR AMBAS FUENTES: SQL SERVER (2026+) + POSTGRESQL (2025-)
+        # ============================================================================
+        
+        results_combinados = []
+        
+        # 1. Consultar SQL Server (Ofima) - Compras 2026+
+        try:
+            query_sql_server = """
+            SELECT DISTINCT
+             m.PRODUCTO_NOMBRE AS PRODUCTO_NOMBRE,
+             CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
+             m.FHCOMPRA AS FHCOMPRA,
+             m.TIPODCTO AS TIPODCTO,
+             m.NRODCTO AS NRODCTO,
+             m.LINEA AS LINEA,
+             '' AS MEDIOPAG,
+             m.PRODUCTO AS PRODUCTO
+            FROM MVTRADE m
+            WHERE m.IDENTIFICACION = ?
+                AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+            ORDER BY m.FHCOMPRA DESC
+            """
+            
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            cursor_sql.execute(query_sql_server, (documento,))
+            results_sql = cursor_sql.fetchall()
+            cursor_sql.close()
+            conn_sql.close()
+            results_combinados.extend(results_sql)
+        except Exception as e:
+            print(f"⚠️ Error en SQL Server: {e}")
+        
+        # 2. Consultar PostgreSQL - Compras 2025-
+        try:
+            query_postgres = """
+            SELECT DISTINCT
+             m.nombre AS PRODUCTO_NOMBRE,
+             CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+             m.fhcompra AS FHCOMPRA,
+             m.tipodcto AS TIPODCTO,
+             m.nrodcto AS NRODCTO,
+             'CEL' AS LINEA,
+             '' AS MEDIOPAG,
+             m.producto AS PRODUCTO
+            FROM micelu_backup.mvtrade m
+            WHERE m.nit = %s
+                AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+            ORDER BY m.fhcompra DESC;
+            """
+            
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            cursor_pg.execute(query_postgres, (documento,))
+            results_pg = cursor_pg.fetchall()
+            cursor_pg.close()
+            conn_pg.close()
+            results_combinados.extend(results_pg)
+        except Exception as e:
+            print(f"⚠️ Error en PostgreSQL: {e}")
+        
+        # Agrupar por factura
+        facturas_dict = {}
+        for row in results_combinados:
+            key = f"{row[3]}-{row[4]}"  # TIPODCTO-NRODCTO
+            producto_key = f"{key}-{row[7]}"  # key-PRODUCTO
+            
+            # Convertir fecha
+            fecha_str = row[2]
+            try:
+                if isinstance(fecha_str, str) and '/' in fecha_str:
+                    fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
+                elif isinstance(fecha_str, datetime):
+                    fecha_compra = fecha_str
+                else:
+                    fecha_compra = datetime.now()
+            except:
+                fecha_compra = datetime.now()
+            
+            if key not in facturas_dict:
+                facturas_dict[key] = {
+                    'items': {},
+                    'lineas': set(),
+                    'mediopag': row[6].strip() if row[6] else '',
+                    'total_venta': 0,
+                    'fecha_compra': fecha_compra
+                }
+            
+            if producto_key not in facturas_dict[key]['items']:
+                facturas_dict[key]['items'][producto_key] = row
+                facturas_dict[key]['total_venta'] += float(row[1])
+                if row[5]:
+                    facturas_dict[key]['lineas'].add(str(row[5]).upper())
+        
+        # Calcular puntos con retraso
+        total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
+        
+        # Agregar referidos
+        referidos = Referidos.query.filter_by(documento_referido=documento).all()
+        total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
+        total_puntos_disponibles += total_referidos_puntos
+        
+        # Actualizar base de datos
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        
+        if cliente_esta_migrado(documento):
+            # Usuario ya migrado - actualizar sistema viejo para compatibilidad
+            if puntos_usuario:
+                puntos_usuario.total_puntos = total_puntos_disponibles
+                puntos_usuario.ultima_actualizacion = datetime.now()
+            else:
+                nuevo_usuario = Puntos_Clientes(
+                    documento=documento,
+                    total_puntos=total_puntos_disponibles,
+                    puntos_redimidos='0',
+                    puntos_regalo=0
+                )
+                db.session.add(nuevo_usuario)
+            db.session.commit()
+        else:
+            # Usuario no migrado - actualizar sistema viejo
+            if puntos_usuario:
+                puntos_usuario.total_puntos = total_puntos_disponibles
+                puntos_usuario.ultima_actualizacion = datetime.now()
+                db.session.commit()
+            else:
+                nuevo_usuario = Puntos_Clientes(
+                    documento=documento,
+                    total_puntos=total_puntos_disponibles,
+                    puntos_redimidos='0',
+                    puntos_regalo=0
+                )
+                db.session.add(nuevo_usuario)
+                db.session.commit()
+        
+        # Calcular puntos finales usando sistema híbrido
         total_puntos = calcular_puntos_con_fallback(documento)
         
         print(f"🔍 DEBUG quesonpuntos: Total puntos finales: {total_puntos}")
         
-        # Obtener usuario y puntos DESPUÉS de calcular (para evitar sesión cerrada)
+        # Obtener usuario
         usuario = Usuario.query.filter_by(documento=documento).first()
         puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         
-        # Actualizar timestamp si está migrado
-        try:
-            if puntos_usuario and cliente_esta_migrado(documento):
-                puntos_usuario.ultima_actualizacion = datetime.now()
-                db.session.commit()
-        except Exception as e:
-            print(f"⚠️ Error actualizando timestamp: {e}")
-            db.session.rollback()
-        
         return render_template('puntos.html', 
                                total_puntos=total_puntos, 
-                               puntos_pendientes=0,
+                               puntos_pendientes=total_puntos_pendientes,
                                usuario=usuario,
                                puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0)
     
@@ -1352,13 +1527,24 @@ def quesonpuntos():
         traceback.print_exc()
         db.session.rollback()
         
-        # NO redirigir al login, mostrar error pero mantener sesión
-        flash('Error al cargar puntos. Por favor intenta de nuevo.', 'error')
-        return render_template('puntos.html', 
-                               total_puntos=0, 
-                               puntos_pendientes=0,
-                               usuario=Usuario.query.filter_by(documento=documento).first(),
-                               puntos_regalo=0)
+        # Intentar mostrar al menos los puntos guardados
+        try:
+            usuario = Usuario.query.filter_by(documento=documento).first()
+            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+            total_puntos = calcular_puntos_con_fallback(documento)
+            
+            return render_template('puntos.html', 
+                                   total_puntos=total_puntos, 
+                                   puntos_pendientes=0,
+                                   usuario=usuario,
+                                   puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0)
+        except:
+            flash('Error al cargar puntos. Por favor intenta de nuevo.', 'error')
+            return render_template('puntos.html', 
+                                   total_puntos=0, 
+                                   puntos_pendientes=0,
+                                   usuario=Usuario.query.filter_by(documento=documento).first(),
+                                   puntos_regalo=0)
 
 @app.route('/test_imei_samples')
 @login_required
@@ -2198,6 +2384,132 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                     db.session.add(nuevo_usuario)
                     db.session.commit()
                     print(f"✅ DEBUG crear_usuario: Usuario creado exitosamente")
+                    
+                    # ============================================================================
+                    # CREAR TRANSACCIONES INICIALES DE PUNTOS
+                    # Calcular puntos desde AMBAS fuentes (SQL Server + PostgreSQL)
+                    # ============================================================================
+                    try:
+                        print(f"🔄 Calculando puntos iniciales para {documento}...")
+                        
+                        # Consultar compras de AMBAS fuentes
+                        results_compras = []
+                        
+                        # SQL Server (2026+)
+                        try:
+                            conn_sql = obtener_conexion_bd()
+                            cursor_sql = cursor_sql.cursor()
+                            query_compras_sql = """
+                            SELECT DISTINCT
+                             m.PRODUCTO_NOMBRE, CAST(m.VLRVENTA AS DECIMAL(15,2)), m.FHCOMPRA,
+                             m.TIPODCTO, m.NRODCTO, m.LINEA, '', m.PRODUCTO
+                            FROM MVTRADE m
+                            WHERE m.IDENTIFICACION = ?
+                                AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+                                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+                            """
+                            cursor_sql.execute(query_compras_sql, (documento,))
+                            results_compras.extend(cursor_sql.fetchall())
+                            cursor_sql.close()
+                            conn_sql.close()
+                        except:
+                            pass
+                        
+                        # PostgreSQL (2025-)
+                        try:
+                            conn_pg = obtener_conexion_bd_backup()
+                            cursor_pg = conn_pg.cursor()
+                            query_compras_pg = """
+                            SELECT DISTINCT
+                             m.nombre, CAST(m.vlrventa AS DECIMAL(15,2)), m.fhcompra,
+                             m.tipodcto, m.nrodcto, 'CEL', '', m.producto
+                            FROM micelu_backup.mvtrade m
+                            WHERE m.nit = %s
+                                AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+                            """
+                            cursor_pg.execute(query_compras_pg, (documento,))
+                            results_compras.extend(cursor_pg.fetchall())
+                            cursor_pg.close()
+                            conn_pg.close()
+                        except:
+                            pass
+                        
+                        if results_compras:
+                            # Agrupar por factura y calcular puntos
+                            facturas_dict = {}
+                            for row in results_compras:
+                                key = f"{row[3]}-{row[4]}"
+                                producto_key = f"{key}-{row[7]}"
+                                
+                                fecha_str = row[2]
+                                try:
+                                    if isinstance(fecha_str, str) and '/' in fecha_str:
+                                        fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
+                                    elif isinstance(fecha_str, datetime):
+                                        fecha_compra = fecha_str
+                                    else:
+                                        fecha_compra = datetime.now()
+                                except:
+                                    fecha_compra = datetime.now()
+                                
+                                if key not in facturas_dict:
+                                    facturas_dict[key] = {
+                                        'items': {},
+                                        'lineas': set(),
+                                        'mediopag': '',
+                                        'total_venta': 0,
+                                        'fecha_compra': fecha_compra
+                                    }
+                                
+                                if producto_key not in facturas_dict[key]['items']:
+                                    facturas_dict[key]['items'][producto_key] = row
+                                    facturas_dict[key]['total_venta'] += float(row[1])
+                                    if row[5]:
+                                        facturas_dict[key]['lineas'].add(str(row[5]).upper())
+                            
+                            # Calcular puntos con retraso
+                            total_puntos_disponibles, _, _ = calcular_puntos_con_retraso(facturas_dict, documento)
+                            
+                            # Crear registro en Puntos_Clientes
+                            nuevo_puntos = Puntos_Clientes(
+                                documento=documento,
+                                total_puntos=total_puntos_disponibles,
+                                puntos_redimidos='0',
+                                puntos_regalo=0,
+                                fecha_registro=datetime.now(),
+                                puntos_disponibles=total_puntos_disponibles
+                            )
+                            db.session.add(nuevo_puntos)
+                            
+                            # Crear transacción inicial en el sistema nuevo
+                            crear_transaccion_manual(
+                                documento=documento,
+                                tipo='ACUMULACION',
+                                puntos=total_puntos_disponibles,
+                                descripcion=f'Puntos iniciales al registrarse - {len(facturas_dict)} facturas',
+                                referencia='REGISTRO_INICIAL'
+                            )
+                            
+                            db.session.commit()
+                            print(f"✅ Puntos iniciales creados: {total_puntos_disponibles} puntos")
+                        else:
+                            # Sin compras, crear registro con 0 puntos
+                            nuevo_puntos = Puntos_Clientes(
+                                documento=documento,
+                                total_puntos=0,
+                                puntos_redimidos='0',
+                                puntos_regalo=0,
+                                fecha_registro=datetime.now(),
+                                puntos_disponibles=0
+                            )
+                            db.session.add(nuevo_puntos)
+                            db.session.commit()
+                            print(f"✅ Usuario sin compras, registro creado con 0 puntos")
+                            
+                    except Exception as e:
+                        print(f"⚠️ Error calculando puntos iniciales: {e}")
+                        db.session.rollback()
  
         return True
  
@@ -5220,34 +5532,152 @@ def admin_auditoria():
 @app.route('/admin/api/cliente/<documento>')
 @login_required
 def admin_get_cliente(documento):
-    """Obtener información de un cliente para auditoría"""
+    """Obtener información de un cliente para auditoría - Busca en todas las fuentes"""
     try:
-        # Buscar cliente
+        # 1. Buscar cliente en tabla Usuario (registrado en sistema de puntos)
         usuario = Usuario.query.filter_by(documento=documento).first()
-        if not usuario:
+        
+        if usuario:
+            # Cliente registrado - calcular puntos desde compras
+            print(f"🔍 Cliente {documento} registrado, calculando puntos...")
+            
+            # Calcular puntos usando el sistema híbrido
+            puntos_disponibles = calcular_puntos_con_fallback(documento)
+            
+            cliente_info = {
+                'documento': usuario.documento,
+                'nombre': usuario.nombre,
+                'email': usuario.email,
+                'telefono': usuario.telefono,
+                'puntos_disponibles': puntos_disponibles,
+                'migrado': cliente_esta_migrado(documento),
+                'registrado': True
+            }
+            
             return jsonify({
-                'success': False,
-                'message': 'Cliente no encontrado'
-            }), 404
+                'success': True,
+                'cliente': cliente_info
+            })
         
-        # Calcular puntos disponibles
-        puntos_disponibles = calcular_puntos_con_fallback(documento)
+        # 2. Cliente NO registrado - Buscar en AMBAS fuentes y calcular puntos
+        print(f"🔍 Cliente {documento} no registrado, buscando en compras y calculando puntos...")
         
-        cliente_info = {
-            'documento': usuario.documento,
-            'nombre': usuario.nombre,
-            'email': usuario.email,
-            'telefono': usuario.telefono,
-            'puntos_disponibles': puntos_disponibles,
-            'migrado': cliente_esta_migrado(documento)
-        }
+        nombre_cliente = None
+        tiene_compras_sql = False
+        tiene_compras_pg = False
+        total_compras = 0
+        total_ventas = 0
         
+        # Buscar en SQL Server (2026+)
+        try:
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            query_sql = """
+            SELECT 
+                IDENTIFICACION, 
+                NOMBRE_CLIENTE,
+                COUNT(*) as total_compras,
+                SUM(CAST(VLRVENTA AS DECIMAL(15,2))) as total_ventas
+            FROM MVTRADE
+            WHERE IDENTIFICACION = ?
+                AND CAST(VLRVENTA AS DECIMAL(15,2)) > 0
+                AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB')
+            GROUP BY IDENTIFICACION, NOMBRE_CLIENTE
+            """
+            cursor_sql.execute(query_sql, (documento,))
+            result_sql = cursor_sql.fetchone()
+            cursor_sql.close()
+            conn_sql.close()
+            
+            if result_sql:
+                nombre_cliente = result_sql[1]
+                tiene_compras_sql = True
+                total_compras += result_sql[2] or 0
+                total_ventas += float(result_sql[3]) if result_sql[3] else 0
+                print(f"✅ SQL Server: {result_sql[2]} compras, ${result_sql[3]}")
+        except Exception as e:
+            print(f"⚠️ Error buscando en SQL Server: {e}")
+        
+        # Buscar en PostgreSQL (2025-)
+        try:
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            query_pg = """
+            SELECT 
+                m.nit,
+                m.nombrecliente,
+                COUNT(*) as total_compras,
+                SUM(CAST(m.vlrventa AS DECIMAL(15,2))) as total_ventas
+            FROM micelu_backup.mvtrade m
+            WHERE m.nit = %s
+                AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+            GROUP BY m.nit, m.nombrecliente
+            """
+            cursor_pg.execute(query_pg, (documento,))
+            result_pg = cursor_pg.fetchone()
+            cursor_pg.close()
+            conn_pg.close()
+            
+            if result_pg:
+                if not nombre_cliente:
+                    nombre_cliente = result_pg[1]
+                tiene_compras_pg = True
+                total_compras += result_pg[2] or 0
+                total_ventas += float(result_pg[3]) if result_pg[3] else 0
+                print(f"✅ PostgreSQL: {result_pg[2]} compras, ${result_pg[3]}")
+        except Exception as e:
+            print(f"⚠️ Error buscando en PostgreSQL: {e}")
+        
+        # 3. Si se encontró en alguna fuente, calcular puntos y retornar
+        if tiene_compras_sql or tiene_compras_pg:
+            # Calcular puntos aproximados
+            obtener_puntos_valor = maestros.query.with_entities(maestros.obtener_puntos).first()
+            if obtener_puntos_valor:
+                puntos_calculados = int(total_ventas // obtener_puntos_valor[0])
+            else:
+                puntos_calculados = 0
+            
+            fuentes = []
+            if tiene_compras_sql:
+                fuentes.append("SQL Server (2026+)")
+            if tiene_compras_pg:
+                fuentes.append("PostgreSQL (2025-)")
+            
+            mensaje = f'Cliente encontrado en {" y ".join(fuentes)} con {total_compras} compras'
+            
+            cliente_info = {
+                'documento': documento,
+                'nombre': nombre_cliente or 'Nombre no disponible',
+                'email': None,
+                'telefono': None,
+                'puntos_disponibles': puntos_calculados,
+                'migrado': False,
+                'registrado': False,
+                'tiene_compras_sql': tiene_compras_sql,
+                'tiene_compras_pg': tiene_compras_pg,
+                'total_compras': total_compras,
+                'total_ventas': int(total_ventas),
+                'mensaje': mensaje
+            }
+            
+            print(f"✅ Cliente no registrado: {total_compras} compras, ${total_ventas}, {puntos_calculados} puntos")
+            
+            return jsonify({
+                'success': True,
+                'cliente': cliente_info
+            })
+        
+        # 4. Cliente no encontrado en ninguna parte
         return jsonify({
-            'success': True,
-            'cliente': cliente_info
-        })
+            'success': False,
+            'message': f'Cliente con documento {documento} no encontrado en el sistema ni en compras'
+        }), 404
         
     except Exception as e:
+        print(f"❌ Error en admin_get_cliente: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'message': str(e)
