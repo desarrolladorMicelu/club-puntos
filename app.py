@@ -2772,6 +2772,64 @@ def obtener_conexion_bd_backup():
         print(f"❌ Error conectando a PostgreSQL: {e}")
         raise
 
+def obtener_datos_sharepoint():
+    """
+    Obtiene todos los datos de compras desde PostgreSQL y los retorna como DataFrame.
+    Esta función reemplaza la lectura de SharePoint para el dashboard de auditoría.
+    """
+    try:
+        query_postgres = """
+        SELECT DISTINCT
+         m.nit AS IDENTIFICACION,
+         m.nombre AS PRODUCTO,
+         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+         m.fhcompra AS FHCOMPRA,
+         m.tipodcto AS TIPODCTO,
+         m.nrodcto AS NRODCTO,
+         'CEL' AS LINEA,
+         '' AS MEDIOPAG
+        FROM micelu_backup.mvtrade m
+        WHERE CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+        ORDER BY m.fhcompra DESC;
+        """
+        
+        conn_pg = obtener_conexion_bd_backup()
+        
+        # Usar pandas para leer directamente a DataFrame
+        df = pd.read_sql_query(query_postgres, conn_pg)
+        conn_pg.close()
+        
+        # Debug: ver qué columnas se obtuvieron
+        print(f"📋 Columnas obtenidas: {df.columns.tolist()}")
+        
+        # Normalizar nombres de columnas a mayúsculas
+        df.columns = df.columns.str.upper()
+        
+        # Convertir fechas de texto DD/MM/YYYY a datetime
+        def convertir_fecha(fecha_str):
+            try:
+                if isinstance(fecha_str, str) and '/' in fecha_str:
+                    return datetime.strptime(fecha_str, '%d/%m/%Y')
+                elif isinstance(fecha_str, datetime):
+                    return fecha_str
+                else:
+                    return datetime.now()
+            except:
+                return datetime.now()
+        
+        if 'FHCOMPRA' in df.columns:
+            df['FHCOMPRA'] = df['FHCOMPRA'].apply(convertir_fecha)
+        
+        print(f"✅ Datos obtenidos: {len(df)} registros de compras")
+        return df
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo datos: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros, tipo_consulta='historial'):
     """
     Ejecuta consulta en SQL Server primero, si no hay resultados consulta PostgreSQL
@@ -5594,6 +5652,465 @@ def admin_estadisticas_puntos():
         })
         
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/historial_compras')
+@login_required
+def admin_historial_compras():
+    """Obtener historial de compras combinando SQL Server (2026+) y PostgreSQL (2025-)"""
+    try:
+        # Obtener parámetros
+        limite = request.args.get('limite', 25, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        cliente_busqueda = request.args.get('cliente', '', type=str).strip()
+        fecha_desde = request.args.get('fecha_desde', '', type=str)
+        fecha_hasta = request.args.get('fecha_hasta', '', type=str)
+        
+        # ============================================================================
+        # CONSULTA 1: SQL SERVER (OFIMA) - Datos de 2026 en adelante
+        # ============================================================================
+        query_sql_server = """
+        SELECT DISTINCT
+         m.IDENTIFICACION,
+         m.PRODUCTO_NOMBRE,
+         CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
+         m.FHCOMPRA,
+         m.TIPODCTO,
+         m.NRODCTO,
+         m.LINEA,
+         '' AS MEDIOPAG
+        FROM MVTRADE m
+        WHERE CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+            AND YEAR(CAST(m.FHCOMPRA AS DATE)) >= 2026
+        """
+        
+        # ============================================================================
+        # CONSULTA 2: POSTGRESQL - Datos de 2025 hacia atrás
+        # ============================================================================
+        query_postgres = """
+        SELECT DISTINCT
+         m.nit AS IDENTIFICACION,
+         m.nombre AS PRODUCTO_NOMBRE,
+         CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+         m.fhcompra AS FHCOMPRA,
+         m.tipodcto AS TIPODCTO,
+         m.nrodcto AS NRODCTO,
+         'CEL' AS LINEA,
+         '' AS MEDIOPAG
+        FROM micelu_backup.mvtrade m
+        WHERE CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+        """
+        
+        params_sql = []
+        params_pg = []
+        
+        # Filtro por cliente
+        if cliente_busqueda:
+            usuarios = Usuario.query.filter(
+                db.or_(
+                    Usuario.documento.ilike(f'%{cliente_busqueda}%'),
+                    Usuario.nombre.ilike(f'%{cliente_busqueda}%')
+                )
+            ).all()
+            
+            if usuarios:
+                documentos = [u.documento for u in usuarios]
+                placeholders_sql = ','.join(['?'] * len(documentos))
+                placeholders_pg = ','.join(['%s'] * len(documentos))
+                query_sql_server += f" AND m.IDENTIFICACION IN ({placeholders_sql})"
+                query_postgres += f" AND m.nit IN ({placeholders_pg})"
+                params_sql.extend(documentos)
+                params_pg.extend(documentos)
+            else:
+                return jsonify({
+                    'success': True,
+                    'compras': [],
+                    'total': 0,
+                    'limite': limite,
+                    'offset': offset
+                })
+        
+        # Filtro por fechas
+        if fecha_desde:
+            fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d')
+            query_sql_server += " AND CAST(m.FHCOMPRA AS DATE) >= ?"
+            params_sql.append(fecha_desde_dt.strftime('%Y-%m-%d'))
+            
+            fecha_desde_str = fecha_desde_dt.strftime('%d/%m/%Y')
+            query_postgres += " AND TO_DATE(m.fhcompra, 'DD/MM/YYYY') >= TO_DATE(%s, 'DD/MM/YYYY')"
+            params_pg.append(fecha_desde_str)
+        
+        if fecha_hasta:
+            fecha_hasta_dt = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            query_sql_server += " AND CAST(m.FHCOMPRA AS DATE) <= ?"
+            params_sql.append(fecha_hasta_dt.strftime('%Y-%m-%d'))
+            
+            fecha_hasta_str = fecha_hasta_dt.strftime('%d/%m/%Y')
+            query_postgres += " AND TO_DATE(m.fhcompra, 'DD/MM/YYYY') <= TO_DATE(%s, 'DD/MM/YYYY')"
+            params_pg.append(fecha_hasta_str)
+        
+        # Agregar ordenamiento
+        query_sql_server += " ORDER BY m.FHCOMPRA DESC"
+        query_postgres += " ORDER BY m.fhcompra DESC"
+        
+        # ============================================================================
+        # EJECUTAR AMBAS CONSULTAS Y COMBINAR RESULTADOS
+        # ============================================================================
+        resultados_combinados = []
+        
+        # Consultar SQL Server (2026+)
+        try:
+            print("🔄 Consultando SQL Server (2026+)...")
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            cursor_sql.execute(query_sql_server, params_sql)
+            results_sql = cursor_sql.fetchall()
+            cursor_sql.close()
+            conn_sql.close()
+            print(f"✅ SQL Server: {len(results_sql)} registros")
+            resultados_combinados.extend(results_sql)
+        except Exception as e:
+            print(f"⚠️ Error en SQL Server: {e}")
+        
+        # Consultar PostgreSQL (2025-)
+        try:
+            print("🔄 Consultando PostgreSQL (2025-)...")
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            cursor_pg.execute(query_postgres, params_pg)
+            results_pg = cursor_pg.fetchall()
+            cursor_pg.close()
+            conn_pg.close()
+            print(f"✅ PostgreSQL: {len(results_pg)} registros")
+            resultados_combinados.extend(results_pg)
+        except Exception as e:
+            print(f"⚠️ Error en PostgreSQL: {e}")
+        
+        # Ordenar resultados combinados por fecha descendente
+        resultados_combinados.sort(key=lambda x: x[3] if isinstance(x[3], datetime) else datetime.strptime(x[3], '%d/%m/%Y') if '/' in str(x[3]) else datetime.now(), reverse=True)
+        
+        # Contar total
+        total = len(resultados_combinados)
+        
+        # Aplicar paginación
+        resultados_paginados = resultados_combinados[offset:offset + limite]
+        
+        # Procesar resultados
+        resultado = []
+        obtener_puntos_valor = maestros.query.with_entities(maestros.obtener_puntos).first()
+        
+        for row in resultados_paginados:
+            documento = str(row[0])
+            
+            # Obtener nombre del cliente
+            usuario = Usuario.query.filter_by(documento=documento).first()
+            nombre_cliente = usuario.nombre if usuario else 'Desconocido'
+            
+            # Convertir fecha
+            fecha_compra = row[3]
+            if isinstance(fecha_compra, str) and '/' in fecha_compra:
+                fecha_compra = datetime.strptime(fecha_compra, '%d/%m/%Y')
+            elif not isinstance(fecha_compra, datetime):
+                fecha_compra = datetime.now()
+            
+            # Calcular puntos
+            valor_venta = float(row[2])
+            if obtener_puntos_valor:
+                puntos = int(valor_venta // obtener_puntos_valor[0])
+            else:
+                puntos = 0
+            
+            resultado.append({
+                'fecha_compra': fecha_compra.strftime('%Y-%m-%d'),
+                'documento': documento,
+                'nombre_cliente': nombre_cliente,
+                'producto_nombre': row[1],
+                'valor_venta': valor_venta,
+                'puntos_ganados': puntos,
+                'tipo_documento': row[4],
+                'nro_documento': row[5],
+                'disponible': True
+            })
+        
+        return jsonify({
+            'success': True,
+            'compras': resultado,
+            'total': total,
+            'limite': limite,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        print(f"Error en historial_compras: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/estadisticas_compras')
+@login_required
+def admin_estadisticas_compras():
+    """Obtener estadísticas de compras combinando SQL Server (2026+) y PostgreSQL (2025-)"""
+    try:
+        # Obtener parámetros de filtro
+        cliente_busqueda = request.args.get('cliente', '', type=str).strip()
+        fecha_desde = request.args.get('fecha_desde', '', type=str)
+        fecha_hasta = request.args.get('fecha_hasta', '', type=str)
+        
+        # ============================================================================
+        # CONSULTA SQL SERVER (2026+)
+        # ============================================================================
+        query_sql_server = """
+        SELECT 
+         COUNT(*) as total_compras,
+         SUM(CAST(m.VLRVENTA AS DECIMAL(15,2))) as total_ventas,
+         COUNT(DISTINCT m.IDENTIFICACION) as clientes_unicos
+        FROM MVTRADE m
+        WHERE CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+            AND YEAR(CAST(m.FHCOMPRA AS DATE)) >= 2026
+        """
+        
+        # ============================================================================
+        # CONSULTA POSTGRESQL (2025-)
+        # ============================================================================
+        query_postgres = """
+        SELECT 
+         COUNT(*) as total_compras,
+         SUM(CAST(m.vlrventa AS DECIMAL(15,2))) as total_ventas,
+         COUNT(DISTINCT m.nit) as clientes_unicos
+        FROM micelu_backup.mvtrade m
+        WHERE CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+        """
+        
+        params_sql = []
+        params_pg = []
+        
+        # Filtro por cliente
+        if cliente_busqueda:
+            usuarios = Usuario.query.filter(
+                db.or_(
+                    Usuario.documento.ilike(f'%{cliente_busqueda}%'),
+                    Usuario.nombre.ilike(f'%{cliente_busqueda}%')
+                )
+            ).all()
+            
+            if usuarios:
+                documentos = [u.documento for u in usuarios]
+                placeholders_sql = ','.join(['?'] * len(documentos))
+                placeholders_pg = ','.join(['%s'] * len(documentos))
+                query_sql_server += f" AND m.IDENTIFICACION IN ({placeholders_sql})"
+                query_postgres += f" AND m.nit IN ({placeholders_pg})"
+                params_sql.extend(documentos)
+                params_pg.extend(documentos)
+        
+        # Filtro por fechas
+        if fecha_desde:
+            fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d')
+            query_sql_server += " AND CAST(m.FHCOMPRA AS DATE) >= ?"
+            params_sql.append(fecha_desde_dt.strftime('%Y-%m-%d'))
+            
+            fecha_desde_str = fecha_desde_dt.strftime('%d/%m/%Y')
+            query_postgres += " AND TO_DATE(m.fhcompra, 'DD/MM/YYYY') >= TO_DATE(%s, 'DD/MM/YYYY')"
+            params_pg.append(fecha_desde_str)
+        
+        if fecha_hasta:
+            fecha_hasta_dt = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            query_sql_server += " AND CAST(m.FHCOMPRA AS DATE) <= ?"
+            params_sql.append(fecha_hasta_dt.strftime('%Y-%m-%d'))
+            
+            fecha_hasta_str = fecha_hasta_dt.strftime('%d/%m/%Y')
+            query_postgres += " AND TO_DATE(m.fhcompra, 'DD/MM/YYYY') <= TO_DATE(%s, 'DD/MM/YYYY')"
+            params_pg.append(fecha_hasta_str)
+        
+        # Ejecutar ambas consultas
+        total_compras = 0
+        total_ventas = 0
+        clientes_unicos_set = set()
+        
+        # SQL Server
+        try:
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            cursor_sql.execute(query_sql_server, params_sql)
+            result_sql = cursor_sql.fetchone()
+            cursor_sql.close()
+            conn_sql.close()
+            
+            if result_sql:
+                total_compras += result_sql[0] or 0
+                total_ventas += float(result_sql[1]) if result_sql[1] else 0
+                # No podemos combinar clientes únicos fácilmente, lo haremos después
+        except Exception as e:
+            print(f"⚠️ Error en SQL Server estadísticas: {e}")
+        
+        # PostgreSQL
+        try:
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            cursor_pg.execute(query_postgres, params_pg)
+            result_pg = cursor_pg.fetchone()
+            cursor_pg.close()
+            conn_pg.close()
+            
+            if result_pg:
+                total_compras += result_pg[0] or 0
+                total_ventas += float(result_pg[1]) if result_pg[1] else 0
+        except Exception as e:
+            print(f"⚠️ Error en PostgreSQL estadísticas: {e}")
+        
+        # Para clientes únicos, hacer una consulta combinada simple
+        try:
+            # SQL Server
+            conn_sql = obtener_conexion_bd()
+            cursor_sql = conn_sql.cursor()
+            query_clientes_sql = "SELECT DISTINCT IDENTIFICACION FROM MVTRADE WHERE CAST(VLRVENTA AS DECIMAL(15,2)) > 0 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB') AND YEAR(CAST(FHCOMPRA AS DATE)) >= 2026"
+            cursor_sql.execute(query_clientes_sql)
+            for row in cursor_sql.fetchall():
+                clientes_unicos_set.add(str(row[0]))
+            cursor_sql.close()
+            conn_sql.close()
+        except:
+            pass
+        
+        try:
+            # PostgreSQL
+            conn_pg = obtener_conexion_bd_backup()
+            cursor_pg = conn_pg.cursor()
+            query_clientes_pg = "SELECT DISTINCT nit FROM micelu_backup.mvtrade WHERE CAST(vlrventa AS DECIMAL(15,2)) > 0 AND (tipodcto = 'FM' OR tipodcto = 'FB')"
+            cursor_pg.execute(query_clientes_pg)
+            for row in cursor_pg.fetchall():
+                clientes_unicos_set.add(str(row[0]))
+            cursor_pg.close()
+            conn_pg.close()
+        except:
+            pass
+        
+        clientes_unicos = len(clientes_unicos_set)
+        
+        # Calcular puntos totales
+        obtener_puntos_valor = maestros.query.with_entities(maestros.obtener_puntos).first()
+        if obtener_puntos_valor:
+            total_puntos = int(total_ventas // obtener_puntos_valor[0])
+        else:
+            total_puntos = 0
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': {
+                'total_compras': total_compras,
+                'total_puntos': total_puntos,
+                'clientes_unicos': clientes_unicos
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error en estadisticas_compras: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': {
+                'total_compras': total_compras,
+                'total_ventas': int(total_ventas),
+                'total_puntos': total_puntos,
+                'clientes_unicos': clientes_unicos
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error en estadisticas_compras: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+        return jsonify({
+            'success': True,
+            'estadisticas': {
+                'total_compras': total_compras,
+                'total_ventas': int(total_ventas),
+                'total_puntos': total_puntos,
+                'clientes_unicos': clientes_unicos
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error en estadisticas_compras: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/admin/api/exportar_compras')
+@login_required
+def admin_exportar_compras():
+    """Exportar historial de compras a Excel"""
+    try:
+        # Obtener parámetros de filtro
+        cliente_busqueda = request.args.get('cliente', '', type=str).strip()
+        fecha_desde = request.args.get('fecha_desde', '', type=str)
+        fecha_hasta = request.args.get('fecha_hasta', '', type=str)
+        
+        # Obtener datos de SharePoint
+        df = obtener_datos_sharepoint()
+        
+        if df is None or df.empty:
+            return jsonify({
+                'success': False,
+                'message': 'No hay datos para exportar'
+            }), 400
+        
+        # Aplicar filtros (misma lógica que historial_compras)
+        if cliente_busqueda:
+            usuarios = Usuario.query.filter(
+                db.or_(
+                    Usuario.documento.ilike(f'%{cliente_busqueda}%'),
+                    Usuario.nombre.ilike(f'%{cliente_busqueda}%')
+                )
+            ).all()
+            
+            if usuarios:
+                documentos = [u.documento for u in usuarios]
+                df = df[df['IDENTIFICACION'].astype(str).isin(documentos)]
+        
+        if fecha_desde:
+            fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d')
+            df = df[pd.to_datetime(df['FHCOMPRA']) >= fecha_desde_dt]
+        
+        if fecha_hasta:
+            fecha_hasta_dt = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            df = df[pd.to_datetime(df['FHCOMPRA']) <= fecha_hasta_dt]
+        
+        # Crear archivo Excel en memoria
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Compras', index=False)
+        
+        output.seek(0)
+        
+        # Generar nombre de archivo con fecha
+        fecha_actual = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'historial_compras_{fecha_actual}.xlsx'
+        
+        return Response(
+            output.getvalue(),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+        
+    except Exception as e:
+        print(f"Error en exportar_compras: {e}")
         return jsonify({
             'success': False,
             'message': str(e)

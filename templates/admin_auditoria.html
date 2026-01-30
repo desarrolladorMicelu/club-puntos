@@ -415,6 +415,12 @@
             <i class="fas fa-coins"></i> Puntos por Cliente
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="compras-tab" data-bs-toggle="tab" data-bs-target="#compras-panel" type="button"
+            role="tab" aria-controls="compras-panel" aria-selected="false" onclick="loadHistorialCompras()">
+            <i class="fas fa-shopping-cart"></i> Historial de Compras
+          </button>
+        </li>
       </ul>
 
       <!-- Tab Content -->
@@ -666,6 +672,138 @@
                 </button>
                 <span id="paginaActualPuntos" style="padding: 0 10px; font-weight: 500; color: #495057;">Página 1</span>
                 <button class="btn btn-sm btn-secondary" id="btnNextPuntos" onclick="cambiarPaginaPuntos(1)">
+                  Siguiente <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel de Historial de Compras -->
+        <div class="tab-pane fade" id="compras-panel" role="tabpanel" aria-labelledby="compras-tab">
+          
+          <!-- Buscador de Compras -->
+          <div class="search-section mb-3">
+            <form id="searchComprasForm" onsubmit="event.preventDefault(); buscarCompras();">
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="buscarCompraCliente">Cliente:</label>
+                    <input type="text" class="form-control" id="buscarCompraCliente" name="buscarCompraCliente" 
+                           placeholder="Documento, nombre...">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-group">
+                    <label for="fechaDesde">Desde:</label>
+                    <input type="date" class="form-control" id="fechaDesde" name="fechaDesde">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-group">
+                    <label for="fechaHasta">Hasta:</label>
+                    <input type="date" class="form-control" id="fechaHasta" name="fechaHasta">
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-primary btn-search form-control">
+                      <i class="fas fa-search"></i> Buscar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="limpiarBusquedaCompras()">
+              <i class="fas fa-times"></i> Limpiar búsqueda
+            </button>
+          </div>
+
+          <!-- Estadísticas de Compras -->
+          <div class="row mb-4" id="estadisticasCompras">
+            <div class="col-md-4">
+              <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                  <i class="fas fa-shopping-bag"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="totalCompras">-</h3>
+                  <p>Total Compras</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                  <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="totalPuntosGenerados">-</h3>
+                  <p>Puntos Generados</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-card">
+                <div class="stat-icon bg-info">
+                  <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                  <h3 id="clientesUnicos">-</h3>
+                  <p>Clientes Únicos</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de Historial de Compras -->
+          <div class="results-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="mb-0">Historial de Compras</h4>
+              <button type="button" class="btn btn-info" onclick="loadHistorialCompras()">
+                <i class="fas fa-refresh"></i> Actualizar
+              </button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Documento</th>
+                    <th>Producto</th>
+                    <th>Valor Venta</th>
+                    <th>Puntos</th>
+                    <th>Tipo Doc</th>
+                    <th>Nro Doc</th>
+                  </tr>
+                </thead>
+                <tbody id="comprasTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden"></span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div>
+                <span id="comprasInfo" style="font-weight: 500;">Mostrando 0 de 0 compras</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-secondary" id="btnPrevCompras" onclick="cambiarPaginaCompras(-1)"
+                  disabled>
+                  <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span id="paginaActualCompras" style="padding: 0 10px; font-weight: 500; color: #495057;">Página 1</span>
+                <button class="btn btn-sm btn-secondary" id="btnNextCompras" onclick="cambiarPaginaCompras(1)">
                   Siguiente <i class="fas fa-chevron-right"></i>
                 </button>
               </div>
@@ -1246,6 +1384,181 @@
     document.getElementById('puntos-tab').addEventListener('shown.bs.tab', function () {
       if (document.getElementById('puntosTableBody').innerHTML.includes('spinner-border')) {
         loadPuntosClientes();
+      }
+    });
+
+    // ============================================================================
+    // FUNCIONES PARA HISTORIAL DE COMPRAS
+    // ============================================================================
+
+    let currentPageCompras = 0;
+    let limiteCompras = 25;
+    let totalCompras = 0;
+    let filtrosCompras = {};
+
+    function loadHistorialCompras() {
+      // Cargar estadísticas
+      loadEstadisticasCompras();
+
+      // Mostrar indicador de carga
+      const tbody = document.getElementById('comprasTableBody');
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden"></span></div></td></tr>';
+
+      // Construir URL con filtros
+      const offset = currentPageCompras * limiteCompras;
+      let url = `/admin/api/historial_compras?limite=${limiteCompras}&offset=${offset}`;
+      
+      if (filtrosCompras.cliente) {
+        url += `&cliente=${encodeURIComponent(filtrosCompras.cliente)}`;
+      }
+      if (filtrosCompras.fechaDesde) {
+        url += `&fecha_desde=${filtrosCompras.fechaDesde}`;
+      }
+      if (filtrosCompras.fechaHasta) {
+        url += `&fecha_hasta=${filtrosCompras.fechaHasta}`;
+      }
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            totalCompras = data.total;
+            showCompras(data.compras);
+            updatePaginacionCompras();
+          } else {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error al cargar compras: ' + data.message + '</td></tr>';
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error al cargar compras. Por favor, intenta de nuevo.</td></tr>';
+        });
+    }
+
+    function loadEstadisticasCompras() {
+      let url = '/admin/api/estadisticas_compras';
+      
+      // Agregar filtros si existen
+      const params = new URLSearchParams();
+      if (filtrosCompras.cliente) params.append('cliente', filtrosCompras.cliente);
+      if (filtrosCompras.fechaDesde) params.append('fecha_desde', filtrosCompras.fechaDesde);
+      if (filtrosCompras.fechaHasta) params.append('fecha_hasta', filtrosCompras.fechaHasta);
+      
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const stats = data.estadisticas;
+            document.getElementById('totalCompras').textContent = stats.total_compras.toLocaleString();
+            document.getElementById('totalPuntosGenerados').textContent = stats.total_puntos.toLocaleString();
+            document.getElementById('clientesUnicos').textContent = stats.clientes_unicos.toLocaleString();
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    }
+
+    function showCompras(compras) {
+      const tbody = document.getElementById('comprasTableBody');
+      tbody.innerHTML = '';
+
+      if (compras.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay compras registradas</td></tr>';
+        return;
+      }
+
+      compras.forEach(compra => {
+        const row = document.createElement('tr');
+        
+        const fechaCompra = new Date(compra.fecha_compra);
+
+        row.innerHTML = `
+          <td>${fechaCompra.toLocaleDateString()}</td>
+          <td>${compra.nombre_cliente}</td>
+          <td>${compra.documento}</td>
+          <td>${compra.producto_nombre}</td>
+          <td>$${compra.valor_venta.toLocaleString()}</td>
+          <td class="points-positive">${compra.puntos_ganados.toLocaleString()}</td>
+          <td>${compra.tipo_documento}</td>
+          <td>${compra.nro_documento}</td>
+        `;
+
+        tbody.appendChild(row);
+      });
+    }
+
+    function buscarCompras() {
+      const cliente = document.getElementById('buscarCompraCliente').value.trim();
+      const fechaDesde = document.getElementById('fechaDesde').value;
+      const fechaHasta = document.getElementById('fechaHasta').value;
+      
+      filtrosCompras = {
+        cliente: cliente,
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta
+      };
+      
+      currentPageCompras = 0;
+      loadHistorialCompras();
+    }
+
+    function limpiarBusquedaCompras() {
+      document.getElementById('buscarCompraCliente').value = '';
+      document.getElementById('fechaDesde').value = '';
+      document.getElementById('fechaHasta').value = '';
+      filtrosCompras = {};
+      currentPageCompras = 0;
+      loadHistorialCompras();
+    }
+
+    function cambiarPaginaCompras(direccion) {
+      currentPageCompras += direccion;
+      if (currentPageCompras < 0) currentPageCompras = 0;
+      loadHistorialCompras();
+    }
+
+    function updatePaginacionCompras() {
+      const inicio = currentPageCompras * limiteCompras + 1;
+      const fin = Math.min((currentPageCompras + 1) * limiteCompras, totalCompras);
+      const totalPaginas = Math.ceil(totalCompras / limiteCompras);
+
+      document.getElementById('comprasInfo').textContent =
+        `Mostrando ${inicio} - ${fin} de ${totalCompras} compras`;
+      
+      document.getElementById('paginaActualCompras').textContent =
+        `Página ${currentPageCompras + 1} de ${totalPaginas}`;
+
+      document.getElementById('btnPrevCompras').disabled = currentPageCompras === 0;
+      document.getElementById('btnNextCompras').disabled = fin >= totalCompras;
+    }
+
+    function exportarComprasExcel() {
+      // Construir URL con filtros
+      let url = '/admin/api/exportar_compras?';
+      
+      if (filtrosCompras.cliente) {
+        url += `cliente=${encodeURIComponent(filtrosCompras.cliente)}&`;
+      }
+      if (filtrosCompras.fechaDesde) {
+        url += `fecha_desde=${filtrosCompras.fechaDesde}&`;
+      }
+      if (filtrosCompras.fechaHasta) {
+        url += `fecha_hasta=${filtrosCompras.fechaHasta}&`;
+      }
+      
+      // Abrir en nueva ventana para descargar
+      window.open(url, '_blank');
+    }
+
+    // Cargar compras automáticamente cuando se abre el tab
+    document.getElementById('compras-tab').addEventListener('shown.bs.tab', function () {
+      if (document.getElementById('comprasTableBody').innerHTML.includes('spinner-border')) {
+        loadHistorialCompras();
       }
     });
   </script>
