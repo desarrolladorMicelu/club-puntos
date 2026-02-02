@@ -225,27 +225,42 @@ class Transacciones_Puntos(db.Model):
 def cliente_esta_migrado(documento):
     """Verifica si un cliente ya está en el nuevo sistema"""
     try:
-        return Transacciones_Puntos.query.filter_by(documento=documento).first() is not None
-    except:
+        resultado = Transacciones_Puntos.query.filter_by(documento=documento).first() is not None
+        return resultado
+    except Exception as e:
+        print(f"❌ Error verificando migración: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
         return False
 
 def calcular_puntos_nuevo_sistema(documento):
     """Calcula puntos disponibles usando el nuevo sistema de transacciones"""
-    hoy = datetime.now()
-    
-    # Usar ORM en lugar de SQL raw
-    puntos_activos = db.session.query(
-        db.func.coalesce(db.func.sum(Transacciones_Puntos.puntos), 0)
-    ).filter(
-        Transacciones_Puntos.documento == documento,
-        Transacciones_Puntos.estado == 'ACTIVO',
-        db.or_(
-            Transacciones_Puntos.fecha_vencimiento.is_(None),
-            Transacciones_Puntos.fecha_vencimiento >= hoy
-        )
-    ).scalar()
-    
-    return int(puntos_activos or 0)
+    try:
+        hoy = datetime.now()
+        
+        # Usar ORM en lugar de SQL raw
+        puntos_activos = db.session.query(
+            db.func.coalesce(db.func.sum(Transacciones_Puntos.puntos), 0)
+        ).filter(
+            Transacciones_Puntos.documento == documento,
+            Transacciones_Puntos.estado == 'ACTIVO',
+            db.or_(
+                Transacciones_Puntos.fecha_vencimiento.is_(None),
+                Transacciones_Puntos.fecha_vencimiento >= hoy
+            )
+        ).scalar()
+        
+        return int(puntos_activos or 0)
+    except Exception as e:
+        print(f"❌ Error en calcular_puntos_nuevo_sistema: {e}")
+        # Limpiar la sesión en caso de error
+        try:
+            db.session.rollback()
+        except:
+            pass
+        return 0
 
 def calcular_puntos_sistema_viejo(documento):
     """Calcula puntos usando el sistema viejo (tu código actual)"""
@@ -269,12 +284,13 @@ def calcular_puntos_con_fallback(documento):
             return 0
     except Exception as e:
         print(f"❌ Error calculando puntos para {documento}: {e}")
-        # Hacer rollback y cerrar sesión para limpiar el estado
+        import traceback
+        traceback.print_exc()
+        # Hacer rollback y limpiar sesión
         try:
             db.session.rollback()
-            db.session.close()
-        except:
-            pass
+        except Exception as rollback_error:
+            print(f"❌ Error en rollback: {rollback_error}")
         # NO usar sistema viejo - retornar 0 para forzar migración
         print(f"❌ Error crítico - Cliente {documento} debe ser migrado manualmente")
         return 0
@@ -964,15 +980,12 @@ def mhistorialcompras():
             ORDER BY m.FHCOMPRA DESC
             """
             
-            conn_sql = obtener_conexion_bd()
-            cursor_sql = conn_sql.cursor()
-            cursor_sql.execute(query_sql_server, (documento,))
-            results_sql = cursor_sql.fetchall()
-            cursor_sql.close()
-            conn_sql.close()
-            
-            print(f"✅ SQL Server: {len(results_sql)} registros")
-            results_combinados.extend(results_sql)
+            results_sql = ejecutar_query_sql_server(query_sql_server, (documento,))
+            if results_sql:
+                print(f"✅ SQL Server: {len(results_sql)} registros")
+                results_combinados.extend(results_sql)
+            else:
+                print("⚠️ SQL Server: Sin resultados")
         except Exception as e:
             print(f"⚠️ Error en SQL Server: {e}")
         
@@ -1393,13 +1406,9 @@ def quesonpuntos():
             ORDER BY m.FHCOMPRA DESC
             """
             
-            conn_sql = obtener_conexion_bd()
-            cursor_sql = conn_sql.cursor()
-            cursor_sql.execute(query_sql_server, (documento,))
-            results_sql = cursor_sql.fetchall()
-            cursor_sql.close()
-            conn_sql.close()
-            results_combinados.extend(results_sql)
+            results_sql = ejecutar_query_sql_server(query_sql_server, (documento,))
+            if results_sql:
+                results_combinados.extend(results_sql)
         except Exception as e:
             print(f"⚠️ Error en SQL Server: {e}")
         
@@ -2398,7 +2407,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                         # SQL Server (2026+)
                         try:
                             conn_sql = obtener_conexion_bd()
-                            cursor_sql = cursor_sql.cursor()
+                            cursor_sql = conn_sql.cursor()
                             query_compras_sql = """
                             SELECT DISTINCT
                              m.PRODUCTO_NOMBRE, CAST(m.VLRVENTA AS DECIMAL(15,2)), m.FHCOMPRA,
@@ -2412,7 +2421,8 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                             results_compras.extend(cursor_sql.fetchall())
                             cursor_sql.close()
                             conn_sql.close()
-                        except:
+                        except Exception as e_sql:
+                            print(f"⚠️ Error consultando SQL Server: {e_sql}")
                             pass
                         
                         # PostgreSQL (2025-)
@@ -2432,7 +2442,8 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                             results_compras.extend(cursor_pg.fetchall())
                             cursor_pg.close()
                             conn_pg.close()
-                        except:
+                        except Exception as e_pg:
+                            print(f"⚠️ Error consultando PostgreSQL: {e_pg}")
                             pass
                         
                         if results_compras:
@@ -3065,8 +3076,48 @@ def check_coupon_status():
 #inicio de la cobertura
     
 def obtener_conexion_bd():
-    conn = pyodbc.connect('''DRIVER={ODBC Driver 18 for SQL Server};SERVER=172.200.231.95;DATABASE=MICELU1;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''')
+    """
+    Crea una nueva conexión a SQL Server con autocommit habilitado.
+    IMPORTANTE: Siempre cerrar la conexión después de usarla.
+    """
+    conn = pyodbc.connect(
+        '''DRIVER={ODBC Driver 18 for SQL Server};SERVER=172.200.231.95;DATABASE=MICELU1;UID=db_read;PWD=mHRL_<='(],#aZ)T"A3QeD;TrustServerCertificate=yes''',
+        autocommit=True  # Evita problemas de transacciones cerradas
+    )
     return conn
+
+def ejecutar_query_sql_server(query, params=None):
+    """
+    Ejecuta una query en SQL Server de forma segura usando context manager.
+    Retorna los resultados o None si hay error.
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = obtener_conexion_bd()
+        cursor = conn.cursor()
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        results = cursor.fetchall()
+        return results
+    except Exception as e:
+        print(f"❌ Error ejecutando query SQL Server: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
 
 def obtener_conexion_bd_backup():
     """Conexión a PostgreSQL con datos históricos"""
@@ -3159,12 +3210,7 @@ def ejecutar_consulta_con_fallback(query_sql_server, query_postgres, parametros,
     # 1. Intentar primero en SQL Server (MICELU1)
     try:
         print("🔄 Consultando SQL Server (MICELU1)...")
-        conn_sql = obtener_conexion_bd()
-        cursor_sql = conn_sql.cursor()
-        cursor_sql.execute(query_sql_server, params_sql)
-        resultados = cursor_sql.fetchall()
-        cursor_sql.close()
-        conn_sql.close()
+        resultados = ejecutar_query_sql_server(query_sql_server, params_sql)
         
         if resultados:
             print(f"✅ SQL Server devolvió {len(resultados)} registros")
@@ -3276,8 +3322,6 @@ def buscar_por_imei(imei):
             # Intentar SQL Server primero
             try:
                 print("🔍 Intentando SQL Server...")
-                conn_sql = obtener_conexion_bd()
-                cursor_sql = conn_sql.cursor()
                 
                 query_sql_server = """
                 SELECT DISTINCT TOP 1
@@ -3296,10 +3340,7 @@ def buscar_por_imei(imei):
                 ORDER BY v.Fecha_Inicial DESC
                 """
                 
-                cursor_sql.execute(query_sql_server, (variante, variante[:15]))
-                resultados = cursor_sql.fetchall()
-                cursor_sql.close()
-                conn_sql.close()
+                resultados = ejecutar_query_sql_server(query_sql_server, (variante, variante[:15]))
                 
                 if resultados:
                     print(f"✅ SQL Server encontró resultado")
@@ -5570,8 +5611,6 @@ def admin_get_cliente(documento):
         
         # Buscar en SQL Server (2026+)
         try:
-            conn_sql = obtener_conexion_bd()
-            cursor_sql = conn_sql.cursor()
             query_sql = """
             SELECT 
                 IDENTIFICACION, 
@@ -5584,12 +5623,10 @@ def admin_get_cliente(documento):
                 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB')
             GROUP BY IDENTIFICACION, NOMBRE_CLIENTE
             """
-            cursor_sql.execute(query_sql, (documento,))
-            result_sql = cursor_sql.fetchone()
-            cursor_sql.close()
-            conn_sql.close()
+            results_sql = ejecutar_query_sql_server(query_sql, (documento,))
             
-            if result_sql:
+            if results_sql:
+                result_sql = results_sql[0]
                 nombre_cliente = result_sql[1]
                 tiene_compras_sql = True
                 total_compras += result_sql[2] or 0
@@ -6196,14 +6233,12 @@ def admin_historial_compras():
         # Consultar SQL Server (2026+)
         try:
             print("🔄 Consultando SQL Server (2026+)...")
-            conn_sql = obtener_conexion_bd()
-            cursor_sql = conn_sql.cursor()
-            cursor_sql.execute(query_sql_server, params_sql)
-            results_sql = cursor_sql.fetchall()
-            cursor_sql.close()
-            conn_sql.close()
-            print(f"✅ SQL Server: {len(results_sql)} registros")
-            resultados_combinados.extend(results_sql)
+            results_sql = ejecutar_query_sql_server(query_sql_server, params_sql)
+            if results_sql:
+                print(f"✅ SQL Server: {len(results_sql)} registros")
+                resultados_combinados.extend(results_sql)
+            else:
+                print("⚠️ SQL Server: Sin resultados")
         except Exception as e:
             print(f"⚠️ Error en SQL Server: {e}")
         
@@ -6368,14 +6403,10 @@ def admin_estadisticas_compras():
         
         # SQL Server
         try:
-            conn_sql = obtener_conexion_bd()
-            cursor_sql = conn_sql.cursor()
-            cursor_sql.execute(query_sql_server, params_sql)
-            result_sql = cursor_sql.fetchone()
-            cursor_sql.close()
-            conn_sql.close()
+            results_sql = ejecutar_query_sql_server(query_sql_server, params_sql)
             
-            if result_sql:
+            if results_sql:
+                result_sql = results_sql[0]
                 total_compras += result_sql[0] or 0
                 total_ventas += float(result_sql[1]) if result_sql[1] else 0
                 # No podemos combinar clientes únicos fácilmente, lo haremos después
@@ -6400,14 +6431,11 @@ def admin_estadisticas_compras():
         # Para clientes únicos, hacer una consulta combinada simple
         try:
             # SQL Server
-            conn_sql = obtener_conexion_bd()
-            cursor_sql = conn_sql.cursor()
             query_clientes_sql = "SELECT DISTINCT IDENTIFICACION FROM MVTRADE WHERE CAST(VLRVENTA AS DECIMAL(15,2)) > 0 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB') AND YEAR(CAST(FHCOMPRA AS DATE)) >= 2026"
-            cursor_sql.execute(query_clientes_sql)
-            for row in cursor_sql.fetchall():
-                clientes_unicos_set.add(str(row[0]))
-            cursor_sql.close()
-            conn_sql.close()
+            results_clientes_sql = ejecutar_query_sql_server(query_clientes_sql)
+            if results_clientes_sql:
+                for row in results_clientes_sql:
+                    clientes_unicos_set.add(str(row[0]))
         except:
             pass
         
