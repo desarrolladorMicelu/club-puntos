@@ -974,7 +974,7 @@ def mhistorialcompras():
              '' AS MEDIOPAG,
              m.NOMBRE AS PRODUCTO
             FROM MVTRADE m
-            WHERE m.IDENTIFICACION = ?
+            WHERE m.NIT = ?
                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
                 AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
             ORDER BY m.FHCOMPRA DESC
@@ -1400,7 +1400,7 @@ def quesonpuntos():
              '' AS MEDIOPAG,
              m.NOMBRE AS PRODUCTO
             FROM MVTRADE m
-            WHERE m.IDENTIFICACION = ?
+            WHERE m.NIT = ?
                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
                 AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
             ORDER BY m.FHCOMPRA DESC
@@ -2413,7 +2413,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                              m.NOMBRE, CAST(m.VLRVENTA AS DECIMAL(15,2)), m.FHCOMPRA,
                              m.TIPODCTO, m.NRODCTO, 'CEL', '', m.NOMBRE
                             FROM MVTRADE m
-                            WHERE m.IDENTIFICACION = ?
+                            WHERE m.NIT = ?
                                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
                                 AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
                             """
@@ -5613,15 +5613,15 @@ def admin_get_cliente(documento):
         try:
             query_sql = """
             SELECT 
-                IDENTIFICACION, 
+                NIT, 
                 NOMBRE_CLIENTE,
                 COUNT(*) as total_compras,
                 SUM(CAST(VLRVENTA AS DECIMAL(15,2))) as total_ventas
             FROM MVTRADE
-            WHERE IDENTIFICACION = ?
+            WHERE NIT = ?
                 AND CAST(VLRVENTA AS DECIMAL(15,2)) > 0
                 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB')
-            GROUP BY IDENTIFICACION, NOMBRE_CLIENTE
+            GROUP BY NIT, NOMBRE_CLIENTE
             """
             results_sql = ejecutar_query_sql_server(query_sql, (documento,))
             
@@ -6141,7 +6141,7 @@ def admin_historial_compras():
         # ============================================================================
         query_sql_server = """
         SELECT DISTINCT
-         m.IDENTIFICACION,
+         m.NIT,
          m.NOMBRE AS PRODUCTO_NOMBRE,
          CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
          m.FHCOMPRA,
@@ -6189,7 +6189,7 @@ def admin_historial_compras():
                 documentos = [u.documento for u in usuarios]
                 placeholders_sql = ','.join(['?'] * len(documentos))
                 placeholders_pg = ','.join(['%s'] * len(documentos))
-                query_sql_server += f" AND m.IDENTIFICACION IN ({placeholders_sql})"
+                query_sql_server += f" AND m.NIT IN ({placeholders_sql})"
                 query_postgres += f" AND m.nit IN ({placeholders_pg})"
                 params_sql.extend(documentos)
                 params_pg.extend(documentos)
@@ -6336,7 +6336,7 @@ def admin_estadisticas_compras():
         SELECT 
          COUNT(*) as total_compras,
          SUM(CAST(m.VLRVENTA AS DECIMAL(15,2))) as total_ventas,
-         COUNT(DISTINCT m.IDENTIFICACION) as clientes_unicos
+         COUNT(DISTINCT m.NIT) as clientes_unicos
         FROM MVTRADE m
         WHERE CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
             AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
@@ -6372,7 +6372,7 @@ def admin_estadisticas_compras():
                 documentos = [u.documento for u in usuarios]
                 placeholders_sql = ','.join(['?'] * len(documentos))
                 placeholders_pg = ','.join(['%s'] * len(documentos))
-                query_sql_server += f" AND m.IDENTIFICACION IN ({placeholders_sql})"
+                query_sql_server += f" AND m.NIT IN ({placeholders_sql})"
                 query_postgres += f" AND m.nit IN ({placeholders_pg})"
                 params_sql.extend(documentos)
                 params_pg.extend(documentos)
@@ -6431,7 +6431,7 @@ def admin_estadisticas_compras():
         # Para clientes únicos, hacer una consulta combinada simple
         try:
             # SQL Server
-            query_clientes_sql = "SELECT DISTINCT IDENTIFICACION FROM MVTRADE WHERE CAST(VLRVENTA AS DECIMAL(15,2)) > 0 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB') AND YEAR(CAST(FHCOMPRA AS DATE)) >= 2026"
+            query_clientes_sql = "SELECT DISTINCT NIT FROM MVTRADE WHERE CAST(VLRVENTA AS DECIMAL(15,2)) > 0 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB') AND YEAR(CAST(FHCOMPRA AS DATE)) >= 2026"
             results_clientes_sql = ejecutar_query_sql_server(query_clientes_sql)
             if results_clientes_sql:
                 for row in results_clientes_sql:
