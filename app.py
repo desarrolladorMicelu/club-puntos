@@ -965,14 +965,14 @@ def mhistorialcompras():
             print("🔄 Consultando SQL Server (2026+)...")
             query_sql_server = """
             SELECT DISTINCT
-             m.PRODUCTO_NOMBRE AS PRODUCTO_NOMBRE,
+             m.NOMBRE AS PRODUCTO_NOMBRE,
              CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
              m.FHCOMPRA AS FHCOMPRA,
              m.TIPODCTO AS TIPODCTO,
              m.NRODCTO AS NRODCTO,
-             m.LINEA AS LINEA,
+             'CEL' AS LINEA,
              '' AS MEDIOPAG,
-             m.PRODUCTO AS PRODUCTO
+             m.NOMBRE AS PRODUCTO
             FROM MVTRADE m
             WHERE m.IDENTIFICACION = ?
                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
@@ -1391,14 +1391,14 @@ def quesonpuntos():
         try:
             query_sql_server = """
             SELECT DISTINCT
-             m.PRODUCTO_NOMBRE AS PRODUCTO_NOMBRE,
+             m.NOMBRE AS PRODUCTO_NOMBRE,
              CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
              m.FHCOMPRA AS FHCOMPRA,
              m.TIPODCTO AS TIPODCTO,
              m.NRODCTO AS NRODCTO,
-             m.LINEA AS LINEA,
+             'CEL' AS LINEA,
              '' AS MEDIOPAG,
-             m.PRODUCTO AS PRODUCTO
+             m.NOMBRE AS PRODUCTO
             FROM MVTRADE m
             WHERE m.IDENTIFICACION = ?
                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
@@ -2410,8 +2410,8 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                             cursor_sql = conn_sql.cursor()
                             query_compras_sql = """
                             SELECT DISTINCT
-                             m.PRODUCTO_NOMBRE, CAST(m.VLRVENTA AS DECIMAL(15,2)), m.FHCOMPRA,
-                             m.TIPODCTO, m.NRODCTO, m.LINEA, '', m.PRODUCTO
+                             m.NOMBRE, CAST(m.VLRVENTA AS DECIMAL(15,2)), m.FHCOMPRA,
+                             m.TIPODCTO, m.NRODCTO, 'CEL', '', m.NOMBRE
                             FROM MVTRADE m
                             WHERE m.IDENTIFICACION = ?
                                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
@@ -6142,12 +6142,12 @@ def admin_historial_compras():
         query_sql_server = """
         SELECT DISTINCT
          m.IDENTIFICACION,
-         m.PRODUCTO_NOMBRE,
+         m.NOMBRE AS PRODUCTO_NOMBRE,
          CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
          m.FHCOMPRA,
          m.TIPODCTO,
          m.NRODCTO,
-         m.LINEA,
+         'CEL' AS LINEA,
          '' AS MEDIOPAG
         FROM MVTRADE m
         WHERE CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
