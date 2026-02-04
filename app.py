@@ -407,16 +407,24 @@ def calcular_puntos_con_fallback(documento):
                 referidos = Referidos.query.filter_by(documento_referido=documento).all()
                 total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos if referido.puntos_obtenidos)
                 total_puntos_disponibles += total_referidos_puntos
-            except:
-                pass
+            except Exception as e:
+                print(f"⚠️ Error consultando referidos: {e}")
+                try:
+                    db.session.rollback()
+                except:
+                    pass
             
             # Restar puntos redimidos
             try:
                 redenciones = historial_beneficio.query.filter_by(documento=documento).all()
                 total_redimido = sum(r.puntos_utilizados for r in redenciones if r.puntos_utilizados)
                 total_puntos_disponibles -= total_redimido
-            except:
-                pass
+            except Exception as e:
+                print(f"⚠️ Error consultando redenciones: {e}")
+                try:
+                    db.session.rollback()
+                except:
+                    pass
             
             print(f"✅ Puntos calculados en tiempo real: {total_puntos_disponibles}")
             return max(0, total_puntos_disponibles)
@@ -1270,30 +1278,43 @@ def mhistorialcompras():
         total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
         
         # Agregar referidos (lógica original - los referidos son inmediatos)
-        referidos = Referidos.query.filter_by(
-            documento_referido=documento).all()
-        total_referidos_puntos = sum(
-            referido.puntos_obtenidos for referido in referidos)
-        total_puntos_disponibles += total_referidos_puntos
-        
-        for referido in referidos:
-            historial.append({
-                "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
-                "PRODUCTO_NOMBRE": f"Referido: {referido.nombre_cliente}",
-                "VLRVENTA": referido.puntos_obtenidos * 100,
-                "TIPODCTO": "Referido",
-                "NRODCTO": str(referido.id),
-                "PUNTOS_GANADOS": referido.puntos_obtenidos,
-                "PUNTOS_PENDIENTES": 0,
-                "LINEA": "REFERIDO",
-                "MEDIOPAG": "",
-                "DISPONIBLE": True
-            })
+        try:
+            referidos = Referidos.query.filter_by(documento_referido=documento).all()
+            total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
+            total_puntos_disponibles += total_referidos_puntos
+            
+            for referido in referidos:
+                historial.append({
+                    "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
+                    "PRODUCTO_NOMBRE": f"Referido: {referido.nombre_cliente}",
+                    "VLRVENTA": referido.puntos_obtenidos * 100,
+                    "TIPODCTO": "Referido",
+                    "NRODCTO": str(referido.id),
+                    "PUNTOS_GANADOS": referido.puntos_obtenidos,
+                    "PUNTOS_PENDIENTES": 0,
+                    "LINEA": "REFERIDO",
+                    "MEDIOPAG": "",
+                    "DISPONIBLE": True
+                })
+        except Exception as e:
+            print(f"⚠️ Error procesando referidos: {e}")
+            try:
+                db.session.rollback()
+            except:
+                pass
         
         # ============================================================================
         # ACTUALIZAR PUNTOS: Sistema híbrido inteligente
         # ============================================================================
-        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        try:
+            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        except Exception as e:
+            print(f"⚠️ Error consultando Puntos_Clientes: {e}")
+            try:
+                db.session.rollback()
+            except:
+                pass
+            puntos_usuario = None
         
         # Verificar si es usuario nuevo (ya está en sistema nuevo)
         if cliente_esta_migrado(documento):
@@ -1357,20 +1378,53 @@ def mhistorialcompras():
         
         print(f"📊 Puntos disponibles: {total_puntos_disponibles}, Puntos pendientes: {total_puntos_pendientes}")
         
+        # Obtener puntos_regalo de forma segura
+        puntos_regalo_valor = 0
+        try:
+            if puntos_usuario:
+                # Refrescar el objeto para evitar problemas de sesión
+                db.session.refresh(puntos_usuario)
+                puntos_regalo_valor = puntos_usuario.puntos_regalo if puntos_usuario.puntos_regalo else 0
+        except Exception as e:
+            print(f"⚠️ Error obteniendo puntos_regalo: {e}")
+            puntos_regalo_valor = 0
+        
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
             total_puntos=total_puntos,
             puntos_pendientes=total_puntos_pendientes,
             usuario=usuario,
-            puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
+            puntos_regalo=puntos_regalo_valor
         )
         
     except Exception as e:
         print(f"❌ Error en mhistorialcompras: {e}")
         import traceback
         traceback.print_exc()
-        return redirect(url_for('login'))
+        
+        # CRÍTICO: Hacer rollback de la transacción abortada
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        # Intentar mostrar la página con datos mínimos
+        try:
+            usuario = Usuario.query.filter_by(documento=documento).first()
+            total_puntos = calcular_puntos_con_fallback(documento)
+            
+            return render_template(
+                'mhistorialcompras.html',
+                historial=[],
+                total_puntos=total_puntos,
+                puntos_pendientes=0,
+                usuario=usuario,
+                puntos_regalo=0
+            )
+        except:
+            # Si todo falla, redirigir al login
+            return redirect(url_for('login'))
 
 @app.route('/mpuntosprincipal')
 @login_required
