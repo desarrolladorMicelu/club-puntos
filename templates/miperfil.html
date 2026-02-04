@@ -73,6 +73,14 @@
                 <li class="nav-item">
                   <a class="nav-link" href="/cobertura" id="coberturaLink">Activa Cobertura</a>
                 </li>
+                {% if is_admin %}
+                <li class="nav-item">
+                  <a class="nav-link" href="/admin/auditoria" style="color: #ff6b35; font-weight: 600;">
+                    <i class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 3px;">admin_panel_settings</i>
+                    Panel Admin
+                  </a>
+                </li>
+                {% endif %}
               </ul>
               
               <!-- User Greeting Section -->

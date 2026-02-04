@@ -46,8 +46,9 @@ app.config['SESSION_COOKIE_NAME'] = 'my_session'
 app.config['SECRET_KEY'] = 'yLxqdG0BGUft0Ep'
 app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
-    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway'
+    'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway',
     #'db3':'postgresql://postgres:123@localhost:5432/Puntos'
+    'db_empleados':'postgresql://postgres:aAB2Be35CBAd2GgA5*DdC45FaCf26G44@viaduct.proxy.rlwy.net:58920/railway'
 }
 
 CLIENTE_ID = os.getenv('CLIENTE_ID')
@@ -186,6 +187,26 @@ class cobertura_clientes(db.Model):
         target.id = f"{target.documento}-{target.imei}"
  
 db.event.listen(cobertura_clientes, 'before_insert', cobertura_clientes.before_insert)
+
+# ============================================================================
+# MODELO: EMPLEADOS (Control de acceso administrativo)
+# ============================================================================
+class Empleado(db.Model):
+    """
+    Tabla de empleados para control de acceso a funciones administrativas.
+    Solo empleados con cargo_new = 'Admin' pueden acceder a /admin/*
+    """
+    __bind_key__ = 'db_empleados'
+    __tablename__ = 'empleados'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cedula = db.Column(db.String(50))
+    cargo_new = db.Column(db.String(100))
+    nombre = db.Column(db.String(200))
+    estado = db.Column(db.Boolean)
+    
+    def __repr__(self):
+        return f'<Empleado {self.nombre} - {self.cargo_new}>'
 
 # ============================================================================
 # NUEVO MODELO: TRANSACCIONES DE PUNTOS (Sistema de Auditoría)
@@ -622,6 +643,74 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+def admin_required(f):
+    """
+    Decorador para proteger rutas administrativas.
+    Solo permite acceso a empleados con cargo_new = 'Admin'
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificar que el usuario esté logueado
+        if 'user_documento' not in session:
+            flash('Debes iniciar sesión para acceder a esta página.', 'error')
+            return redirect(url_for('login'))
+        
+        # Obtener el documento del usuario en sesión
+        documento = session.get('user_documento')
+        
+        try:
+            # Buscar al empleado en la base de datos de empleados
+            empleado = Empleado.query.filter_by(cedula=documento).first()
+            
+            # Verificar si es administrador
+            if not empleado:
+                flash('No tienes permisos para acceder a esta sección. Solo administradores.', 'error')
+                return redirect(url_for('quesonpuntos'))
+            
+            if empleado.cargo_new != 'Admin':
+                flash('No tienes permisos para acceder a esta sección. Solo administradores.', 'error')
+                return redirect(url_for('quesonpuntos'))
+            
+            # Si llegó aquí, es administrador - permitir acceso
+            return f(*args, **kwargs)
+            
+        except Exception as e:
+            print(f"❌ Error verificando permisos de admin: {e}")
+            flash('Error al verificar permisos. Contacta al administrador del sistema.', 'error')
+            return redirect(url_for('quesonpuntos'))
+    
+    return decorated_function
+
+# ============================================================================
+# FUNCIONES HELPER PARA VERIFICACIÓN DE ADMIN
+# ============================================================================
+
+def es_usuario_admin(documento):
+    """
+    Función helper para verificar si un usuario es administrador.
+    Retorna True si el usuario tiene cargo_new = 'Admin', False en caso contrario.
+    """
+    try:
+        empleado = Empleado.query.filter_by(cedula=documento).first()
+        if empleado and empleado.cargo_new == 'Admin':
+            return True
+        return False
+    except Exception as e:
+        print(f"⚠️ Error verificando admin en helper: {e}")
+        return False
+
+@app.context_processor
+def inject_admin_status():
+    """
+    Context processor para hacer disponible el estado de admin en todos los templates.
+    Esto permite mostrar/ocultar elementos según si el usuario es admin.
+    """
+    is_admin = False
+    if 'user_documento' in session:
+        documento = session.get('user_documento')
+        is_admin = es_usuario_admin(documento)
+    return dict(is_admin=is_admin)
  
 @app.route('/recuperar_pass', methods=['GET', 'POST'])
 def recuperar_pass():
@@ -5663,31 +5752,16 @@ def debug_puntos():
 # PANEL DE ADMINISTRACIÓN - AUDITORÍA DE PUNTOS
 # ============================================================================
 
-def es_admin(documento):
-    """Verifica si un usuario es administrador"""
-    # Lista de documentos de administradores
-    admins = ['1036689216']  # Agregar más documentos de admin aquí
-    return documento in admins
-
-def admin_required(f):
-    """Decorador para rutas que requieren permisos de administrador"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        documento = session.get('user_documento')
-        if not documento or not es_admin(documento):
-            flash('Acceso denegado. Se requieren permisos de administrador.', 'error')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 @app.route('/admin/auditoria')
 @login_required
+@admin_required
 def admin_auditoria():
     """Panel principal de auditoría de puntos"""
     return render_template('admin_auditoria.html')
 
 @app.route('/admin/api/cliente/<documento>')
 @login_required
+@admin_required
 def admin_get_cliente(documento):
     """Obtener información de un cliente para auditoría - Busca en todas las fuentes"""
     try:
@@ -5838,6 +5912,7 @@ def admin_get_cliente(documento):
 
 @app.route('/admin/api/transacciones/<documento>')
 @login_required
+@admin_required
 def admin_get_transacciones(documento):
     """Obtener todas las transacciones de un cliente"""
     try:
@@ -5879,6 +5954,7 @@ def admin_get_transacciones(documento):
 
 @app.route('/admin/api/agregar_transaccion', methods=['POST'])
 @login_required
+@admin_required
 def admin_agregar_transaccion():
     """Agregar una nueva transacción (corrección, regalo, etc.)"""
     try:
@@ -5943,6 +6019,7 @@ def admin_agregar_transaccion():
 
 @app.route('/admin/api/anular_transaccion', methods=['POST'])
 @login_required
+@admin_required
 def admin_anular_transaccion():
     """Anular una transacción existente"""
     try:
@@ -6006,6 +6083,7 @@ def admin_anular_transaccion():
 
 @app.route('/admin/api/ultimos_canjeos')
 @login_required
+@admin_required
 def admin_ultimos_canjeos():
     """Obtener los últimos canjeos de puntos de todos los clientes"""
     try:
@@ -6077,6 +6155,7 @@ def admin_ultimos_canjeos():
 
 @app.route('/admin/api/estadisticas_canjeos')
 @login_required
+@admin_required
 def admin_estadisticas_canjeos():
     """Obtener estadísticas de canjeos"""
     try:
@@ -6127,6 +6206,7 @@ def admin_estadisticas_canjeos():
 
 @app.route('/admin/api/puntos_clientes')
 @login_required
+@admin_required
 def admin_puntos_clientes():
     """Obtener lista de clientes con sus puntos disponibles"""
     try:
@@ -6211,6 +6291,7 @@ def admin_puntos_clientes():
 
 @app.route('/admin/api/estadisticas_puntos')
 @login_required
+@admin_required
 def admin_estadisticas_puntos():
     """Obtener estadísticas generales de puntos"""
     try:
@@ -6242,6 +6323,7 @@ def admin_estadisticas_puntos():
 
 @app.route('/admin/api/historial_compras')
 @login_required
+@admin_required
 def admin_historial_compras():
     """Obtener historial de compras combinando SQL Server (2026+) y PostgreSQL (2025-)"""
     try:
@@ -6437,6 +6519,7 @@ def admin_historial_compras():
 
 @app.route('/admin/api/estadisticas_compras')
 @login_required
+@admin_required
 def admin_estadisticas_compras():
     """Obtener estadísticas de compras combinando SQL Server (2026+) y PostgreSQL (2025-)"""
     try:
@@ -6628,6 +6711,7 @@ def admin_estadisticas_compras():
 
 @app.route('/admin/api/exportar_compras')
 @login_required
+@admin_required
 def admin_exportar_compras():
     """Exportar historial de compras a Excel"""
     try:
