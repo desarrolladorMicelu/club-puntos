@@ -273,15 +273,133 @@ def calcular_puntos_sistema_viejo(documento):
 
 def calcular_puntos_con_fallback(documento):
     """
-    Calcula puntos usando SOLO el sistema nuevo.
-    Si el cliente no está migrado, retorna 0 (debe migrarse primero).
+    Calcula puntos usando sistema híbrido:
+    1. Si el cliente está migrado: usa el sistema nuevo de transacciones
+    2. Si NO está migrado: calcula en tiempo real consultando AMBAS bases de datos
     """
     try:
         if cliente_esta_migrado(documento):
+            # Usuario migrado - usar sistema nuevo
             return calcular_puntos_nuevo_sistema(documento)
         else:
-            print(f"⚠️ Cliente {documento} NO está migrado - Retornando 0 puntos")
-            return 0
+            # Usuario NO migrado - calcular en tiempo real desde AMBAS bases de datos
+            print(f"⚠️ Cliente {documento} NO está migrado - Calculando en tiempo real...")
+            
+            results_combinados = []
+            
+            # 1. Consultar SQL Server (Ofima) - Compras 2026+
+            try:
+                query_sql_server = """
+                SELECT DISTINCT
+                 m.NOMBRE AS PRODUCTO_NOMBRE,
+                 CAST(m.VLRVENTA AS DECIMAL(15,2)) AS VLRVENTA,
+                 m.FHCOMPRA AS FHCOMPRA,
+                 m.TIPODCTO AS TIPODCTO,
+                 m.NRODCTO AS NRODCTO,
+                 'CEL' AS LINEA,
+                 '' AS MEDIOPAG,
+                 m.NOMBRE AS PRODUCTO
+                FROM MVTRADE m
+                WHERE m.NIT = ?
+                    AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+                    AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+                """
+                
+                results_sql = ejecutar_query_sql_server(query_sql_server, (documento,))
+                if results_sql:
+                    print(f"✅ SQL Server: {len(results_sql)} registros")
+                    results_combinados.extend(results_sql)
+            except Exception as e:
+                print(f"⚠️ Error en SQL Server: {e}")
+            
+            # 2. Consultar PostgreSQL - Compras 2025-
+            try:
+                conn_pg = obtener_conexion_bd_backup()
+                cursor_pg = conn_pg.cursor()
+                query_postgres = """
+                SELECT DISTINCT
+                 m.nombre AS PRODUCTO_NOMBRE,
+                 CAST(m.vlrventa AS DECIMAL(15,2)) AS VLRVENTA,
+                 m.fhcompra AS FHCOMPRA,
+                 m.tipodcto AS TIPODCTO,
+                 m.nrodcto AS NRODCTO,
+                 'CEL' AS LINEA,
+                 '' AS MEDIOPAG,
+                 m.producto AS PRODUCTO
+                FROM micelu_backup.mvtrade m
+                WHERE m.nit = %s
+                    AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+                    AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+                """
+                cursor_pg.execute(query_postgres, (documento,))
+                results_pg = cursor_pg.fetchall()
+                cursor_pg.close()
+                conn_pg.close()
+                if results_pg:
+                    print(f"✅ PostgreSQL: {len(results_pg)} registros")
+                    results_combinados.extend(results_pg)
+            except Exception as e:
+                print(f"⚠️ Error en PostgreSQL: {e}")
+            
+            if not results_combinados:
+                print(f"⚠️ No se encontraron compras para {documento}")
+                return 0
+            
+            # Agrupar por factura
+            facturas_dict = {}
+            for row in results_combinados:
+                key = f"{row[3]}-{row[4]}"  # TIPODCTO-NRODCTO
+                producto_key = f"{key}-{row[7]}"  # key-PRODUCTO
+                
+                # Convertir fecha
+                fecha_str = row[2]
+                try:
+                    if isinstance(fecha_str, str) and '/' in fecha_str:
+                        fecha_compra = datetime.strptime(fecha_str, '%d/%m/%Y')
+                    elif isinstance(fecha_str, datetime):
+                        fecha_compra = fecha_str
+                    else:
+                        fecha_compra = datetime.now()
+                except:
+                    fecha_compra = datetime.now()
+                
+                if key not in facturas_dict:
+                    facturas_dict[key] = {
+                        'items': {},
+                        'lineas': set(),
+                        'mediopag': row[6].strip() if row[6] else '',
+                        'total_venta': 0,
+                        'fecha_compra': fecha_compra
+                    }
+                
+                if producto_key not in facturas_dict[key]['items']:
+                    facturas_dict[key]['items'][producto_key] = row
+                    facturas_dict[key]['total_venta'] += float(row[1])
+                    if row[5]:
+                        facturas_dict[key]['lineas'].add(str(row[5]).upper())
+            
+            # Calcular puntos con retraso
+            total_puntos_disponibles, _, _ = calcular_puntos_con_retraso(facturas_dict, documento)
+            
+            # Agregar puntos de referidos
+            try:
+                referidos = Referidos.query.filter_by(documento_referido=documento).all()
+                total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos if referido.puntos_obtenidos)
+                total_puntos_disponibles += total_referidos_puntos
+            except:
+                pass
+            
+            # Restar puntos redimidos
+            try:
+                redenciones = historial_beneficio.query.filter_by(documento=documento).all()
+                total_redimido = sum(r.puntos_utilizados for r in redenciones if r.puntos_utilizados)
+                total_puntos_disponibles -= total_redimido
+            except:
+                pass
+            
+            print(f"✅ Puntos calculados en tiempo real: {total_puntos_disponibles}")
+            return max(0, total_puntos_disponibles)
+            
     except Exception as e:
         print(f"❌ Error calculando puntos para {documento}: {e}")
         import traceback
@@ -291,8 +409,6 @@ def calcular_puntos_con_fallback(documento):
             db.session.rollback()
         except Exception as rollback_error:
             print(f"❌ Error en rollback: {rollback_error}")
-        # NO usar sistema viejo - retornar 0 para forzar migración
-        print(f"❌ Error crítico - Cliente {documento} debe ser migrado manualmente")
         return 0
 
 def crear_transaccion_manual(documento, tipo, puntos, descripcion, referencia=None, fecha_compra=None):
