@@ -1,10 +1,12 @@
 import base64
 from functools import wraps
+import hashlib
 import io
 import os
 import random
 import secrets
 import string
+import threading
 import msal
 from time import timezone
 from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for, Response
@@ -33,6 +35,8 @@ from io import BytesIO
 import traceback
 from apscheduler.triggers.cron import CronTrigger
 import pytz
+from cloudflare_r2_service import r2_service
+from pdf_consentimiento_service import generar_hash_firma, generar_pdf_consentimiento
 
  
 app = Flask(__name__)
@@ -240,6 +244,30 @@ class Transacciones_Puntos(db.Model):
         return f'<Transaccion {self.tipo_transaccion} {self.puntos}pts Doc:{self.documento}>'
 
 # ============================================================================
+# MODELO: CONSENTIMIENTOS DIGITALES (Firma Electrónica)
+# ============================================================================
+class Consentimientos_Digitales(db.Model):
+    """
+    Tabla para almacenar consentimientos digitales con firma electrónica SHA-256.
+    Registra la aceptación del contrato de Cloud Computing por parte del usuario.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'consentimientos_digitales'
+    __table_args__ = {'schema': 'plan_beneficios'}
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    documento = db.Column(db.String(50), nullable=False, index=True)
+    fecha_aceptacion = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    ip_usuario = db.Column(db.String(50))
+    hash_firma = db.Column(db.String(64), nullable=False, unique=True)  # SHA-256
+    url_documento_r2 = db.Column(db.String(500))
+    estado_subida = db.Column(db.String(20), default='PENDIENTE')  # PENDIENTE, EXITOSO, FALLIDO
+    creado_en = db.Column(db.DateTime, default=datetime.now)
+    
+    def __repr__(self):
+        return f'<Consentimiento Doc:{self.documento} Hash:{self.hash_firma[:16]}...>'
+
+# ============================================================================
 # FUNCIONES DEL NUEVO SISTEMA DE PUNTOS
 # ============================================================================
 
@@ -407,24 +435,16 @@ def calcular_puntos_con_fallback(documento):
                 referidos = Referidos.query.filter_by(documento_referido=documento).all()
                 total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos if referido.puntos_obtenidos)
                 total_puntos_disponibles += total_referidos_puntos
-            except Exception as e:
-                print(f"⚠️ Error consultando referidos: {e}")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
+            except:
+                pass
             
             # Restar puntos redimidos
             try:
                 redenciones = historial_beneficio.query.filter_by(documento=documento).all()
                 total_redimido = sum(r.puntos_utilizados for r in redenciones if r.puntos_utilizados)
                 total_puntos_disponibles -= total_redimido
-            except Exception as e:
-                print(f"⚠️ Error consultando redenciones: {e}")
-                try:
-                    db.session.rollback()
-                except:
-                    pass
+            except:
+                pass
             
             print(f"✅ Puntos calculados en tiempo real: {total_puntos_disponibles}")
             return max(0, total_puntos_disponibles)
@@ -1278,43 +1298,30 @@ def mhistorialcompras():
         total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
         
         # Agregar referidos (lógica original - los referidos son inmediatos)
-        try:
-            referidos = Referidos.query.filter_by(documento_referido=documento).all()
-            total_referidos_puntos = sum(referido.puntos_obtenidos for referido in referidos)
-            total_puntos_disponibles += total_referidos_puntos
-            
-            for referido in referidos:
-                historial.append({
-                    "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
-                    "PRODUCTO_NOMBRE": f"Referido: {referido.nombre_cliente}",
-                    "VLRVENTA": referido.puntos_obtenidos * 100,
-                    "TIPODCTO": "Referido",
-                    "NRODCTO": str(referido.id),
-                    "PUNTOS_GANADOS": referido.puntos_obtenidos,
-                    "PUNTOS_PENDIENTES": 0,
-                    "LINEA": "REFERIDO",
-                    "MEDIOPAG": "",
-                    "DISPONIBLE": True
-                })
-        except Exception as e:
-            print(f"⚠️ Error procesando referidos: {e}")
-            try:
-                db.session.rollback()
-            except:
-                pass
+        referidos = Referidos.query.filter_by(
+            documento_referido=documento).all()
+        total_referidos_puntos = sum(
+            referido.puntos_obtenidos for referido in referidos)
+        total_puntos_disponibles += total_referidos_puntos
+        
+        for referido in referidos:
+            historial.append({
+                "FHCOMPRA": referido.fecha_referido.strftime('%Y-%m-%d'),
+                "PRODUCTO_NOMBRE": f"Referido: {referido.nombre_cliente}",
+                "VLRVENTA": referido.puntos_obtenidos * 100,
+                "TIPODCTO": "Referido",
+                "NRODCTO": str(referido.id),
+                "PUNTOS_GANADOS": referido.puntos_obtenidos,
+                "PUNTOS_PENDIENTES": 0,
+                "LINEA": "REFERIDO",
+                "MEDIOPAG": "",
+                "DISPONIBLE": True
+            })
         
         # ============================================================================
         # ACTUALIZAR PUNTOS: Sistema híbrido inteligente
         # ============================================================================
-        try:
-            puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
-        except Exception as e:
-            print(f"⚠️ Error consultando Puntos_Clientes: {e}")
-            try:
-                db.session.rollback()
-            except:
-                pass
-            puntos_usuario = None
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
         
         # Verificar si es usuario nuevo (ya está en sistema nuevo)
         if cliente_esta_migrado(documento):
@@ -1378,53 +1385,20 @@ def mhistorialcompras():
         
         print(f"📊 Puntos disponibles: {total_puntos_disponibles}, Puntos pendientes: {total_puntos_pendientes}")
         
-        # Obtener puntos_regalo de forma segura
-        puntos_regalo_valor = 0
-        try:
-            if puntos_usuario:
-                # Refrescar el objeto para evitar problemas de sesión
-                db.session.refresh(puntos_usuario)
-                puntos_regalo_valor = puntos_usuario.puntos_regalo if puntos_usuario.puntos_regalo else 0
-        except Exception as e:
-            print(f"⚠️ Error obteniendo puntos_regalo: {e}")
-            puntos_regalo_valor = 0
-        
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
             total_puntos=total_puntos,
             puntos_pendientes=total_puntos_pendientes,
             usuario=usuario,
-            puntos_regalo=puntos_regalo_valor
+            puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
         )
         
     except Exception as e:
         print(f"❌ Error en mhistorialcompras: {e}")
         import traceback
         traceback.print_exc()
-        
-        # CRÍTICO: Hacer rollback de la transacción abortada
-        try:
-            db.session.rollback()
-        except:
-            pass
-        
-        # Intentar mostrar la página con datos mínimos
-        try:
-            usuario = Usuario.query.filter_by(documento=documento).first()
-            total_puntos = calcular_puntos_con_fallback(documento)
-            
-            return render_template(
-                'mhistorialcompras.html',
-                historial=[],
-                total_puntos=total_puntos,
-                puntos_pendientes=0,
-                usuario=usuario,
-                puntos_regalo=0
-            )
-        except:
-            # Si todo falla, redirigir al login
-            return redirect(url_for('login'))
+        return redirect(url_for('login'))
 
 @app.route('/mpuntosprincipal')
 @login_required
@@ -2358,6 +2332,10 @@ def logout():
 @app.route('/crear_pass', methods=['GET', 'POST'])
 def crear_pass():
     if request.method == 'POST':
+        print(f"\n{'='*60}")
+        print(f"🔵 INICIO REGISTRO DE USUARIO")
+        print(f"{'='*60}")
+        
         documento = request.form['documento']
         contraseña = request.form['contraseña']
         confirmar_contraseña = request.form['confirmar_contraseña']
@@ -2366,6 +2344,17 @@ def crear_pass():
         ciudad = request.form['ciudad']
         barrio = request.form['barrio']
         fecha_nacimiento = datetime.strptime(request.form['fecha_nacimiento'], '%Y-%m-%d').date()
+        
+        # NUEVO: Capturar datos para consentimiento digital
+        acepta_consentimiento = request.form.get('acepta_consentimiento') == 'true'
+        ip_usuario = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+        user_agent = request.headers.get('User-Agent', 'unknown')
+        fecha_aceptacion = datetime.now()
+        
+        # Validar que aceptó el consentimiento
+        if not acepta_consentimiento:
+            flash('Debes aceptar el contrato de servicio para continuar', 'danger')
+            return redirect(url_for('crear_pass'))
        
         # Verificaciones existentes (sin cambios)
         if contraseña != confirmar_contraseña:
@@ -2380,16 +2369,24 @@ def crear_pass():
             flash('La contraseña no puede contener espacios', 'danger')
             return redirect(url_for('crear_pass'))
        
+        print(f"🔍 Verificando si usuario existe...")
         usuario_existente = Usuario.query.filter_by(documento=documento).first()
         if usuario_existente:
+            print(f"❌ Usuario {documento} ya existe")
             flash('Este documento ya ha sido registrado', 'danger')
             return redirect(url_for('crear_pass'))
+        
+        print(f"✅ Usuario no existe, procediendo a crear...")
        
         try:
+            print(f"🔄 Llamando a crear_usuario()...")
             # Crear el usuario en la tabla original
             usuario_creado = crear_usuario(documento, contraseña, habeasdata, genero, ciudad, barrio, fecha_nacimiento)
+            
+            print(f"🔍 Resultado de crear_usuario: {usuario_creado}")
            
             if usuario_creado:
+                print(f"✅ Usuario creado exitosamente, continuando con puntos y consentimiento...")
                 # Crear el registro en la tabla Puntos_Clientes (para compatibilidad)
                 nuevo_punto_cliente = Puntos_Clientes(
                     documento=documento,
@@ -2418,6 +2415,82 @@ def crear_pass():
                 db.session.add(transaccion_inicial)
                 
                 db.session.commit()
+                
+                # ============================================================================
+                # CONSENTIMIENTO DIGITAL: Generar hash y PDF
+                # ============================================================================
+                try:
+                    # Obtener datos del usuario recién creado
+                    usuario = Usuario.query.filter_by(documento=documento).first()
+                    nombre_completo = usuario.nombre if usuario else "Usuario"
+                    email = usuario.email if usuario else ""
+                    telefono = usuario.telefono if usuario else ""
+                    
+                    # Generar hash SHA-256
+                    hash_firma = generar_hash_firma(
+                        documento=documento,
+                        nombre=nombre_completo,
+                        email=email,
+                        telefono=telefono,
+                        fecha=fecha_aceptacion.isoformat(),
+                        ip=ip_usuario,
+                        user_agent=user_agent,
+                        version='2026'
+                    )
+                    
+                    # Guardar consentimiento en BD
+                    consentimiento = Consentimientos_Digitales(
+                        documento=documento,
+                        fecha_aceptacion=fecha_aceptacion,
+                        ip_usuario=ip_usuario,
+                        hash_firma=hash_firma,
+                        estado_subida='PENDIENTE'
+                    )
+                    db.session.add(consentimiento)
+                    db.session.flush()  # Obtener el ID sin hacer commit
+                    
+                    # Generar PDF con el contrato
+                    datos_pdf = {
+                        'documento': documento,
+                        'nombre': nombre_completo,
+                        'email': email,
+                        'telefono': telefono,
+                        'ciudad': ciudad,
+                        'fecha': fecha_aceptacion.strftime('%Y-%m-%d %H:%M:%S'),
+                        'ip': ip_usuario,
+                        'user_agent': user_agent
+                    }
+                    
+                    pdf_bytes = generar_pdf_consentimiento(datos_pdf, hash_firma)
+                    
+                    # Subir a Cloudflare R2 de forma asíncrona
+                    def callback_r2(success, url, error, consent_id):
+                        """Callback para actualizar BD después de subir a R2"""
+                        with app.app_context():
+                            try:
+                                consent = Consentimientos_Digitales.query.get(consent_id)
+                                if consent:
+                                    if success:
+                                        consent.url_documento_r2 = url
+                                        consent.estado_subida = 'EXITOSO'
+                                        db.session.commit()
+                                    else:
+                                        consent.estado_subida = 'FALLIDO'
+                                        db.session.commit()
+                                        app.logger.error(f"Error subiendo PDF a R2: {error}")
+                            except Exception as e:
+                                app.logger.error(f"Error en callback R2: {e}")
+                                db.session.rollback()
+                    
+                    # Iniciar subida asíncrona
+                    r2_service.upload_async(pdf_bytes, documento, str(consentimiento.id), callback_r2)
+                    
+                    db.session.commit()  # Commit final con consentimiento
+                    
+                except Exception as e:
+                    app.logger.error(f"Error procesando consentimiento digital: {e}")
+                    # No bloqueamos el registro si falla el consentimiento
+                    db.session.rollback()
                
                 flash('Usuario creado exitosamente. <a href="/" class="alert-link">Inicia sesión aquí</a>', 'success')
             else:
@@ -4604,7 +4677,7 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
         resultados, fuente = ejecutar_consulta_con_fallback(
             query_sql_server, 
             query_postgres, 
-            ((fecha_inicio, fecha_fin), (fecha_inicio, fecha_fin)),
+            (fecha_inicio, fecha_fin),
             tipo_consulta='cobertura'
         )
         

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/login.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/consentimiento_modal.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
@@ -43,7 +44,7 @@
                 <h4 class="title-text">REGISTRO DE USUARIO</h4>
             </div>
      
-            <form action="{{ url_for('crear_pass') }}" method="POST">
+            <form id="registro-form" action="{{ url_for('crear_pass') }}" method="POST">
                 <div class="row">
                     <!-- Columna izquierda -->
                     <div class="col-md-6 mb-3">
@@ -77,7 +78,7 @@
                     </div>
      
                     <div class="col-md-6 mb-3">
-                        <label for="barrio" class="label-text">
+                        <label for="barrio" class="label-text required">
                             <i class="fas fa-map-marker-alt"></i> Barrio:
                         </label>
                         <select class="form-control" name="barrio" id="barrio" >
@@ -129,10 +130,13 @@
                         </div>
                     </div>
      
+                    <!-- Campo oculto para consentimiento digital -->
+                    <input type="hidden" name="acepta_consentimiento" id="acepta_consentimiento" value="false">
+     
                     <!-- Botón de enviar -->
                     <div class="row">
                         <div class="col-12 text-center">
-                            <button type="submit" class="boton1">
+                            <button type="button" id="btn-registrar" class="boton1">
                                 <span class="button-text">CREAR</span>
                             </button>
                         </div>
@@ -148,6 +152,10 @@
         <p>&copy; <a href="https://micelu.co/" class="footer-link">Micelu.co</a></p>
     </div>
 </div>
+
+<!-- Modal de Consentimiento Digital -->
+{% include 'modal_consentimiento.html' %}
+
 <script>
     function togglePasswordVisibility(inputId, toggleId) {
         var passwordInput = document.getElementById(inputId);
@@ -174,7 +182,8 @@
  
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
-<script src="{{ url_for('static', filename='js/comunasylocalidades.js') }}"></script>  
+<script src="{{ url_for('static', filename='js/comunasylocalidades.js') }}"></script>
+<script src="{{ url_for('static', filename='js/consentimiento_modal.js') }}"></script>
  
 </body>
 </html>

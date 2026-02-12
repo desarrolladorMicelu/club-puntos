@@ -1,0 +1,362 @@
+/* Estilos para el Modal de Consentimiento Digital */
+
+#modalConsentimiento .modal-content {
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    font-family: 'Poppins', sans-serif;
+}
+
+#modalConsentimiento .modal-header {
+    background: linear-gradient(135deg, #185F64 0%, #1F7F87 100%);
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    padding: 1.2rem 1.5rem;
+}
+
+#modalConsentimiento .modal-title {
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.1rem;
+}
+
+#contenidoContrato {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #333;
+    padding: 15px 25px;
+    font-family: 'Poppins', sans-serif;
+}
+
+#contenidoContrato h6 {
+    color: #185F64;
+    margin-top: 12px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+}
+
+#contenidoContrato .text-center {
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+#contenidoContrato .text-center.fw-bold {
+    font-size: 14px;
+    color: #185F64;
+    margin-bottom: 4px;
+}
+
+#contenidoContrato p {
+    text-align: left;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+/* Resaltar enumeraciones internas (a., b., c., d., e., f.) */
+.enum-letter {
+    color: #185F64;
+    font-weight: 600;
+}
+
+/* Salto de línea antes de cada enumeración con letra */
+.enum-letter::before {
+    content: "\A";
+    white-space: pre;
+}
+
+/* Resaltar enumeraciones numéricas (1., 2., 3., etc.) */
+.enum-number {
+    color: #185F64;
+    font-weight: 600;
+}
+
+/* Salto de línea antes de cada enumeración numérica */
+.enum-number::before {
+    content: "\A";
+    white-space: pre;
+}
+
+#contenidoContrato a {
+    color: #31C0CA;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+#contenidoContrato a:hover {
+    text-decoration: underline;
+    color: #1F7F87;
+}
+
+/* Scrollbar personalizado */
+#contenidoContrato::-webkit-scrollbar {
+    width: 8px;
+}
+
+#contenidoContrato::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#contenidoContrato::-webkit-scrollbar-thumb {
+    background: #185F64;
+    border-radius: 10px;
+}
+
+#contenidoContrato::-webkit-scrollbar-thumb:hover {
+    background: #1F7F87;
+}
+
+/* Checkbox de aceptación */
+#modalConsentimiento .form-check {
+    padding: 12px 15px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    font-family: 'Poppins', sans-serif;
+}
+
+#modalConsentimiento .form-check-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#modalConsentimiento .form-check-input:enabled {
+    cursor: pointer;
+}
+
+#modalConsentimiento .form-check-input:checked {
+    background-color: #185F64;
+    border-color: #185F64;
+}
+
+#modalConsentimiento .form-check-label {
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+}
+
+#mensajeScroll {
+    margin-top: 6px;
+    font-size: 12px;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Botones */
+#btnAceptarContrato:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#btnAceptarContrato:enabled {
+    background: linear-gradient(135deg, #185F64 0%, #1F7F87 100%);
+    border: none;
+    transition: all 0.3s ease;
+    font-family: 'Poppins', sans-serif;
+}
+
+#btnAceptarContrato:enabled:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(24, 95, 100, 0.3);
+}
+
+#modalConsentimiento .btn-secondary {
+    background-color: #6c757d;
+    border: none;
+    font-family: 'Poppins', sans-serif;
+}
+
+#modalConsentimiento .btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* Animaciones */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate__animated.animate__pulse {
+    animation: pulse 1s;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #modalConsentimiento .modal-dialog {
+        margin: 10px;
+    }
+    
+    #contenidoContrato {
+        font-size: 12px;
+        padding: 12px 18px;
+    }
+    
+    #contenidoContrato h6 {
+        font-size: 12px;
+    }
+    
+    #modalConsentimiento .modal-title {
+        font-size: 1rem;
+    }
+}
+
+/* Móviles pequeños */
+@media (max-width: 576px) {
+    #modalConsentimiento .modal-dialog {
+        margin: 5px;
+        max-width: calc(100% - 10px);
+    }
+    
+    #contenidoContrato {
+        max-height: 400px;
+        font-size: 11px;
+        padding: 10px 15px;
+    }
+    
+    #modalConsentimiento .modal-header {
+        padding: 1rem;
+    }
+    
+    #modalConsentimiento .modal-title {
+        font-size: 0.95rem;
+    }
+    
+    #modalConsentimiento .modal-footer {
+        flex-direction: column;
+        gap: 10px;
+        padding: 1rem;
+    }
+    
+    #modalConsentimiento .modal-footer .form-check {
+        width: 100%;
+        margin-bottom: 0;
+    }
+    
+    #modalConsentimiento .modal-footer button {
+        width: 100%;
+        padding: 0.6rem;
+    }
+}
+
+/* Tablets */
+@media (min-width: 576px) and (max-width: 768px) {
+    #contenidoContrato {
+        max-height: 450px;
+    }
+}
+
+/* ============================================
+   SPINNER DE CARGA
+   ============================================ */
+
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.spinner-container {
+    background: white;
+    padding: 30px 40px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    font-family: 'Poppins', sans-serif;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.spinner-container .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3rem;
+    color: #185F64;
+}
+
+.spinner-container p {
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #185F64;
+    font-family: 'Poppins', sans-serif;
+}
+
+.spinner-container small {
+    color: #6c757d;
+    font-size: 13px;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Responsive para spinner */
+@media (max-width: 576px) {
+    .spinner-container {
+        padding: 20px 30px;
+        margin: 0 20px;
+        max-width: calc(100% - 40px);
+    }
+    
+    .spinner-container .spinner-border {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+    
+    .spinner-container p {
+        font-size: 16px;
+        margin-top: 12px;
+    }
+    
+    .spinner-container small {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 400px) {
+    .spinner-container {
+        padding: 15px 20px;
+    }
+    
+    .spinner-container p {
+        font-size: 15px;
+    }
+    
+    .spinner-container small {
+        font-size: 11px;
+    }
+}
