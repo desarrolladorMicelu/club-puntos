@@ -1,0 +1,22 @@
+{# Vista previa de la card como en "Redime tus puntos" (sin Ref en cliente). IDs usados por admin_auditoria.js #}
+<div class="producto-card">
+  <div class="producto-img-wrap" id="prevCardImgWrap">
+    <div class="producto-img-placeholder" id="prevCardPlaceholder">
+      <i class="fas fa-image fa-2x text-muted"></i>
+    </div>
+    <img id="prevCardImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:contain;object-position:center;">
+  </div>
+  <div class="producto-card-body">
+    <h6 class="producto-nombre" id="prevNombre">Nombre del producto</h6>
+    <div class="producto-precios">
+      <span class="precio-original" id="prevPrecioOrig">$0</span>
+      <span class="precio-final" id="prevPrecioFinal">$0</span>
+    </div>
+    <div class="producto-puntos" id="prevPuntosWrap">
+      <i class="fas fa-coins me-1"></i>Con <strong id="prevPuntos">0</strong> puntos
+    </div>
+    <button type="button" class="btn-canjear" disabled tabindex="-1" aria-hidden="true">
+      <i class="fas fa-tag me-1"></i>Canjear
+    </button>
+  </div>
+</div>

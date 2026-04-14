@@ -40,6 +40,7 @@
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/beneficios.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/producto_carrusel_card.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/header-improvements.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/mobile-sidebar-menu.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -115,76 +116,162 @@
       </div>
     </header>
 
-    <!-------------cards filtro----------->
+    <!-- Carrusel de Productos Canjeables -->
     <div class="container-fluid1">
-      <h1 class="titulo">¡Canjea y elige tu marca o accesorio favorito!</h1>
-      <div class="image-slider">
-        <div class="image-track">
-          <div class="image-item">
-            <a href="https://micelu.co/celulares/?jsf=jet-woo-products-grid&tax=product_cat:89" target="_blank">
-              <img src="{{ url_for('static', filename='images/apple.png') }}" alt="Apple">
-            </a>
+      <h1 class="titulo">¡Canjea tus puntos por productos en tienda física!</h1>
+      <p class="text-center text-muted mb-4" style="font-size:15px;">Selecciona un producto y genera tu cupón de descuento al instante</p>
+
+      <!-- Estado de carga -->
+      <div id="carrusel-loading" class="text-center py-4">
+        <div class="spinner-border text-success" role="status"></div>
+        <p class="mt-2 text-muted">Cargando productos...</p>
+      </div>
+
+      <!-- Sin productos -->
+      <div id="carrusel-empty" class="text-center py-4" style="display:none;">
+        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+        <p class="text-muted">No hay productos disponibles en este momento.</p>
+      </div>
+
+      <!-- Carrusel -->
+      <div id="carrusel-productos" class="productos-carrusel-wrapper" style="display:none;">
+        <button class="carrusel-btn carrusel-btn-prev" id="btnPrev" aria-label="Anterior">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="productos-carrusel-track-container">
+          <div class="productos-carrusel-track" id="carruselTrack"></div>
+        </div>
+        <button class="carrusel-btn carrusel-btn-next" id="btnNext" aria-label="Siguiente">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+      <div class="carrusel-dots" id="carruselDots"></div>
+    </div>
+
+    <!-- Modal: Confirmar Canje -->
+    <div class="modal fade" id="modalCanjearProducto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+        <div class="modal-content mc-modal mc-modal--canje position-relative">
+          <div id="modalCanjearLoading" class="mc-modal-loading-overlay" aria-hidden="true" role="status">
+            <div class="text-center">
+              <div class="spinner-border text-success mb-2" style="width:2.5rem;height:2.5rem;" aria-label="Procesando"></div>
+              <p class="mb-0 text-muted small fw-medium">Procesando canje…</p>
+            </div>
           </div>
-          <div class="image-item">
-            <a href="https://micelu.co/celulares/?jsf=jet-woo-products-grid&tax=product_cat:89" target="_blank">
-              <img src="{{ url_for('static', filename='images/samsung.png') }}" alt="Samsung">
-            </a>
+          <div class="mc-modal-header">
+            <span class="mc-modal-icon"><i class="fas fa-tag"></i></span>
+            <h5 class="mc-modal-title">Confirmar Canje</h5>
           </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/microfono-inhalambrico-solapa-k9-tipo-c-con-adaptador-iphone/"
-              target="_blank">
-              <img src="{{ url_for('static', filename='images/microfonos.png') }}" alt="Xiaomi">
-            </a>
+          <div class="modal-body p-4">
+            <!-- Info del producto -->
+            <div class="mc-producto-row">
+              <div class="mc-producto-img" id="mcImgWrap">
+                <img id="modalProductoImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:contain;">
+                <i class="fas fa-box-open fa-2x text-muted" id="mcImgPlaceholder"></i>
+              </div>
+              <div class="mc-producto-info">
+                <p class="mc-nombre" id="modalProductoNombre"></p>
+                <div class="mc-precios">
+                  <span class="mc-precio-orig" id="modalPrecioOriginal"></span>
+                  <span class="mc-precio-final" id="modalPrecioFinal"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <hr class="mc-divider">
+
+            <!-- Puntos -->
+            <div class="mc-puntos-resumen">
+              <div class="mc-puntos-fila">
+                <span class="mc-label"><i class="fas fa-coins me-2 text-warning"></i>Puntos a usar</span>
+                <span class="mc-valor text-danger fw-bold" id="modalPuntosReq"></span>
+              </div>
+              <div class="mc-puntos-fila">
+                <span class="mc-label"><i class="fas fa-wallet me-2" style="color:#1a6d73;"></i>Tus puntos actuales</span>
+                <span class="mc-valor fw-bold" id="modalPuntosActuales"></span>
+              </div>
+              <div class="mc-puntos-fila mc-saldo-fila">
+                <span class="mc-label"><i class="fas fa-arrow-right me-2"></i>Saldo restante</span>
+                <span class="mc-valor text-success fw-bold" id="modalSaldoFinal"></span>
+              </div>
+            </div>
+
+            <!-- Alerta de error (puntos insuficientes) -->
+            <div id="mcAlertaError" class="mc-alerta-error" style="display:none;">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <span id="mcAlertaMsg"></span>
+            </div>
+
+            <!-- Nota cupón -->
+            <p class="mc-nota" id="mcNotaCupon" style="display:none;">
+              <i class="fas fa-info-circle me-1"></i>
+              Se generará un cupón de un solo uso válido por <strong>12 horas</strong>. Preséntalo como medio de pago en tienda física.
+            </p>
           </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/xiaomi-redmi-14-c-128gb-nuevo/" target="_blank">
-              <img src="{{ url_for('static', filename='images/xiaomi.png') }}" alt="Xiaomi">
-            </a>
+          <div class="modal-footer mc-footer">
+            <button type="button" class="btn mc-btn-cancel" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn mc-btn-confirm" id="btnConfirmarCanje">
+              <i class="fas fa-check me-2"></i>Confirmar Canje
+            </button>
           </div>
-          <div class="image-item">
-            <a href="https://micelu.co/celulares/?jsf=jet-woo-products-grid&tax=product_cat:89" target="_blank">
-              <img src="{{ url_for('static', filename='images/redmi.png') }}" alt="Huawei">
-            </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Cupón Generado -->
+    <div class="modal fade" id="modalCuponProducto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" style="max-width:500px;">
+        <div class="modal-content mc-modal mc-modal-cupon">
+          <div class="mc-modal-header mc-header-success">
+            <span class="mc-modal-icon mc-icon-success"><i class="fas fa-check-circle"></i></span>
+            <h5 class="mc-modal-title">¡Cupón Generado!</h5>
           </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/life-note-3s-soundcore/" target="_blank">
-              <img src="{{ url_for('static', filename='images/airpods-black.png') }}" alt="black">
-            </a>
+          <div class="modal-body p-4">
+            <p class="text-center text-muted mb-4" style="font-size:14px;">
+              Muestra este código en caja para aplicar tu descuento en tienda física.
+            </p>
+            <!-- Código cupón destacado -->
+            <div class="mc-cupon-codigo-wrap">
+              <p class="mc-cupon-label">Código del cupón</p>
+              <div class="mc-cupon-codigo-box">
+                <span id="cuponCodigo" class="mc-cupon-codigo"></span>
+                <button class="mc-btn-copiar" onclick="copiarCuponProducto()" title="Copiar código">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+              <p class="mc-cupon-copiado" id="cuponCopiadoMsg" style="display:none;">
+                <i class="fas fa-check me-1"></i>¡Copiado!
+              </p>
+            </div>
+
+            <!-- Detalles -->
+            <div class="mc-cupon-detalles">
+              <div class="mc-cupon-detalle-item">
+                <span class="mc-cupon-detalle-label">Descuento aplicado</span>
+                <span class="mc-cupon-detalle-valor" id="cuponDescuento"></span>
+              </div>
+              <div class="mc-cupon-detalle-item">
+                <span class="mc-cupon-detalle-label">Puntos utilizados</span>
+                <span class="mc-cupon-detalle-valor" id="cuponPuntosUsados"></span>
+              </div>
+              <div class="mc-cupon-detalle-item">
+                <span class="mc-cupon-detalle-label">Puntos restantes</span>
+                <span class="mc-cupon-detalle-valor" id="cuponPuntosRestantes"></span>
+              </div>
+              <div class="mc-cupon-detalle-item">
+                <span class="mc-cupon-detalle-label"><i class="fas fa-clock me-1"></i>Expira</span>
+                <span class="mc-cupon-detalle-valor" id="cuponExpiracion"></span>
+              </div>
+            </div>
+
+            <div class="mc-cupon-aviso">
+              <i class="fas fa-store me-2"></i>
+              Cupón de <strong>un solo uso</strong>. Válido exclusivamente en tienda física.
+            </div>
           </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/audifonos-inalambricos-movisun-t13/" target="_blank">
-              <img src="{{ url_for('static', filename='images/airpods-white.png') }}" alt="white">
-            </a>
-          </div>
-          <div class="image-item">
-            <a href="https://micelu.co/celulares/?jsf=jet-woo-products-grid&tax=product_cat:97" target="_blank">
-              <img src="{{ url_for('static', filename='images/motorola.png') }}" alt="Motorola">
-            </a>
-          </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/iphone-16-128gb-nuevo/" target="_blank">
-              <img src="{{ url_for('static', filename='images/iphone16.png') }}" alt="Motorola">
-            </a>
-          </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/smartbank-2x-10-000-a/" target="_blank">
-              <img src="{{ url_for('static', filename='images/smartbank.png') }}" alt="smartbank">
-            </a>
-          </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/smartsound-a-bafle-resistente-al-agua/" target="_blank">
-              <img src="{{ url_for('static', filename='images/bafle.png') }}" alt="bafle">
-            </a>
-          </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/cable-apple-watch-tipo-c/" target="_blank">
-              <img src="{{ url_for('static', filename='images/cable.png') }}" alt="cable">
-            </a>
-          </div>
-          <div class="image-item">
-            <a href="https://micelu.co/producto/usb-kingston-64gb/" target="_blank">
-              <img src="{{ url_for('static', filename='images/usb.png') }}" alt="usb">
-            </a>
+          <div class="modal-footer mc-footer justify-content-center">
+            <button type="button" class="btn mc-btn-confirm" data-bs-dismiss="modal">Entendido</button>
           </div>
         </div>
       </div>
@@ -194,20 +281,29 @@
       <aside class="col-md-12">
         <div class="table-container">
           <div class="container mt-4">
-            <h3 class="titulo3">¡Club de puntos elige el metodo y Canjea tus puntos ahora!</h3>
-    
-            <!-- Botones para seleccionar el método -->
-            <div class="row d-flex justify-content-between mb-3">
-              <div class="col-md-12 text-center">
-                <button id="tab-virtual" class="btn btn-primary1" onclick="mostrarTabla('virtual')">Canje en Tienda Virtual</button>
-                <button id="tab-fisica" class="btn btn-secondary1" onclick="mostrarTabla('fisica')">Canje en Tienda Física</button>
+            <h3 class="titulo3">¡Elige el método y canjea tus puntos ahora!</h3>
+            <p class="redimir-intro text-muted small text-center mx-auto mb-3 px-2">
+              Selecciona si usarás tus puntos en la <strong>tienda online</strong> o en <strong>tienda física</strong>. Cada opción genera un cupón con su propia forma de uso.
+            </p>
+
+            <div class="row g-3 justify-content-center mb-3 redimir-metodo-row">
+              <div class="col-12 col-sm-6 redimir-metodo-col d-flex flex-column align-items-stretch">
+                <button type="button" id="tab-virtual" class="btn btn-metodo-canje active" onclick="mostrarTabla('virtual')">Canje en tienda virtual</button>
+                <p class="redimir-metodo-ayuda">
+                  Ingresa cuántos puntos quieres usar y redime. Recibirás un cupón para aplicarlo al pagar en la <strong>tienda virtual</strong> (checkout en línea).
+                </p>
+              </div>
+              <div class="col-12 col-sm-6 redimir-metodo-col d-flex flex-column align-items-stretch">
+                <button type="button" id="tab-fisica" class="btn btn-metodo-canje" onclick="mostrarTabla('fisica')">Canje en tienda física</button>
+                <p class="redimir-metodo-ayuda">
+                  Canjea por productos o descuentos en <strong>tienda física</strong>: genera el cupón y muéstralo en caja al momento de pagar.
+                </p>
               </div>
             </div>
     
-            <!-- Contenedor de las tablas -->
-            <div class="row d-flex justify-content-between">
-              <div class="col-md-12">
-                <div id="tabla-container">
+            <!-- Mismo ancho que intro + botones (sin row/col extra que desplace bordes) -->
+            <div class="tabla-canje-outer">
+                <div id="tabla-container" class="tabla-canje-card-wrap">
                   <div id="tabla-virtual" class="tabla-puntos">
                     <table>
                       <thead>
@@ -218,12 +314,14 @@
                       <tbody>
                         <tr>
                           <td>
-                            <div class="d-flex align-items-center">
-                              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="custom-logo">
-                              <input type="text" id="points-input" placeholder="Ingrese puntos">
+                            <div class="canje-fila-acciones">
+                              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Club de puntos" class="custom-logo canje-logo">
+                              <input type="text" id="points-input" class="canje-input-puntos" placeholder="Ingrese puntos" inputmode="numeric" autocomplete="off">
+                              <div class="canje-btns-inline">
+                                <button id="redeem-button" type="button" class="btn btn-primary btn-redimir-cobertura">Redimir Puntos</button>
+                                <button id="ver-cupon" type="button" class="btn btn-secondary">Ver Cupón</button>
+                              </div>
                             </div>
-                            <button id="redeem-button" class="btn btn-primary mt-2">Redimir Puntos</button>
-                            <button id="ver-cupon" class="btn btn-secondary mt-2">Ver Cupón</button>
                           </td>
                         </tr>
                         <tr>
@@ -244,15 +342,15 @@
                       <tbody>
                         <tr>
                           <td>
-                            <div class="d-flex align-items-center">
-                              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Logo" class="custom-logo">
-                              <input type="text" id="points-input1" placeholder="Ingrese puntos" class="form-control">
+                            <div class="canje-fila-acciones">
+                              <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Club de puntos" class="custom-logo canje-logo">
+                              <input type="text" id="points-input1" class="form-control canje-input-puntos" placeholder="Ingrese puntos" inputmode="numeric" autocomplete="off">
+                              <div class="canje-btns-inline">
+                                <button id="redeem-button1" type="button" class="btn btn-primary btn-redimir-cobertura">Redimir Puntos</button>
+                                <button id="ver-cupon1" type="button" class="btn btn-secondary">Ver Cupón</button>
+                              </div>
                             </div>
-                            <div class="d-flex align-items-center mt-2">
-                              <span class="text-descuento"> ¡Redime tus puntos en tienda física!</span>
-                            </div>
-                            <button id="redeem-button1" class="btn btn-primary mt-2">Redimir Puntos</button>
-                            <button id="ver-cupon1" class="btn btn-secondary mt-2">Ver Cupón</button>
+                            <div class="text-descuento canje-texto-fisico mt-2">¡Redime tus puntos en tienda física!</div>
                           </td>
                         </tr>
                         <tr>
@@ -262,7 +360,6 @@
                     </table>
                   </div>
                 </div>
-              </div>
             </div>
           </div>
         </div>
@@ -411,31 +508,8 @@ aria-hidden="true">
 </div>
 
 
-  <script src="path/to/bootstrap.bundle.min.js"></script> <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <div class="footer">
-          <!---<div class="Principalfooter">
-        <div class="social-icons">
-          <div class="social-item">
-            <a href="https://wa.me/3053333330" target="_blank" rel="noopener noreferrer" class="icon-whatsapp">
-              <i class="fa-brands fa-whatsapp"></i>
-            </a>
-            <p class="text-icono">Comprar</p>
-          </div>
-          <div class="social-item">
-            <a href="https://www.tiktok.com/@micelu_co" target="_blank" rel="noopener noreferrer" class="icon-tiktok">
-              <i class="fa-brands fa-tiktok"></i>
-            </a>
-            <p class="text-icono">Tiktok</p>
-          </div>
-          <div class="social-item">
-            <a href="https://www.instagram.com/micelu.co" target="_blank" rel="noopener noreferrer"
-              class="icon-instagram">
-              <i class="fa-brands fa-instagram"></i>
-            </a>
-            <p class="text-icono">Instagram</p>
-          </div>
-        </div>
-      </div>!--->
     <div class="footer1">
         <p>&copy; <a href="https://micelu.co/condiciones-celuprotegemos/" class="footer-link">Términos y Condiciones - Cobertura Pantalla - Micelu.co</a></p>
     </div>
@@ -443,12 +517,773 @@ aria-hidden="true">
 
 
   <script src="{{ url_for('static', filename='js/cerrarsesion.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/movimiento.js') }}"></script>
   <script src="{{ url_for('static', filename='js/redimir_fisico.js') }}"></script>
   <script src="{{ url_for('static', filename='js/mobile-name-shortener.js') }}"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.min.js"></script>
   <script src="{{ url_for('static', filename='js/mobile-sidebar-menu.js') }}"></script>
+
+  <script>
+    // ── Carrusel de Productos ──────────────────────────────────────────────
+    let productos = [];
+    let productoSeleccionado = null;
+    let currentOffset = 0;
+    /** Desktop (≥992px): flechas + translate. Móvil/tablet: scroll horizontal con dedo. */
+    function carruselScrollMode() {
+      return window.matchMedia('(max-width: 991.98px)').matches;
+    }
+    function getCardsVisibleDesktop() {
+      return window.innerWidth < 1200 ? 2 : 3;
+    }
+    let carruselLastLayoutScroll = null;
+
+    // Puntos del usuario desde servidor — se actualiza tras cada canje
+    let puntosUsuario = parseInt('{{ total_puntos }}', 10) || 0;
+
+    async function cargarProductos() {
+      try {
+        const res = await fetch('/api/productos_carrusel');
+        const data = await res.json();
+        document.getElementById('carrusel-loading').style.display = 'none';
+        if (!data.success || !data.productos.length) {
+          document.getElementById('carrusel-empty').style.display = 'block';
+          return;
+        }
+        productos = data.productos;
+        renderCarrusel();
+        document.getElementById('carrusel-productos').style.display = 'flex';
+      } catch (e) {
+        document.getElementById('carrusel-loading').style.display = 'none';
+        document.getElementById('carrusel-empty').style.display = 'block';
+      }
+    }
+
+    function formatCOP(val) {
+      return '$' + Number(val).toLocaleString('es-CO');
+    }
+
+    function renderCarrusel() {
+      const track = document.getElementById('carruselTrack');
+      const dots = document.getElementById('carruselDots');
+      track.innerHTML = '';
+      dots.innerHTML = '';
+
+      const scrollMode = carruselScrollMode();
+
+      productos.forEach((p, i) => {
+        const tienePuntos = puntosUsuario >= p.puntos_requeridos;
+        const card = document.createElement('div');
+        card.className = 'producto-card' + (tienePuntos ? '' : ' producto-card--sin-puntos');
+        card.innerHTML = `
+          <div class="producto-img-wrap">
+            ${p.imagen_url
+              ? `<img src="${p.imagen_url}" alt="${p.nombre}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                 <div class="producto-img-placeholder" style="display:none"><i class="fas fa-image fa-2x text-muted"></i></div>`
+              : `<div class="producto-img-placeholder"><i class="fas fa-image fa-2x text-muted"></i></div>`}
+          </div>
+          <div class="producto-card-body">
+            <h6 class="producto-nombre">${p.nombre}</h6>
+            <div class="producto-precios">
+              <span class="precio-original">${formatCOP(p.precio_original)}</span>
+              <span class="precio-final">${formatCOP(p.precio_final)}</span>
+            </div>
+            <div class="producto-puntos ${tienePuntos ? '' : 'producto-puntos--insuf'}">
+              <i class="fas fa-coins me-1"></i>Con <strong>${Number(p.puntos_requeridos).toLocaleString()}</strong> puntos
+              ${!tienePuntos ? '<span class="badge-insuf ms-1">Puntos insuficientes</span>' : ''}
+            </div>
+            <button class="btn-canjear ${tienePuntos ? '' : 'btn-canjear--disabled'}" onclick="abrirModalCanje(${i})">
+              <i class="fas fa-tag me-1"></i>Canjear
+            </button>
+          </div>`;
+        track.appendChild(card);
+      });
+
+      if (!scrollMode) {
+        const cv = getCardsVisibleDesktop();
+        const totalDots = Math.ceil(productos.length / cv);
+        for (let i = 0; i < totalDots; i++) {
+          const dot = document.createElement('span');
+          dot.className = 'carrusel-dot' + (i === 0 ? ' active' : '');
+          dot.onclick = () => goToSlide(i);
+          dots.appendChild(dot);
+        }
+        updateCarrusel();
+      } else {
+        track.style.transform = '';
+        currentOffset = 0;
+      }
+      carruselLastLayoutScroll = scrollMode;
+    }
+
+    function updateCarrusel() {
+      if (carruselScrollMode()) return;
+      const track = document.getElementById('carruselTrack');
+      const cv = getCardsVisibleDesktop();
+      currentOffset = Math.min(currentOffset, Math.max(0, productos.length - cv));
+      const cardWidth = track.querySelector('.producto-card')?.offsetWidth || 280;
+      const gap = 20;
+      track.style.transform = `translateX(-${currentOffset * (cardWidth + gap)}px)`;
+      document.querySelectorAll('.carrusel-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === Math.floor(currentOffset / cv));
+      });
+      document.getElementById('btnPrev').disabled = currentOffset === 0;
+      document.getElementById('btnNext').disabled = currentOffset >= productos.length - cv;
+    }
+
+    function goToSlide(page) {
+      if (carruselScrollMode()) return;
+      currentOffset = page * getCardsVisibleDesktop();
+      updateCarrusel();
+    }
+
+    document.getElementById('btnPrev').addEventListener('click', () => {
+      if (carruselScrollMode()) return;
+      const cv = getCardsVisibleDesktop();
+      if (currentOffset > 0) { currentOffset -= cv; updateCarrusel(); }
+    });
+    document.getElementById('btnNext').addEventListener('click', () => {
+      if (carruselScrollMode()) return;
+      const cv = getCardsVisibleDesktop();
+      if (currentOffset < productos.length - cv) { currentOffset += cv; updateCarrusel(); }
+    });
+
+    let carruselResizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(carruselResizeTimer);
+      carruselResizeTimer = setTimeout(() => {
+        if (!productos.length) return;
+        const now = carruselScrollMode();
+        if (carruselLastLayoutScroll !== null && now !== carruselLastLayoutScroll) {
+          currentOffset = 0;
+          renderCarrusel();
+          return;
+        }
+        carruselLastLayoutScroll = now;
+        if (!now) updateCarrusel();
+      }, 200);
+    });
+
+    function actualizarPuntosUI(nuevos) {
+      puntosUsuario = nuevos;
+      document.querySelectorAll('#current-points, #nav-points').forEach(el => {
+        el.textContent = Number(nuevos).toLocaleString('es-CO') + (el.id === 'nav-points' ? ' Puntos' : '');
+      });
+      // Re-render carrusel para reflejar qué productos ya son canjeables
+      if (productos.length) renderCarrusel();
+    }
+
+    function abrirModalCanje(idx) {
+      productoSeleccionado = productos[idx];
+      const p = productoSeleccionado;
+      const tienePuntos = puntosUsuario >= p.puntos_requeridos;
+      const saldoFinal = puntosUsuario - p.puntos_requeridos;
+
+      // Imagen
+      const img = document.getElementById('modalProductoImg');
+      const ph = document.getElementById('mcImgPlaceholder');
+      if (p.imagen_url) {
+        img.src = p.imagen_url;
+        img.style.display = 'block';
+        ph.style.display = 'none';
+      } else {
+        img.style.display = 'none';
+        ph.style.display = 'block';
+      }
+
+      document.getElementById('modalProductoNombre').textContent = p.nombre;
+      document.getElementById('modalPrecioOriginal').textContent = formatCOP(p.precio_original);
+      document.getElementById('modalPrecioFinal').textContent = formatCOP(p.precio_final);
+      document.getElementById('modalPuntosReq').textContent = Number(p.puntos_requeridos).toLocaleString('es-CO');
+      document.getElementById('modalPuntosActuales').textContent = Number(puntosUsuario).toLocaleString('es-CO');
+      document.getElementById('modalSaldoFinal').textContent = tienePuntos
+        ? Number(saldoFinal).toLocaleString('es-CO') + ' puntos'
+        : '—';
+
+      const alerta = document.getElementById('mcAlertaError');
+      const nota = document.getElementById('mcNotaCupon');
+      const btnConfirmar = document.getElementById('btnConfirmarCanje');
+
+      const modalContent = document.querySelector('#modalCanjearProducto .mc-modal--canje');
+      if (!tienePuntos) {
+        alerta.style.display = 'flex';
+        document.getElementById('mcAlertaMsg').textContent =
+          `Necesitas ${Number(p.puntos_requeridos).toLocaleString('es-CO')} puntos y solo tienes ${Number(puntosUsuario).toLocaleString('es-CO')}.`;
+        nota.style.display = 'none';
+        btnConfirmar.disabled = true;
+        modalContent.dataset.bloquearConfirm = '1';
+      } else {
+        alerta.style.display = 'none';
+        nota.style.display = 'block';
+        btnConfirmar.disabled = false;
+        modalContent.dataset.bloquearConfirm = '0';
+      }
+      btnConfirmar.innerHTML = '<i class="fas fa-check me-2"></i>Confirmar Canje';
+      setModalCanjeLoading(false);
+
+      new bootstrap.Modal(document.getElementById('modalCanjearProducto')).show();
+    }
+
+    function setModalCanjeLoading(active) {
+      const modalEl = document.getElementById('modalCanjearProducto');
+      const modalContent = modalEl.querySelector('.mc-modal--canje');
+      const overlay = document.getElementById('modalCanjearLoading');
+      const btnConfirm = document.getElementById('btnConfirmarCanje');
+      const btnCancel = modalEl.querySelector('.mc-btn-cancel');
+
+      if (overlay) {
+        overlay.classList.toggle('is-active', active);
+        overlay.setAttribute('aria-hidden', active ? 'false' : 'true');
+      }
+      if (btnCancel) btnCancel.disabled = active;
+
+      if (!btnConfirm || !modalContent) return;
+
+      if (active) {
+        btnConfirm.disabled = true;
+      } else {
+        btnConfirm.disabled = modalContent.dataset.bloquearConfirm === '1';
+      }
+    }
+
+    document.getElementById('btnConfirmarCanje').addEventListener('click', async () => {
+      if (!productoSeleccionado) return;
+      const btn = document.getElementById('btnConfirmarCanje');
+      if (btn.disabled) return;
+
+      setModalCanjeLoading(true);
+
+      try {
+        const res = await fetch('/redimir_producto', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({producto_id: productoSeleccionado.id})
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const modalCanjearEl = document.getElementById('modalCanjearProducto');
+          const modalCuponEl = document.getElementById('modalCuponProducto');
+          const rellenarYMostrarCupon = () => {
+            const setTxt = (id, val) => {
+              const el = document.getElementById(id);
+              if (el) el.textContent = val;
+            };
+            setTxt('cuponCodigo', data.codigo);
+            setTxt('cuponDescuento', formatCOP(data.descuento));
+            setTxt('cuponExpiracion', data.tiempo_expiracion);
+            setTxt('cuponPuntosUsados', Number(data.puntos_utilizados).toLocaleString('es-CO') + ' pts');
+            setTxt('cuponPuntosRestantes', Number(data.nuevos_puntos).toLocaleString('es-CO') + ' pts');
+            const copiado = document.getElementById('cuponCopiadoMsg');
+            if (copiado) copiado.style.display = 'none';
+            actualizarPuntosUI(data.nuevos_puntos);
+            if (modalCuponEl) bootstrap.Modal.getOrCreateInstance(modalCuponEl).show();
+          };
+          const canjeInst = bootstrap.Modal.getInstance(modalCanjearEl);
+          if (canjeInst) {
+            modalCanjearEl.addEventListener('hidden.bs.modal', function onCanjeCerrado() {
+              modalCanjearEl.removeEventListener('hidden.bs.modal', onCanjeCerrado);
+              rellenarYMostrarCupon();
+            });
+            canjeInst.hide();
+          } else {
+            rellenarYMostrarCupon();
+          }
+        } else {
+          const alerta = document.getElementById('mcAlertaError');
+          const modalContent = document.querySelector('#modalCanjearProducto .mc-modal--canje');
+          alerta.style.display = 'flex';
+          document.getElementById('mcAlertaMsg').textContent = data.message;
+          document.getElementById('mcNotaCupon').style.display = 'none';
+          btn.disabled = true;
+          if (modalContent) modalContent.dataset.bloquearConfirm = '1';
+        }
+      } catch (e) {
+        const alerta = document.getElementById('mcAlertaError');
+        const modalContent = document.querySelector('#modalCanjearProducto .mc-modal--canje');
+        alerta.style.display = 'flex';
+        document.getElementById('mcAlertaMsg').textContent = 'Error de conexión. Intenta nuevamente.';
+        btn.disabled = false;
+        if (modalContent) modalContent.dataset.bloquearConfirm = '0';
+      } finally {
+        setModalCanjeLoading(false);
+      }
+    });
+
+    function copiarCuponProducto() {
+      const codigo = document.getElementById('cuponCodigo').textContent.trim();
+      const msg = document.getElementById('cuponCopiadoMsg');
+      navigator.clipboard.writeText(codigo).then(() => {
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2500);
+      });
+    }
+
+    cargarProductos();
+  </script>
+
+  <style>
+    /* ── Método de canje (mismo azul que #coberturaLink / Activa Cobertura: #31C0CA) ── */
+    /* Texto intro, botones de método y card: mismo ancho para alinear bordes */
+    .redimir-intro,
+    .redimir-metodo-row,
+    .tabla-canje-outer {
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+    }
+    .btn-metodo-canje {
+      min-height: 48px;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.3;
+      border-radius: 10px;
+      border: 2px solid #31c0ca;
+      text-transform: none;
+      letter-spacing: 0.01em;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 2px 6px rgba(49, 192, 202, 0.15);
+    }
+    .btn-metodo-canje.active {
+      background-color: #31c0ca !important;
+      color: #ffffff !important;
+      border-color: #31c0ca;
+    }
+    .btn-metodo-canje:not(.active) {
+      background-color: #ffffff;
+      color: #1a6d73 !important;
+      border-color: #31c0ca;
+    }
+    .btn-metodo-canje:not(.active):hover {
+      background-color: #e8f7f9;
+      color: #0d4a50 !important;
+      border-color: #28a8b3;
+    }
+    .btn-metodo-canje.active:hover {
+      background-color: #1a9ba4 !important;
+      color: #ffffff !important;
+      border-color: #1a9ba4;
+    }
+    .btn-metodo-canje:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(49, 192, 202, 0.45);
+    }
+    .redimir-metodo-ayuda {
+      font-size: 13px;
+      line-height: 1.45;
+      color: #5c6568;
+      text-align: center;
+      margin: 10px 0 0;
+    }
+
+    /* Card tabla canje: mismo ancho que instrucciones; header y Redimir en #31C0CA */
+    .tabla-redimir .table-container {
+      margin-left: 0;
+      margin-right: 0;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .tabla-canje-card-wrap {
+      width: 100%;
+    }
+    #tabla-container .tabla-puntos {
+      max-width: none !important;
+      width: 100%;
+      border-color: #31c0ca;
+    }
+    #tabla-container .tabla-puntos th {
+      background-color: #31c0ca !important;
+      color: #fff !important;
+    }
+    #tabla-container .tabla-puntos table {
+      width: 100%;
+      table-layout: fixed;
+    }
+    #tabla-container .canje-fila-acciones {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 0.65rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #tabla-container .canje-logo {
+      flex-shrink: 0;
+      margin-right: 0;
+    }
+    #tabla-container #points-input,
+    #tabla-container #points-input1 {
+      flex: 1 1 0;
+      min-width: 72px;
+      width: auto !important;
+      max-width: none;
+      margin-right: 0 !important;
+      height: 42px !important;
+      box-sizing: border-box;
+      border: 2px solid #31c0ca !important;
+      border-radius: 10px;
+    }
+    #tabla-container .canje-btns-inline {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 0.45rem;
+      flex-shrink: 0;
+    }
+    #tabla-container .canje-texto-fisico {
+      text-align: center;
+      width: 100%;
+    }
+    @media (max-width: 619.98px) {
+      #tabla-container .canje-btns-inline {
+        flex: 1 1 100%;
+        justify-content: center;
+      }
+    }
+    #tabla-container .btn-redimir-cobertura {
+      background-color: #31c0ca !important;
+      border-color: #31c0ca !important;
+      color: #fff !important;
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.25;
+      padding: 0.4rem 0.95rem;
+      border-radius: 8px;
+      min-height: 0;
+    }
+    #tabla-container .btn-redimir-cobertura:hover,
+    #tabla-container .btn-redimir-cobertura:focus {
+      background-color: #1a9ba4 !important;
+      border-color: #1a9ba4 !important;
+      color: #fff !important;
+    }
+    #tabla-container #ver-cupon,
+    #tabla-container #ver-cupon1 {
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 600;
+      padding: 0.4rem 0.95rem;
+      border-radius: 8px;
+      min-height: 0;
+    }
+    #tabla-container #current-points {
+      color: #31c0ca;
+    }
+
+    /* ── Carrusel de Productos ── */
+    .productos-carrusel-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .productos-carrusel-track-container {
+      flex: 1;
+      overflow: hidden;
+    }
+    .productos-carrusel-track {
+      display: flex;
+      gap: 20px;
+      transition: transform 0.4s ease;
+    }
+    /* ≤991px: scroll con el dedo + scroll-snap (ver producto_carrusel_card.css en .producto-card) */
+    @media (max-width: 991.98px) {
+      .productos-carrusel-wrapper {
+        overflow: visible;
+        padding: 10px 0 0;
+        gap: 0;
+        align-items: stretch;
+      }
+      .productos-carrusel-wrapper .carrusel-btn {
+        display: none !important;
+      }
+      .productos-carrusel-track-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: 16px;
+        padding: 0 0 6px;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 100%;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .productos-carrusel-track-container::-webkit-scrollbar {
+        display: none;
+      }
+      .productos-carrusel-track {
+        width: max-content;
+        transform: none !important;
+        transition: none;
+      }
+      .carrusel-dots {
+        display: none !important;
+      }
+    }
+    /* Estilos de .producto-card / .btn-canjear: static/css/producto_carrusel_card.css */
+    .carrusel-btn {
+      background: #fff;
+      border: 2px solid #d4ede3;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #0c6b42;
+      font-size: 14px;
+      flex-shrink: 0;
+      transition: background 0.2s, color 0.2s;
+      z-index: 2;
+    }
+    .carrusel-btn:hover:not(:disabled) { background: #0c8a52; color: #fff; }
+    .carrusel-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .carrusel-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 0 4px;
+    }
+    .carrusel-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #cce5d8;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .carrusel-dot.active { background: #0c8a52; }
+
+    /* ── Modales de canje ── */
+    .mc-modal { border-radius: 16px; overflow: hidden; border: none; box-shadow: 0 8px 40px rgba(0,0,0,0.14); }
+    .mc-modal--canje { position: relative; }
+
+    .mc-modal-loading-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(3px);
+      border-radius: inherit;
+    }
+    .mc-modal-loading-overlay.is-active {
+      display: flex;
+    }
+    .mc-modal-header {
+      background: #31c0ca;
+      color: #fff;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    /* Mismo tono que Activa Cobertura / botones de canje */
+    .mc-header-success { background: #31c0ca; }
+    .mc-modal-icon { font-size: 22px; opacity: 0.9; }
+    .mc-icon-success { font-size: 26px; }
+    .mc-modal-title { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
+
+    /* Fila producto en modal confirmación */
+    .mc-producto-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #f8fffe;
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid #d4ede3;
+    }
+    .mc-producto-img {
+      width: 72px;
+      height: 72px;
+      border-radius: 10px;
+      background: #eaf7f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .mc-producto-info {
+      flex: 1;
+      text-align: left;
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .mc-nombre {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a2e24;
+      margin: 0 0 6px;
+      text-align: left;
+      width: 100%;
+    }
+    .mc-precios {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .mc-precio-orig { font-size: 13px; color: #aaa; text-decoration: line-through; }
+    .mc-precio-final { font-size: 20px; font-weight: 800; color: #0c6b42; }
+
+    .mc-divider { border: none; border-top: 1px dashed #d4ede3; margin: 16px 0; }
+
+    /* Resumen puntos */
+    .mc-puntos-resumen { display: flex; flex-direction: column; gap: 10px; }
+    .mc-puntos-fila {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    .mc-saldo-fila {
+      background: #f0faf5;
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+    .mc-label { color: #555; }
+    .mc-valor { font-size: 15px; }
+
+    /* Alerta de error dentro del modal */
+    .mc-alerta-error {
+      background: #fef3f2;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      color: #c0392b;
+      padding: 10px 14px;
+      margin-top: 14px;
+      font-size: 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .mc-nota {
+      background: #e8f7ff;
+      border-radius: 8px;
+      color: #0c5a7a;
+      font-size: 12px;
+      padding: 10px 14px;
+      margin-top: 14px;
+    }
+
+    /* Footer modal */
+    .mc-footer { border-top: 1px solid #eee; padding: 14px 20px; gap: 10px; }
+    .mc-btn-cancel {
+      background: #f0f0f0;
+      color: #555;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 20px;
+      font-weight: 500;
+    }
+    .mc-btn-cancel:hover { background: #e0e0e0; }
+    .mc-btn-confirm {
+      background: #31c0ca;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 24px;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(49, 192, 202, 0.3);
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .mc-btn-confirm:hover:not(:disabled) {
+      background: #1a9ba4;
+      color: #fff;
+    }
+    .mc-btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Modal cupón */
+    .mc-cupon-producto { margin-bottom: 8px; }
+    .mc-badge-producto {
+      background: #e8f5ff;
+      color: #185F64;
+      border: 1px solid #b8ddf5;
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .mc-cupon-codigo-wrap {
+      background: linear-gradient(145deg, #f0faf4 0%, #dff5e8 45%, #d4f0e3 100%);
+      border: 1px solid #b8e0c8;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 16px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .mc-cupon-label { color: #3d6b55; font-size: 12px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .mc-cupon-codigo-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .mc-cupon-codigo {
+      font-size: 30px;
+      font-weight: 800;
+      color: #145a3a;
+      letter-spacing: 6px;
+      font-family: 'Courier New', monospace;
+    }
+    .mc-btn-copiar {
+      background: #fff;
+      border: 1px solid #8fcfaa;
+      color: #185F64;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .mc-btn-copiar:hover { background: #f6fffa; border-color: #5ab88a; color: #0c4a3a; }
+    .mc-cupon-copiado { color: #198754; font-size: 13px; margin: 8px 0 0; font-weight: 600; }
+
+    .mc-cupon-detalles {
+      background: #f9fffe;
+      border-radius: 12px;
+      border: 1px solid #d4ede3;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .mc-cupon-detalle-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid #e8f5f0;
+    }
+    .mc-cupon-detalle-item:last-child { border-bottom: none; }
+    .mc-cupon-detalle-label { color: #666; }
+    .mc-cupon-detalle-valor { font-weight: 600; color: #1a2e24; }
+
+    .mc-cupon-aviso {
+      background: #e8f7ff;
+      border: 1px solid #b3e0f5;
+      border-radius: 10px;
+      color: #0c5a7a;
+      font-size: 13px;
+      padding: 10px 14px;
+      text-align: center;
+    }
+  </style>
 </body>
 
 </html>

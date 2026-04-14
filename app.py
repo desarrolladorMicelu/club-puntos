@@ -213,6 +213,31 @@ class Empleado(db.Model):
         return f'<Empleado {self.nombre} - {self.cargo_new}>'
 
 # ============================================================================
+# MODELO: PRODUCTOS CARRUSEL (Canje en tienda física)
+# ============================================================================
+class ProductoCarrusel(db.Model):
+    """
+    Productos que aparecen en el carrusel de canje de puntos en tienda física.
+    Gestionados desde el panel de administración.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'productos_carrusel'
+    __table_args__ = {'schema': 'plan_beneficios'}
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre = db.Column(db.String(200), nullable=False)
+    imagen_url = db.Column(db.String(500), nullable=True)
+    precio_original = db.Column(db.Integer, nullable=False)
+    puntos_requeridos = db.Column(db.Integer, nullable=False)
+    codigo_producto = db.Column(db.String(100), nullable=True)
+    estado = db.Column(db.Boolean, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.now)
+    actualizado_en = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<ProductoCarrusel {self.nombre}>'
+
+# ============================================================================
 # NUEVO MODELO: TRANSACCIONES DE PUNTOS (Sistema de Auditoría)
 # ============================================================================
 class Transacciones_Puntos(db.Model):
@@ -6288,9 +6313,14 @@ def admin_ultimos_canjeos():
                     id=redencion.referencia_redencion
                 ).first()
                 if historial:
+                    cupon_tienda = (historial.cupon or '').strip()
+                    cupon_fis = (historial.cupon_fisico or '').strip()
+                    # Un solo código visible: virtual (Woo) o físico / carrusel
+                    codigo_mostrar = cupon_tienda or cupon_fis or ''
                     cupon_info = {
                         'cupon': historial.cupon,
                         'cupon_fisico': historial.cupon_fisico,
+                        'codigo_mostrar': codigo_mostrar,
                         'valor_descuento': historial.valor_descuento,
                         'estado_cupon': historial.estado_cupon,
                         'fecha_uso_real': historial.fecha_uso_real.isoformat() if historial.fecha_uso_real else None,
@@ -6951,6 +6981,314 @@ def admin_exportar_compras():
             'success': False,
             'message': str(e)
         }), 500
+
+
+# ============================================================================
+# RUTAS: PRODUCTOS CARRUSEL - API pública (usuario)
+# ============================================================================
+
+@app.route('/api/productos_carrusel', methods=['GET'])
+@login_required
+def api_productos_carrusel():
+    """Retorna productos activos del carrusel con precio final calculado.
+
+    Orden: por fecha de creación (más recientes primero); desempate alfabético por nombre.
+    """
+    try:
+        productos = (
+            ProductoCarrusel.query.filter_by(estado=True)
+            .order_by(ProductoCarrusel.creado_en.desc(), ProductoCarrusel.nombre.asc())
+            .all()
+        )
+        valor_punto = maestros.query.with_entities(maestros.valordelpunto).first()
+        vp = float(valor_punto[0]) if valor_punto else 0
+
+        resultado = []
+        for p in productos:
+            descuento = p.puntos_requeridos * vp
+            precio_final = max(0, p.precio_original - descuento)
+            resultado.append({
+                'id': str(p.id),
+                'nombre': p.nombre,
+                'imagen_url': p.imagen_url or '',
+                'precio_original': p.precio_original,
+                'precio_final': int(precio_final),
+                'puntos_requeridos': p.puntos_requeridos,
+                'codigo_producto': p.codigo_producto or '',
+            })
+        return jsonify({'success': True, 'productos': resultado})
+    except Exception as e:
+        print(f"Error en api_productos_carrusel: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/redimir_producto', methods=['POST'])
+@login_required
+def redimir_producto():
+    """Canjea puntos por un producto del carrusel y genera un cupón físico único."""
+    try:
+        documento = session.get('user_documento')
+        data = request.get_json()
+        producto_id = data.get('producto_id')
+
+        if not producto_id:
+            return jsonify({'success': False, 'message': 'producto_id requerido'}), 400
+
+        producto = ProductoCarrusel.query.get(producto_id)
+        if not producto or not producto.estado:
+            return jsonify({'success': False, 'message': 'Producto no disponible'}), 404
+
+        puntos_disponibles = calcular_puntos_con_fallback(documento)
+        if puntos_disponibles < producto.puntos_requeridos:
+            return jsonify({
+                'success': False,
+                'message': f'Puntos insuficientes. Necesitas {producto.puntos_requeridos:,} puntos y tienes {puntos_disponibles:,}.',
+                'puntos_disponibles': puntos_disponibles,
+                'puntos_requeridos': producto.puntos_requeridos,
+            }), 400
+
+        valor_punto = maestros.query.with_entities(maestros.valordelpunto).first()
+        vp = float(valor_punto[0]) if valor_punto else 0
+        descuento = int(producto.puntos_requeridos * vp)
+
+        puntos_usuario = Puntos_Clientes.query.filter_by(documento=documento).first()
+        if not puntos_usuario:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+
+        # Generar código de cupón único
+        codigo_cupon = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=8))
+        tiempo_expiracion = datetime.now() + timedelta(hours=12)
+
+        # Registrar en historial_beneficio
+        nuevo_historial = historial_beneficio(
+            id=uuid.uuid4(),
+            documento=documento,
+            valor_descuento=descuento,
+            puntos_utilizados=producto.puntos_requeridos,
+            fecha_canjeo=datetime.now(),
+            cupon='',
+            cupon_fisico=codigo_cupon,
+            tiempo_expiracion=tiempo_expiracion,
+            estado=False,
+            estado_cupon='GENERADO'
+        )
+        db.session.add(nuevo_historial)
+
+        # Crear transacción de auditoría para usuarios migrados
+        if cliente_esta_migrado(documento):
+            crear_transaccion_manual(
+                documento=documento,
+                tipo='REDENCION',
+                puntos=-producto.puntos_requeridos,
+                descripcion=f'Canje tienda física: {producto.nombre} | Cupón {codigo_cupon} | ${descuento:,.0f}',
+                referencia=str(nuevo_historial.id)
+            )
+
+        # Actualizar puntos_redimidos en sistema legacy
+        puntos_redimidos_actual = int(puntos_usuario.puntos_redimidos or '0')
+        puntos_usuario.puntos_redimidos = str(puntos_redimidos_actual + producto.puntos_requeridos)
+        puntos_usuario.ultima_actualizacion = datetime.now()
+
+        db.session.commit()
+
+        # Recalcular puntos disponibles tras el canje
+        nuevos_puntos = calcular_puntos_con_fallback(documento)
+
+        return jsonify({
+            'success': True,
+            'codigo': codigo_cupon,
+            'descuento': descuento,
+            'producto_nombre': producto.nombre,
+            'puntos_utilizados': producto.puntos_requeridos,
+            'tiempo_expiracion': tiempo_expiracion.strftime('%d/%m/%Y %H:%M'),
+            'nuevos_puntos': nuevos_puntos,
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en redimir_producto: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================================================================
+# RUTAS: PRODUCTOS CARRUSEL - API admin
+# ============================================================================
+
+@app.route('/admin/api/productos_carrusel', methods=['GET'])
+@login_required
+@admin_required
+def admin_get_productos_carrusel():
+    """Lista todos los productos del carrusel (activos e inactivos)."""
+    try:
+        productos = ProductoCarrusel.query.order_by(
+            ProductoCarrusel.creado_en.desc(), ProductoCarrusel.nombre.asc()
+        ).all()
+        valor_punto = maestros.query.with_entities(maestros.valordelpunto).first()
+        vp = float(valor_punto[0]) if valor_punto else 0
+
+        resultado = []
+        for p in productos:
+            descuento = p.puntos_requeridos * vp
+            precio_final = max(0, p.precio_original - descuento)
+            resultado.append({
+                'id': str(p.id),
+                'nombre': p.nombre,
+                'imagen_url': p.imagen_url or '',
+                'precio_original': p.precio_original,
+                'precio_final': int(precio_final),
+                'puntos_requeridos': p.puntos_requeridos,
+                'codigo_producto': p.codigo_producto or '',
+                'estado': p.estado,
+                'creado_en': p.creado_en.strftime('%d/%m/%Y %H:%M') if p.creado_en else '',
+            })
+        return jsonify({'success': True, 'productos': resultado})
+    except Exception as e:
+        print(f"Error en admin_get_productos_carrusel: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/productos_carrusel', methods=['POST'])
+@login_required
+@admin_required
+def admin_crear_producto_carrusel():
+    """Crea un nuevo producto en el carrusel."""
+    try:
+        nombre = request.form.get('nombre', '').strip()
+        precio_original = request.form.get('precio_original')
+        puntos_requeridos = request.form.get('puntos_requeridos')
+        codigo_producto = request.form.get('codigo_producto', '').strip()
+        estado = request.form.get('estado', 'true').lower() == 'true'
+
+        if not nombre or not precio_original or not puntos_requeridos:
+            return jsonify({'success': False, 'message': 'Nombre, precio original y puntos requeridos son obligatorios'}), 400
+
+        imagen_url = None
+        if 'imagen' in request.files and request.files['imagen'].filename:
+            file = request.files['imagen']
+            ext = file.filename.rsplit('.', 1)[-1].lower()
+            if ext not in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
+                return jsonify({'success': False, 'message': 'Formato de imagen no válido'}), 400
+            filename = f"producto_{uuid.uuid4().hex}.{ext}"
+            upload_dir = os.path.join(app.root_path, 'static', 'images', 'productos')
+            os.makedirs(upload_dir, exist_ok=True)
+            file.save(os.path.join(upload_dir, filename))
+            imagen_url = f"/static/images/productos/{filename}"
+
+        nuevo = ProductoCarrusel(
+            nombre=nombre,
+            imagen_url=imagen_url,
+            precio_original=int(precio_original),
+            puntos_requeridos=int(puntos_requeridos),
+            codigo_producto=codigo_producto or None,
+            estado=estado,
+        )
+        db.session.add(nuevo)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Producto creado exitosamente', 'id': str(nuevo.id)})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en admin_crear_producto_carrusel: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/productos_carrusel/<producto_id>', methods=['PUT'])
+@login_required
+@admin_required
+def admin_editar_producto_carrusel(producto_id):
+    """Edita un producto del carrusel."""
+    try:
+        producto = ProductoCarrusel.query.get(producto_id)
+        if not producto:
+            return jsonify({'success': False, 'message': 'Producto no encontrado'}), 404
+
+        nombre = request.form.get('nombre', '').strip()
+        precio_original = request.form.get('precio_original')
+        puntos_requeridos = request.form.get('puntos_requeridos')
+        codigo_producto = request.form.get('codigo_producto', '').strip()
+        estado_str = request.form.get('estado', 'true').lower()
+        estado = estado_str == 'true'
+
+        if not nombre or not precio_original or not puntos_requeridos:
+            return jsonify({'success': False, 'message': 'Nombre, precio original y puntos requeridos son obligatorios'}), 400
+
+        if 'imagen' in request.files and request.files['imagen'].filename:
+            file = request.files['imagen']
+            ext = file.filename.rsplit('.', 1)[-1].lower()
+            if ext not in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
+                return jsonify({'success': False, 'message': 'Formato de imagen no válido'}), 400
+            filename = f"producto_{uuid.uuid4().hex}.{ext}"
+            upload_dir = os.path.join(app.root_path, 'static', 'images', 'productos')
+            os.makedirs(upload_dir, exist_ok=True)
+            file.save(os.path.join(upload_dir, filename))
+            producto.imagen_url = f"/static/images/productos/{filename}"
+
+        producto.nombre = nombre
+        producto.precio_original = int(precio_original)
+        producto.puntos_requeridos = int(puntos_requeridos)
+        producto.codigo_producto = codigo_producto or None
+        producto.estado = estado
+        producto.actualizado_en = datetime.now()
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Producto actualizado exitosamente'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en admin_editar_producto_carrusel: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/productos_carrusel/<producto_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def admin_eliminar_producto_carrusel(producto_id):
+    """Elimina un producto del carrusel."""
+    try:
+        producto = ProductoCarrusel.query.get(producto_id)
+        if not producto:
+            return jsonify({'success': False, 'message': 'Producto no encontrado'}), 404
+        db.session.delete(producto)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Producto eliminado exitosamente'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en admin_eliminar_producto_carrusel: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def ensure_productos_carrusel_table():
+    """
+    Crea el esquema (si falta) y la tabla plan_beneficios.productos_carrusel.
+    Idempotente: seguro llamar varias veces. Requiere contexto de aplicación Flask activo.
+    """
+    ddl_schema = sqlalchemy.text("CREATE SCHEMA IF NOT EXISTS plan_beneficios")
+    ddl_table = sqlalchemy.text("""
+        CREATE TABLE IF NOT EXISTS plan_beneficios.productos_carrusel (
+            id UUID PRIMARY KEY,
+            nombre VARCHAR(200) NOT NULL,
+            imagen_url VARCHAR(500),
+            precio_original INTEGER NOT NULL,
+            puntos_requeridos INTEGER NOT NULL,
+            codigo_producto VARCHAR(100),
+            estado BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP WITHOUT TIME ZONE
+        )
+    """)
+    engine = db.engines["db3"]
+    with engine.begin() as conn:
+        conn.execute(ddl_schema)
+        conn.execute(ddl_table)
+
+
+@app.route('/admin/init_productos_carrusel')
+@login_required
+@admin_required
+def admin_init_productos_carrusel():
+    """Crea la tabla productos_carrusel si no existe (ejecutar una sola vez, estando logueado como admin)."""
+    try:
+        ensure_productos_carrusel_table()
+        return jsonify({'success': True, 'message': 'Tabla plan_beneficios.productos_carrusel creada o ya existía.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -31,6 +31,7 @@
   <!-- responsive style -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/responsive.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/header-improvements.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/producto_carrusel_card.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <style>
@@ -328,6 +329,174 @@
         padding: 8px;
       }
     }
+
+    /* Productos del carrusel — badges y botones tabla */
+    #tablaProductos th,
+    #tablaProductos td {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .prod-badge-activo {
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+    }
+    .prod-badge-inactivo {
+      background: #e5e7eb;
+      color: #374151;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+    }
+    .prod-btn-editar {
+      background: #fef3c7;
+      color: #92400e;
+      border: none;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 14px;
+    }
+    .prod-btn-editar:hover {
+      background: #fde68a;
+      color: #78350f;
+    }
+    .prod-btn-eliminar {
+      background: #fee2e2;
+      color: #991b1b;
+      border: none;
+      border-radius: 20px;
+      font-size: 12px;
+      padding: 5px 10px;
+    }
+    .prod-btn-eliminar:hover {
+      background: #fecaca;
+      color: #7f1d1d;
+    }
+    .form-label.fw-semibold { font-size: 13px; margin-bottom: 4px; }
+
+    /* Modal Producto: inputs uniformes */
+    #modalProducto .form-control {
+      font-size: 14px;
+      padding: 0.45rem 0.75rem;
+    }
+    #modalProducto select.form-control option {
+      font-size: 14px;
+    }
+    #modalProducto .prod-field {
+      padding: 0 8px;
+      margin-bottom: 18px;
+    }
+
+    /* Vista previa card: estilos en static/css/producto_carrusel_card.css */
+
+    .modal-producto-loading-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(2px);
+      border-radius: 0.375rem;
+    }
+
+    .modal-producto-loading-overlay.is-active {
+      display: flex;
+    }
+
+    /* Botones de acción de productos — patrón tono suave + texto oscuro */
+    .prod-btn-nuevo {
+      background: #d1fae5;
+      color: #065f46;
+      border: none;
+      border-radius: 50rem;
+      font-weight: 600;
+      padding: 0.45rem 1.2rem;
+    }
+    .prod-btn-nuevo:hover {
+      background: #a7f3d0;
+      color: #064e3b;
+    }
+    .prod-btn-guardar {
+      background: #d1fae5;
+      color: #065f46;
+      border: none;
+      border-radius: 50rem;
+      font-weight: 600;
+      padding: 0.5rem 1.35rem;
+    }
+    .prod-btn-guardar:hover {
+      background: #a7f3d0;
+      color: #064e3b;
+    }
+    .prod-btn-guardar:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .prod-btn-cancelar {
+      background: #e5e7eb;
+      color: #374151;
+      border: none;
+      border-radius: 50rem;
+      font-weight: 600;
+      padding: 0.5rem 1.35rem;
+    }
+    .prod-btn-cancelar:hover {
+      background: #d1d5db;
+      color: #1f2937;
+    }
+    .prod-btn-cancelar:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* Drop zone imagen */
+    .prod-drop-zone {
+      border: 2px dashed #b2d8dc;
+      border-radius: 12px;
+      background: #f4fbfc;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .prod-drop-zone:hover,
+    .prod-drop-zone.drag-over {
+      border-color: #31c0ca;
+      background: #e6f8fa;
+    }
+    .prod-drop-icon {
+      font-size: 2rem;
+      color: #31c0ca;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .prod-drop-text {
+      font-size: 14px;
+      color: #444;
+    }
+    .prod-drop-link {
+      color: #31c0ca;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .prod-drop-hint {
+      font-size: 12px;
+      color: #999;
+    }
+    .prod-drop-filename {
+      font-size: 13px;
+      color: #0c6b42;
+      font-weight: 600;
+      margin-top: 6px;
+    }
   </style>
 </head>
 
@@ -419,6 +588,12 @@
           <button class="nav-link" id="compras-tab" data-bs-toggle="tab" data-bs-target="#compras-panel" type="button"
             role="tab" aria-controls="compras-panel" aria-selected="false" onclick="loadHistorialCompras()">
             <i class="fas fa-shopping-cart"></i> Historial de Compras
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="productos-tab" data-bs-toggle="tab" data-bs-target="#productos-panel" type="button"
+            role="tab" aria-controls="productos-panel" aria-selected="false" onclick="loadProductosCarrusel()">
+            <i class="fas fa-box-open"></i> Productos
           </button>
         </li>
       </ul>
@@ -811,6 +986,132 @@
           </div>
         </div>
 
+        <!-- ── Panel de Productos del Carrusel ── -->
+        <div class="tab-pane fade" id="productos-panel" role="tabpanel" aria-labelledby="productos-tab">
+
+          <!-- Cabecera -->
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="mb-0">Gestión de Productos del Carrusel</h4>
+              <p class="text-muted small mb-0">Productos que aparecen en la sección "Redime tus puntos" para canje en tienda física</p>
+            </div>
+            <button class="btn prod-btn-nuevo" onclick="abrirModalNuevoProducto()">
+              <i class="fas fa-plus me-1"></i> Nuevo Producto
+            </button>
+          </div>
+
+          <!-- Vista previa info -->
+          <div class="alert alert-info d-flex align-items-center gap-2 mb-3" style="font-size:13px;">
+            <i class="fas fa-info-circle flex-shrink-0 me-1"></i>
+            <span>Los cambios se reflejan en el carrusel del cliente de forma inmediata. Solo los productos <strong> activos </strong> son visibles para los clientes.</span>
+          </div>
+
+          <!-- Tabla de productos -->
+          <div class="results-section">
+            <div class="table-responsive">
+              <table class="transaction-table" id="tablaProductos">
+                <thead>
+                  <tr>
+                    <th>Imagen</th>
+                    <th>Nombre</th>
+                    <th>Precio Original</th>
+                    <th>Precio Final</th>
+                    <th>Puntos Req.</th>
+                    <th>Código</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="productosTableBody">
+                  <tr><td colspan="8" class="text-center">
+                    <div class="spinner-border text-success" role="status"></div>
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Modal: Nuevo / Editar Producto -->
+    <div class="modal fade" id="modalProducto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content modal-producto-content position-relative">
+          <div id="modalProductoLoading" class="modal-producto-loading-overlay" aria-hidden="true" role="status">
+            <div class="modal-producto-loading-inner text-center">
+              <div class="spinner-border text-success mb-2" style="width: 2.5rem; height: 2.5rem;" aria-label="Cargando"></div>
+              <p class="mb-0 text-muted fw-medium">Guardando producto…</p>
+            </div>
+          </div>
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalProductoTitle">Nuevo Producto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body d-flex align-items-center px-4 py-4">
+            <form id="formProducto" enctype="multipart/form-data" class="w-100">
+              <input type="hidden" id="productoId">
+              <input type="hidden" id="prodImagenExistente" value="">
+              <div class="row g-3 align-items-center">
+                <div class="col-md-8">
+                  <div class="row g-0">
+                    <div class="col-md-6 prod-field">
+                      <label class="form-label fw-semibold">Nombre del Producto <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="prodNombre" required placeholder="Ej: Samsung Galaxy A55">
+                    </div>
+                    <div class="col-md-6 prod-field">
+                      <label class="form-label fw-semibold">Precio Original <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control" id="prodPrecioOriginal" required min="0" placeholder="Ej: 800000">
+                    </div>
+                    <div class="col-md-6 prod-field">
+                      <label class="form-label fw-semibold">Puntos Requeridos <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control" id="prodPuntos" required min="1" placeholder="Ej: 100">
+                    </div>
+                    <div class="col-md-6 prod-field">
+                      <label class="form-label fw-semibold">Código del Producto</label>
+                      <input type="text" class="form-control" id="prodCodigo" placeholder="Ref. interna">
+                    </div>
+                    <div class="col-md-6 prod-field">
+                      <label class="form-label fw-semibold">Estado</label>
+                      <select class="form-control" id="prodEstado">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                      </select>
+                    </div>
+                    <div class="col-6 prod-field">
+                      <label class="form-label fw-semibold">Precio Final Estimado</label>
+                      <div class="form-control fw-bold" id="prodPrecioFinalPreview">$0</div>
+                      <small class="text-muted">Se calcula según valor del punto</small>
+                    </div>
+                    <div class="col-12 prod-field">
+                      <label class="form-label fw-semibold">Imagen del Producto</label>
+                      <div id="dropZone" class="prod-drop-zone" onclick="document.getElementById('prodImagenFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDropImagen(event)">
+                        <i class="fas fa-cloud-upload-alt prod-drop-icon"></i>
+                        <p class="prod-drop-text mb-1">Arrastra una imagen aquí o <span class="prod-drop-link">selecciona archivo</span></p>
+                        <p class="prod-drop-hint mb-0">JPG, PNG, WebP o GIF · máx. 5 MB</p>
+                        <p class="prod-drop-filename mb-0" id="dropFileName" style="display:none;"></p>
+                      </div>
+                      <input type="file" class="d-none" id="prodImagenFile" accept="image/jpeg,image/png,image/webp,image/gif" onchange="previewImagen(this)">
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold d-block mb-2">Vista previa (carrusel cliente)</label>
+                  <div class="admin-producto-preview">
+                    {% include 'includes/producto_carrusel_client_preview.html' %}
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer gap-2 flex-wrap justify-content-center">
+            <button type="button" class="btn prod-btn-cancelar" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn prod-btn-guardar" id="btnGuardarProducto" onclick="guardarProducto()">
+              Guardar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1164,12 +1465,18 @@
             estadoCupon === 'EXPIRADO' ? 'badge-expirado' : 'badge-generado';
         }
 
+        const codigoCuponTabla = cuponInfo
+          ? (cuponInfo.codigo_mostrar
+              || (String(cuponInfo.cupon || '').trim() || cuponInfo.cupon_fisico)
+              || '—')
+          : 'N/A';
+
         row.innerHTML = `
           <td>${fechaCanjeo.toLocaleDateString()} ${fechaCanjeo.toLocaleTimeString()}</td>
           <td>${canjeo.nombre_cliente}</td>
           <td>${canjeo.documento}</td>
           <td class="points-negative">${canjeo.puntos_utilizados.toLocaleString()}</td>
-          <td>${cuponInfo ? cuponInfo.cupon : 'N/A'}</td>
+          <td><code style="font-size:12px;">${codigoCuponTabla}</code></td>
           <td>$${cuponInfo ? cuponInfo.valor_descuento.toLocaleString() : '0'}</td>
           <td><span class="badge-cupon ${badgeClass}">${estadoCupon}</span></td>
           <td>
@@ -1204,11 +1511,14 @@
       `;
 
       if (cuponInfo) {
+        const codigoPrincipal = cuponInfo.codigo_mostrar
+          || (String(cuponInfo.cupon || '').trim() || cuponInfo.cupon_fisico || 'N/A');
         detalleHTML += `
           <hr>
           <h5>Información del Cupón</h5>
-          <p><strong>Cupón Digital:</strong> ${cuponInfo.cupon}</p>
-          <p><strong>Cupón Físico:</strong> ${cuponInfo.cupon_fisico || 'N/A'}</p>
+          <p><strong>Código del cupón:</strong> <code>${codigoPrincipal}</code></p>
+          <p><strong>Cupón tienda virtual (Woo):</strong> ${cuponInfo.cupon || '—'}</p>
+          <p><strong>Cupón físico / carrusel:</strong> ${cuponInfo.cupon_fisico || '—'}</p>
           <p><strong>Valor Descuento:</strong> $${cuponInfo.valor_descuento.toLocaleString()}</p>
           <p><strong>Estado:</strong> ${cuponInfo.estado_cupon}</p>
           <p><strong>Fecha Expiración:</strong> ${cuponInfo.tiempo_expiracion ? new Date(cuponInfo.tiempo_expiracion).toLocaleString() : 'N/A'}</p>
@@ -1561,6 +1871,245 @@
         loadHistorialCompras();
       }
     });
+
+    // ── GESTIÓN DE PRODUCTOS DEL CARRUSEL ────────────────────────────────────
+    let valorPunto = 0;
+
+    async function loadProductosCarrusel() {
+      try {
+        const res = await fetch('/admin/api/productos_carrusel');
+        const data = await res.json();
+        const tbody = document.getElementById('productosTableBody');
+        if (!data.success) {
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${data.message}</td></tr>`;
+          return;
+        }
+        if (!data.productos.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay productos creados aún</td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        data.productos.forEach(p => {
+          const estadoBadge = p.estado
+            ? '<span class="badge prod-badge-activo">Activo</span>'
+            : '<span class="badge prod-badge-inactivo">Inactivo</span>';
+          const img = p.imagen_url
+            ? `<img src="${p.imagen_url}" style="width:50px;height:50px;object-fit:contain;border-radius:6px;" onerror="this.outerHTML='<i class=&quot;fas fa-image text-muted&quot;></i>'">`
+            : '<i class="fas fa-image text-muted"></i>';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${img}</td>
+            <td><strong>${p.nombre}</strong></td>
+            <td>$${Number(p.precio_original).toLocaleString('es-CO')}</td>
+            <td class="fw-bold">$${Number(p.precio_final).toLocaleString('es-CO')}</td>
+            <td>${Number(p.puntos_requeridos).toLocaleString()} pts</td>
+            <td><code>${p.codigo_producto || '—'}</code></td>
+            <td>${estadoBadge}</td>
+            <td>
+              <button class="btn btn-sm prod-btn-editar me-1" onclick='editarProducto(${JSON.stringify(p)})'>
+                <i class="fas fa-edit"></i> Editar
+              </button>
+              <button class="btn btn-sm prod-btn-eliminar" onclick="eliminarProducto('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        document.getElementById('productosTableBody').innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error cargando productos</td></tr>`;
+      }
+    }
+
+    function abrirModalNuevoProducto() {
+      document.getElementById('modalProductoTitle').textContent = 'Nuevo Producto';
+      document.getElementById('productoId').value = '';
+      document.getElementById('prodImagenExistente').value = '';
+      document.getElementById('formProducto').reset();
+      document.getElementById('dropFileName').style.display = 'none';
+      document.getElementById('dropFileName').textContent = '';
+      resetPreview();
+      new bootstrap.Modal(document.getElementById('modalProducto')).show();
+    }
+
+    function editarProducto(p) {
+      document.getElementById('modalProductoTitle').textContent = 'Editar Producto';
+      document.getElementById('productoId').value = p.id;
+      document.getElementById('prodNombre').value = p.nombre;
+      document.getElementById('prodPrecioOriginal').value = p.precio_original;
+      document.getElementById('prodPuntos').value = p.puntos_requeridos;
+      document.getElementById('prodCodigo').value = p.codigo_producto || '';
+      document.getElementById('prodEstado').value = p.estado ? 'true' : 'false';
+      document.getElementById('prodImagenFile').value = '';
+      document.getElementById('dropFileName').style.display = 'none';
+      document.getElementById('dropFileName').textContent = '';
+      document.getElementById('prodImagenExistente').value = p.imagen_url || '';
+      updatePreview();
+      syncPreviewImage();
+      new bootstrap.Modal(document.getElementById('modalProducto')).show();
+    }
+
+    function setModalProductoLoading(active) {
+      const modal = document.getElementById('modalProducto');
+      const overlay = document.getElementById('modalProductoLoading');
+      const btnGuardar = document.getElementById('btnGuardarProducto');
+      const btnCancelar = modal.querySelector('.modal-footer .prod-btn-cancelar');
+      const btnClose = modal.querySelector('.modal-header .btn-close');
+
+      if (overlay) {
+        overlay.classList.toggle('is-active', active);
+        overlay.setAttribute('aria-hidden', active ? 'false' : 'true');
+      }
+      if (btnGuardar) btnGuardar.disabled = active;
+      if (btnCancelar) btnCancelar.disabled = active;
+      if (btnClose) btnClose.disabled = active;
+    }
+
+    async function guardarProducto() {
+      const nombre = document.getElementById('prodNombre').value.trim();
+      const precioOrig = document.getElementById('prodPrecioOriginal').value;
+      const puntos = document.getElementById('prodPuntos').value;
+      if (!nombre || !precioOrig || !puntos) {
+        alert('Nombre, precio original y puntos requeridos son obligatorios.');
+        return;
+      }
+      setModalProductoLoading(true);
+
+      const formData = new FormData();
+      formData.append('nombre', nombre);
+      formData.append('precio_original', precioOrig);
+      formData.append('puntos_requeridos', puntos);
+      formData.append('codigo_producto', document.getElementById('prodCodigo').value.trim());
+      formData.append('estado', document.getElementById('prodEstado').value);
+      const imgFile = document.getElementById('prodImagenFile').files[0];
+      if (imgFile) formData.append('imagen', imgFile);
+
+      const id = document.getElementById('productoId').value;
+      const url = id ? `/admin/api/productos_carrusel/${id}` : '/admin/api/productos_carrusel';
+      const method = id ? 'PUT' : 'POST';
+
+      try {
+        const res = await fetch(url, { method, body: formData });
+        const data = await res.json();
+        if (data.success) {
+          bootstrap.Modal.getInstance(document.getElementById('modalProducto')).hide();
+          loadProductosCarrusel();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (e) {
+        alert('Error de conexión');
+      } finally {
+        setModalProductoLoading(false);
+      }
+    }
+
+    async function eliminarProducto(id, nombre) {
+      if (!confirm(`¿Eliminar el producto "${nombre}"? Esta acción no se puede deshacer.`)) return;
+      try {
+        const res = await fetch(`/admin/api/productos_carrusel/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) loadProductosCarrusel();
+        else alert('Error: ' + data.message);
+      } catch (e) {
+        alert('Error de conexión');
+      }
+    }
+
+    function syncPreviewImage() {
+      const fileInput = document.getElementById('prodImagenFile');
+      const existente = (document.getElementById('prodImagenExistente').value || '').trim();
+      const ph = document.getElementById('prevCardPlaceholder');
+      const img = document.getElementById('prevCardImg');
+      const file = fileInput.files[0];
+
+      const showPlaceholder = () => {
+        ph.style.display = 'flex';
+        img.style.display = 'none';
+        img.src = '';
+        img.onerror = null;
+      };
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          ph.style.display = 'none';
+          img.onerror = null;
+          img.src = e.target.result;
+          img.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+      if (existente && (existente.startsWith('http') || existente.startsWith('/'))) {
+        ph.style.display = 'none';
+        img.src = existente;
+        img.style.display = 'block';
+        img.onerror = () => showPlaceholder();
+        return;
+      }
+      showPlaceholder();
+    }
+
+    function previewImagen(input) {
+      const file = input.files[0];
+      const dropZone = document.getElementById('dropZone');
+      const dropFileName = document.getElementById('dropFileName');
+      if (!file) {
+        dropFileName.style.display = 'none';
+        dropFileName.textContent = '';
+        dropZone.classList.remove('drag-over');
+        syncPreviewImage();
+        return;
+      }
+      dropFileName.textContent = '✔ ' + file.name;
+      dropFileName.style.display = 'block';
+      dropZone.classList.remove('drag-over');
+      syncPreviewImage();
+    }
+
+    function handleDropImagen(event) {
+      event.preventDefault();
+      const dt = event.dataTransfer;
+      if (!dt.files.length) return;
+      const input = document.getElementById('prodImagenFile');
+      input.files = dt.files;
+      previewImagen(input);
+    }
+
+    function updatePreview() {
+      const nombre = document.getElementById('prodNombre').value.trim() || 'Nombre del producto';
+      const precioOrig = parseInt(document.getElementById('prodPrecioOriginal').value, 10) || 0;
+      const puntos = parseInt(document.getElementById('prodPuntos').value, 10) || 0;
+      const descuento = puntos * valorPunto;
+      const precioFinal = Math.max(0, precioOrig - descuento);
+
+      document.getElementById('prevNombre').textContent = nombre;
+      document.getElementById('prevPrecioOrig').textContent = '$' + precioOrig.toLocaleString('es-CO');
+      document.getElementById('prevPrecioFinal').textContent = '$' + precioFinal.toLocaleString('es-CO');
+      document.getElementById('prevPuntos').textContent = puntos.toLocaleString('es-CO');
+      document.getElementById('prodPrecioFinalPreview').textContent = '$' + precioFinal.toLocaleString('es-CO');
+    }
+
+    function resetPreview() {
+      document.getElementById('prevNombre').textContent = 'Nombre del producto';
+      document.getElementById('prevPrecioOrig').textContent = '$0';
+      document.getElementById('prevPrecioFinal').textContent = '$0';
+      document.getElementById('prevPuntos').textContent = '0';
+      document.getElementById('prodPrecioFinalPreview').textContent = '$0';
+      syncPreviewImage();
+    }
+
+    ['prodNombre', 'prodPrecioOriginal', 'prodPuntos'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', updatePreview);
+    });
+    // Cargar valor del punto para vista previa
+    (async () => {
+      try {
+        const r = await fetch('/api/productos_carrusel');
+        // valor punto no expuesto directamente; usaremos 320 como fallback visual
+        valorPunto = 320;
+      } catch {}
+    })();
   </script>
 </body>
 

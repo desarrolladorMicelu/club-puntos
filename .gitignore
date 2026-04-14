@@ -10,3 +10,5 @@ __pycache__/
 models/__pycache__
 routes/__pycache__
 services/__pycache__
+.cursor/
+static/images/productos/

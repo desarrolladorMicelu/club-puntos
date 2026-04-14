@@ -843,55 +843,51 @@
     border-color: #185F64;
   }
 
-  /*-----Botones a seleccionar----*/
-  /* Estilo para el botón primario */
+  /*-----Botones a seleccionar (legado; redime_ahora usa .btn-metodo-canje) ----*/
 .btn-primary1 {
-    background: linear-gradient(45deg, #185F64, #00d2ff); /* Gradiente de azul */
+    background-color: #31c0ca;
     border: none;
-    color: white;
+    color: #ffffff;
     font-size: 16px;
     font-weight: 600;
     padding: 10px 20px;
-    border-radius: 10px; 
+    border-radius: 10px;
     text-transform: uppercase;
-    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
-    transition: all 0.3s ease-in-out; /* Transición suave */
+    box-shadow: 0 2px 8px rgba(49, 192, 202, 0.35);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-primary1:hover {
-    background: linear-gradient(45deg, #00d2ff, #007bff); /* Inversión del gradiente al pasar el mouse */
-    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.6); 
-    transform: translateY(-2px); /* Elevar el botón al hacer hover */
+    background-color: #1a9ba4;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(49, 192, 202, 0.4);
 }
 
 .btn-primary1:focus {
     outline: none;
-    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.4); /* Efecto de enfoque */
+    box-shadow: 0 0 0 3px rgba(49, 192, 202, 0.45);
 }
 
-/* Estilo para el botón secundario */
 .btn-secondary1 {
-    background: linear-gradient(45deg, #6c757d, #9e9e9e); /* Gradiente de gris */
-    border: none;
-    color: white;
+    background-color: #e8f4f5;
+    border: 2px solid #31c0ca;
+    color: #1a6d73;
     font-size: 16px;
     font-weight: 600;
     padding: 10px 20px;
-    border-radius: 10px; 
-    text-transform: uppercase; 
-    box-shadow: 0 4px 8px rgba(108, 117, 125, 0.4); 
-    transition: all 0.3s ease-in-out; /* Transición suave */
+    border-radius: 10px;
+    text-transform: uppercase;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .btn-secondary1:hover {
-    background: linear-gradient(45deg, #9e9e9e, #6c757d); 
-    box-shadow: 0 6px 12px rgba(108, 117, 125, 0.6);
-    transform: translateY(-2px); 
+    background-color: #d4eef1;
+    color: #0d4a50;
 }
 
 .btn-secondary1:focus {
     outline: none;
-    box-shadow: 0 0 0 4px rgba(108, 117, 125, 0.4); /* Efecto de enfoque */
+    box-shadow: 0 0 0 3px rgba(49, 192, 202, 0.35);
 }
 .text-descuento{
     font-weight: bold;
