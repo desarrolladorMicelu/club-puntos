@@ -427,17 +427,7 @@ def procesar_vencimientos_puntos():
 def es_compra_disponible_para_puntos(fecha_compra):
     """
     Verifica si una compra ya está disponible para acumular puntos.
-    Retorna True si la compra es de un día anterior a HOY.
+    Todas las compras están disponibles inmediatamente.
     """
-    from datetime import datetime, timedelta
-    
-    if not fecha_compra:
-        return False
-    
-    # Convertir a date si es datetime
-    if isinstance(fecha_compra, datetime):
-        fecha_compra = fecha_compra.date()
-    
-    # La fecha límite es AYER (las compras de hoy no cuentan)
-    fecha_limite = (datetime.now().date() - timedelta(days=1))
-    return fecha_compra <= fecha_limite
+    # Todas las compras están disponibles inmediatamente
+    return True

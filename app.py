@@ -595,13 +595,13 @@ def migrar_cliente_individual(documento):
     print(f"✅ Cliente {documento} migrado exitosamente")
 
 # ============================================================================
-# FUNCIONES DE RETRASO DE 1 DÍA EN PUNTOS
-# Los puntos de compras de HOY no están disponibles hasta MAÑANA
+# FUNCIONES DE CÁLCULO DE PUNTOS
+# Todos los puntos están disponibles inmediatamente
 # ============================================================================
 def obtener_fecha_limite_puntos():
     """
-    Retorna la fecha límite para calcular puntos disponibles.
-    Los puntos de compras de HOY no están disponibles, solo los de días anteriores.
+    FUNCIÓN OBSOLETA - Mantenida por compatibilidad.
+    Ya no se usa porque los puntos están disponibles inmediatamente.
     """
     # La fecha límite es AYER (las compras de hoy no cuentan)
     fecha_limite = datetime.now().date() - timedelta(days=1)
@@ -610,22 +610,15 @@ def obtener_fecha_limite_puntos():
 def es_compra_disponible_para_puntos(fecha_compra):
     """
     Verifica si una compra ya está disponible para acumular puntos.
-    Retorna True si la compra es de un día anterior a HOY.
+    Todas las compras están disponibles inmediatamente.
     """
-    if not fecha_compra:
-        return False
-    
-    # Convertir a date si es datetime
-    if isinstance(fecha_compra, datetime):
-        fecha_compra = fecha_compra.date()
-    
-    fecha_limite = obtener_fecha_limite_puntos()
-    return fecha_compra <= fecha_limite
+    # Todas las compras están disponibles inmediatamente
+    return True
 
 def calcular_puntos_con_retraso(facturas_dict, documento):
     """
-    Calcula los puntos aplicando el retraso de 1 día.
-    Solo cuenta puntos de compras anteriores a HOY.
+    Calcula los puntos de las compras del cliente.
+    Todos los puntos están disponibles inmediatamente.
     Retorna: (total_puntos_disponibles, total_puntos_pendientes, historial)
     """
     total_puntos_disponibles = 0
@@ -1343,8 +1336,8 @@ def mhistorialcompras():
                     facturas_dict[key]['lineas'].add(str(row[5]).upper())
         
         # ============================================================================
-        # USAR FUNCIÓN DE CÁLCULO CON RETRASO DE 1 DÍA
-        # Los puntos de compras de HOY no están disponibles hasta MAÑANA
+        # CALCULAR PUNTOS DE COMPRAS
+        # Todos los puntos están disponibles inmediatamente
         # ============================================================================
         total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
         
