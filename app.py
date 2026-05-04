@@ -1698,7 +1698,7 @@ def quesonpuntos():
             FROM MVTRADE m
             WHERE (m.NIT = ? OR m.NIT LIKE ?)
                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
-                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN')
+                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN' OR m.TIPODCTO = 'FE')
             ORDER BY m.FHCOMPRA DESC
             """
             
@@ -1723,7 +1723,7 @@ def quesonpuntos():
             FROM micelu_backup.mvtrade m
             WHERE m.nit = %s
                 AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN')
+                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
             ORDER BY m.fhcompra DESC;
             """
             
@@ -2607,7 +2607,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
             MtMercia mt ON m.PRODUCTO=mt.CODIGO
         WHERE
             c.HABILITADO = 'S'
-            AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB' OR m.TIPODCTO='FC' OR m.TIPODCTO='FN')
+            AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB' OR m.TIPODCTO='FC' OR m.TIPODCTO='FN' OR m.TIPODCTO='FE')
             AND m.VLRVENTA>0
             AND (c.NIT = ? OR c.NIT LIKE ?)
         ORDER BY
@@ -2634,7 +2634,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
             micelu_backup.mvtrade m ON vc.tipodcto = m.tipodcto AND vc.nrodcto = m.nrodcto
         WHERE
             c.habilitado = 'S'
-            AND (m.tipodcto='FM' OR m.tipodcto='FB' OR m.tipodcto='FC' OR m.tipodcto='FN')
+            AND (m.tipodcto='FM' OR m.tipodcto='FB' OR m.tipodcto='FC' OR m.tipodcto='FN' OR m.tipodcto='FE')
             AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
             AND (c.nit = %s OR c.nit LIKE %s)
         ORDER BY
@@ -2666,7 +2666,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                 JOIN Mvtrade m ON vc.tipoDcto = m.Tipodcto AND vc.nroDcto = m.NRODCTO
                 WHERE (c.NIT = ? OR c.NIT LIKE ?) 
                 AND c.HABILITADO = 'S'
-                AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB' OR m.TIPODCTO='FC' OR m.TIPODCTO='FN')
+                AND (m.TIPODCTO='FM' OR m.TIPODCTO='FB' OR m.TIPODCTO='FC' OR m.TIPODCTO='FN' OR m.TIPODCTO='FE')
                 AND m.VLRVENTA>0
             """, (documento, f"{documento}%"))
             count_compras = cursor_sql.fetchone()[0]
@@ -2810,7 +2810,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                             FROM MVTRADE m
                             WHERE (m.NIT = ? OR m.NIT LIKE ?)
                                 AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
-                                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN')
+                                AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN' OR m.TIPODCTO = 'FE')
                             """
                             cursor_sql.execute(query_compras_sql, (documento, f"{documento}%"))
                             results_compras.extend(cursor_sql.fetchall())
@@ -2831,7 +2831,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                             FROM micelu_backup.mvtrade m
                             WHERE m.nit = %s
                                 AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-                                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN')
+                                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
                             """
                             cursor_pg.execute(query_compras_pg, (documento,))
                             results_compras.extend(cursor_pg.fetchall())
@@ -3045,7 +3045,7 @@ def debug_documento(documento):
             FROM micelu_backup.mvtrade 
             WHERE nit = %s 
                 AND CAST(vlrventa AS DECIMAL(15,2)) > 0
-                AND (tipodcto = 'FM' OR tipodcto = 'FB' OR tipodcto = 'FC' OR tipodcto = 'FN')
+                AND (tipodcto = 'FM' OR tipodcto = 'FB' OR tipodcto = 'FC' OR tipodcto = 'FN' OR tipodcto = 'FE')
             """
             cursor_pg.execute(query_compras, (documento,))
             compras_info = cursor_pg.fetchone()
@@ -3112,7 +3112,7 @@ def debug_documento(documento):
                 micelu_backup.mvtrade m ON vc.tipodcto = m.tipodcto AND vc.nrodcto = m.nrodcto
             WHERE
                 c.habilitado = 'S'
-                AND (m.tipodcto='FM' OR m.tipodcto='FB' OR m.tipodcto='FC' OR m.tipodcto='FN')
+                AND (m.tipodcto='FM' OR m.tipodcto='FB' OR m.tipodcto='FC' OR m.tipodcto='FN' OR m.tipodcto='FE')
                 AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
                 AND (c.nit = %s OR c.nit LIKE %s)
             ORDER BY
@@ -3164,7 +3164,7 @@ def test_historial_postgres():
         FROM micelu_backup.mvtrade m
         WHERE m.nit = %s
             AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN')
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
         ORDER BY m.tipodcto, m.nrodcto;
         """
         
@@ -3548,7 +3548,7 @@ def obtener_datos_sharepoint():
          '' AS MEDIOPAG
         FROM micelu_backup.mvtrade m
         WHERE CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN')
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
         ORDER BY m.fhcompra DESC;
         """
         
@@ -3819,7 +3819,7 @@ def buscar_por_imei(imei):
                     COALESCE(c.nombre, '') AS nombre_cliente
                 FROM micelu_backup.mvtrade m
                 LEFT JOIN micelu_backup.clientes c ON TRIM(m.nit) = TRIM(c.nit)
-                WHERE m.tipodcto IN ('FB', 'FM', 'FC', 'FN')
+                WHERE m.tipodcto IN ('FB', 'FM', 'FC', 'FN', 'FE')
                     AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
                     AND m.nit NOT IN ('1152718000', '1053817613', '1000644140', '01')
                     AND (TRIM(m.producto) = %s OR LEFT(TRIM(m.producto), 15) = %s OR m.producto = %s)
@@ -6006,7 +6006,7 @@ def admin_get_cliente(documento):
             FROM MVTRADE
             WHERE (NIT = ? OR NIT LIKE ?)
                 AND CAST(VLRVENTA AS DECIMAL(15,2)) > 0
-                AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB' OR TIPODCTO = 'FC' OR TIPODCTO = 'FN')
+                AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB' OR TIPODCTO = 'FC' OR TIPODCTO = 'FN' OR TIPODCTO = 'FE')
             GROUP BY NIT, NOMBRE_CLIENTE
             """
             results_sql = ejecutar_query_sql_server(query_sql, (documento, f"{documento}%"))
@@ -6034,7 +6034,7 @@ def admin_get_cliente(documento):
             FROM micelu_backup.mvtrade m
             WHERE m.nit = %s
                 AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN')
+                AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
             GROUP BY m.nit, m.nombrecliente
             """
             cursor_pg.execute(query_pg, (documento,))
@@ -6550,7 +6550,7 @@ def admin_historial_compras():
          '' AS MEDIOPAG
         FROM MVTRADE m
         WHERE CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
-            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN' OR m.TIPODCTO = 'FE')
             AND YEAR(CAST(m.FHCOMPRA AS DATE)) >= 2026
         """
         
@@ -6569,7 +6569,7 @@ def admin_historial_compras():
          '' AS MEDIOPAG
         FROM micelu_backup.mvtrade m
         WHERE CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
         """
         
         params_sql = []
@@ -6739,7 +6739,7 @@ def admin_estadisticas_compras():
          COUNT(DISTINCT m.NIT) as clientes_unicos
         FROM MVTRADE m
         WHERE CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
-            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB')
+            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN' OR m.TIPODCTO = 'FE')
             AND YEAR(CAST(m.FHCOMPRA AS DATE)) >= 2026
         """
         
@@ -6753,7 +6753,7 @@ def admin_estadisticas_compras():
          COUNT(DISTINCT m.nit) as clientes_unicos
         FROM micelu_backup.mvtrade m
         WHERE CAST(m.vlrventa AS DECIMAL(15,2)) > 0
-            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB')
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN' OR m.tipodcto = 'FE')
         """
         
         params_sql = []
@@ -6831,7 +6831,7 @@ def admin_estadisticas_compras():
         # Para clientes únicos, hacer una consulta combinada simple
         try:
             # SQL Server
-            query_clientes_sql = "SELECT DISTINCT NIT FROM MVTRADE WHERE CAST(VLRVENTA AS DECIMAL(15,2)) > 0 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB' OR TIPODCTO = 'FC' OR TIPODCTO = 'FN') AND YEAR(CAST(FHCOMPRA AS DATE)) >= 2026"
+            query_clientes_sql = "SELECT DISTINCT NIT FROM MVTRADE WHERE CAST(VLRVENTA AS DECIMAL(15,2)) > 0 AND (TIPODCTO = 'FM' OR TIPODCTO = 'FB' OR TIPODCTO = 'FC' OR TIPODCTO = 'FN' OR TIPODCTO = 'FE') AND YEAR(CAST(FHCOMPRA AS DATE)) >= 2026"
             results_clientes_sql = ejecutar_query_sql_server(query_clientes_sql)
             if results_clientes_sql:
                 for row in results_clientes_sql:
@@ -6843,7 +6843,7 @@ def admin_estadisticas_compras():
             # PostgreSQL
             conn_pg = obtener_conexion_bd_backup()
             cursor_pg = conn_pg.cursor()
-            query_clientes_pg = "SELECT DISTINCT nit FROM micelu_backup.mvtrade WHERE CAST(vlrventa AS DECIMAL(15,2)) > 0 AND (tipodcto = 'FM' OR tipodcto = 'FB' OR tipodcto = 'FC' OR tipodcto = 'FN')"
+            query_clientes_pg = "SELECT DISTINCT nit FROM micelu_backup.mvtrade WHERE CAST(vlrventa AS DECIMAL(15,2)) > 0 AND (tipodcto = 'FM' OR tipodcto = 'FB' OR tipodcto = 'FC' OR tipodcto = 'FN' OR tipodcto = 'FE')"
             cursor_pg.execute(query_clientes_pg)
             for row in cursor_pg.fetchall():
                 clientes_unicos_set.add(str(row[0]))
