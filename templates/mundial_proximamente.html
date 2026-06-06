@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <meta name="theme-color" content="#06201d" />
+  <meta name="description" content="Polla Mundialista 2026 · Club de Puntos Micelu" />
+
+  <title>Polla Mundialista 2026 · Muy pronto</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño.png') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/mundial.css') }}">
+</head>
+
+<body class="mundial-body">
+
+  <!-- ===================== TOPBAR MARCA MICELU ===================== -->
+  <header class="topbar">
+    <div class="topbar__in">
+      <a class="brand" href="/quesonpuntos">
+        <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Micelu">
+        <span class="brand__divider"></span>
+        <span class="brand__tag">POLLA MUNDIALISTA<b>Club de Puntos Micelu</b></span>
+      </a>
+      <div class="topbar__user">
+        <span class="user-chip">
+          <span class="ava">{{ (usuario.nombre[0] if usuario and usuario.nombre else 'M')|upper }}</span>
+          <span>{{ (usuario.nombre if usuario else 'Participante')|title }}</span>
+        </span>
+        <a class="btn-back" href="/quesonpuntos"><i class="fa-solid fa-chevron-left"></i> Volver</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== PANTALLA PRÓXIMAMENTE ===================== -->
+  <section class="soon">
+    <!-- franja tricolor decorativa arriba -->
+    <span class="soon__flag"></span>
+
+    <div class="soon__in">
+      <h1 class="soon__title">
+        Algo <span>grande</span><br>se está cocinando
+      </h1>
+
+      <p class="soon__sub">
+        Estamos preparando una nueva experiencia en tu Club de Puntos Micelu.
+        Muy pronto vas a poder vivirla. ¡Mantente atento!
+      </p>
+
+      <div class="soon__logo">
+        <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Club de Puntos Micelu">
+      </div>
+
+      <a class="soon__cta" href="/quesonpuntos"><i class="fa-solid fa-arrow-left"></i> Volver al Club</a>
+    </div>
+  </section>
+
+</body>
+
+</html>

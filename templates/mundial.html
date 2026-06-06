@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <meta name="theme-color" content="#185F64" />
+  <meta name="description" content="Polla Mundialista 2026 · Club de Puntos Micelu" />
+
+  <title>Polla Mundialista 2026 · Puntos Micelu</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logopequeño.png') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/mundial.css') }}">
+</head>
+
+<body class="mundial-body">
+
+  <!-- ===================== TOPBAR MARCA MICELU ===================== -->
+  <header class="topbar">
+    <div class="topbar__in">
+      <a class="brand" href="/quesonpuntos">
+        <img src="{{ url_for('static', filename='images/logopequeño.png') }}" alt="Micelu">
+        <span class="brand__divider"></span>
+        <span class="brand__tag">POLLA MUNDIALISTA<b>Club de Puntos Micelu</b></span>
+      </a>
+      <div class="topbar__user">
+        <span class="user-chip">
+          <span class="ava">{{ (usuario.nombre[0] if usuario and usuario.nombre else 'M')|upper }}</span>
+          <span>{{ (usuario.nombre if usuario else 'Participante')|title }}</span>
+        </span>
+        <a class="btn-back" href="/quesonpuntos"><i class="fa-solid fa-chevron-left"></i> Volver</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero">
+    <div class="hero__jersey"></div>
+    <div class="hero__slash"></div>
+
+    <div class="hero__in">
+      <div class="hero__copy">
+        <span class="hero__eyebrow">
+          <svg class="ball" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#FFD100" stroke="#06201d" stroke-width="5"/><polygon points="50,26 68,40 61,62 39,62 32,40" fill="#06201d"/></svg>
+          POLLA OFICIAL DEL CLUB
+        </span>
+        <h1 class="hero__title">
+          <span class="l1">Polla</span>
+          <span class="l2">Mundialista</span>
+          <span class="l1">2026</span>
+        </h1>
+        <p class="hero__cheer">¡VAMOS COLOMBIA! 🇨🇴</p>
+        <p class="hero__sub">
+          Pronostica cada partido del Mundial, vibra con la tricolor y gana puntos
+          con tus aciertos. Compite por el primer puesto y un gran premio.
+        </p>
+        <a class="hero__cta" href="#fixture"><i class="fa-solid fa-futbol"></i> Empezar a pronosticar</a>
+      </div>
+
+      <div class="hero__art">
+        <!-- Escena asimétrica del premio: el iPhone vive en el espacio verde -->
+        <div class="hero-prize">
+          <div class="hero-prize__glow"></div>
+
+          <!-- chip premio mayor (arriba-izquierda) -->
+          <span class="hero-prize__kick"><i class="fa-solid fa-gift"></i> Premio mayor</span>
+
+          <!-- título grande -->
+          <h2 class="hero-prize__title">Gánate <br>un <span>iPhone</span></h2>
+
+          <!-- bajada -->
+          <p class="hero-prize__sub">El que termine en el <b>primer lugar</b> al final del Mundial se lo lleva. Cortesía Micelu.</p>
+
+          <!-- pasos como tags flotantes -->
+          <ol class="hero-prize__steps">
+            <li><i>1</i> Pronostica los partidos</li>
+            <li><i>2</i> Suma puntos por aciertos</li>
+            <li><i>3</i> Termina <b>#1</b> y llévate el premio</li>
+          </ol>
+
+          <!-- términos y condiciones debajo del celular -->
+          <p class="hero-prize__terms">
+            Al participar aceptas los <a href="https://micelu.co/reglamento-del-club-de-puntos-micelu-co/" target="_blank" rel="noopener">Términos y Condiciones</a> del Club de Puntos Micelu.
+          </p>
+
+          <!-- iPhone grande inclinado a la derecha del escenario -->
+          <div class="hero-prize__phone">
+            <div class="hero-prize__shine"></div>
+            <div class="hero-prize__notch"></div>
+            <div class="hero-prize__screen">
+              <i class="fa-solid fa-trophy"></i>
+              <span class="hp-1">1<sup>er</sup> LUGAR</span>
+              <span class="hp-name">iPhone</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SCOREBOARD ===================== -->
+  <div class="board-strip">
+    <div class="scoreboard">
+      <div class="sb-cell"><div class="sb-label">Mis puntos</div><div class="sb-value" id="statPuntos">0</div></div>
+      <div class="sb-cell"><div class="sb-label">Posición</div><div class="sb-value" id="statPosicion">—</div></div>
+      <div class="sb-cell"><div class="sb-label">Exactos</div><div class="sb-value" id="statExactos">0</div></div>
+      <div class="sb-cell"><div class="sb-label">Aciertos</div><div class="sb-value" id="statAciertos">0</div></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- PODIO -->
+    <div class="podio" id="podio"></div>
+
+    <!-- ===================== CÓMO PARTICIPAR ===================== -->
+    <section class="block">
+      <div class="sec-head"><span class="tab"></span><h2>La jugada en 4 toques</h2></div>
+      <p class="sec-sub">Del saque inicial al gol. Así se juega la polla.</p>
+      <div class="jugada">
+        <div class="jugada__field"></div>
+        <div class="jugada__row">
+          <div class="toque">
+            <div class="toque__num">1</div>
+            <div class="toque__card">
+              <h4>Ya estás convocado</h4>
+              <p>Tienes cuenta en el Club Micelu, así que entras directo a la cancha. Sin registros extra.</p>
+            </div>
+          </div>
+          <div class="toque">
+            <div class="toque__num">2</div>
+            <div class="toque__card">
+              <h4>Pon tu marcador</h4>
+              <p>En cada partido escribe cuántos goles hará cada equipo y guarda tu pronóstico.</p>
+            </div>
+          </div>
+          <div class="toque">
+            <div class="toque__num">3</div>
+            <div class="toque__card">
+              <h4>Hasta el pitazo</h4>
+              <p>Edítalo cuando quieras hasta 5 minutos antes del inicio. Después queda sellado.</p>
+            </div>
+          </div>
+          <div class="toque">
+            <div class="toque__num">4</div>
+            <div class="toque__card">
+              <h4>¡A sumar!</h4>
+              <p>Al terminar el partido se calculan tus puntos solos y subes en la tabla.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CÓMO SE GANAN PUNTOS ===================== -->
+    <section class="block">
+      <div class="sec-head"><span class="tab"></span><h2>Cómo se ganan puntos</h2></div>
+      <p class="sec-sub">Tres jugadas de ejemplo para que quede clarísimo.</p>
+      <div class="marcador-ej">
+
+        <div class="ej exacto">
+          <div class="ej__bar"><i class="fa-solid fa-bullseye"></i> Marcador exacto</div>
+          <div class="ej__body">
+            <div class="ej__rows">
+              <div class="ej__line"><span>Tu pronóstico</span><span class="ej__mini">2 : 1</span></div>
+              <div class="ej__line"><span>Resultado real</span><span class="ej__mini">2 : 1</span></div>
+            </div>
+            <div class="ej__foot"><span class="lbl">Le pegaste clavado</span><span class="val">+5 <small>/ +8</small></span></div>
+          </div>
+        </div>
+
+        <div class="ej gana">
+          <div class="ej__bar"><i class="fa-solid fa-check-double"></i> Acertaste ganador</div>
+          <div class="ej__body">
+            <div class="ej__rows">
+              <div class="ej__line"><span>Tu pronóstico</span><span class="ej__mini">2 : 0</span></div>
+              <div class="ej__line"><span>Resultado real</span><span class="ej__mini">3 : 1</span></div>
+            </div>
+            <div class="ej__foot"><span class="lbl">Ganó quien dijiste</span><span class="val">+3 <small>/ +5</small></span></div>
+          </div>
+        </div>
+
+        <div class="ej fallo">
+          <div class="ej__bar"><i class="fa-solid fa-xmark"></i> No acertaste</div>
+          <div class="ej__body">
+            <div class="ej__rows">
+              <div class="ej__line"><span>Tu pronóstico</span><span class="ej__mini">2 : 1</span></div>
+              <div class="ej__line"><span>Resultado real</span><span class="ej__mini">0 : 2</span></div>
+            </div>
+            <div class="ej__foot"><span class="lbl">Ni el ganador ni el marcador</span><span class="val">0</span></div>
+          </div>
+        </div>
+
+      </div>
+      <p class="ej-nota">
+        <i class="fa-solid fa-circle-info"></i>
+        Los <b>+8 y +5</b> aplican en fase de eliminación directa, donde cada partido vale más. Una polla por cuenta.
+      </p>
+    </section>
+
+    <!-- ===================== FIXTURE ===================== -->
+    <section class="block" id="fixture">
+      <div class="sec-head"><span class="tab"></span><h2>El Fixture</h2></div>
+      <p class="sec-sub">Ingresa tu marcador en cada partido disponible y guarda.</p>
+
+      <div class="aviso" id="munAviso" style="display:none;">
+        <i class="fa-solid fa-circle-info"></i> <span></span>
+      </div>
+
+      <div class="filtros" id="munFilters">
+        <button class="filtro active" data-filtro="todos">Todos</button>
+        <button class="filtro" data-filtro="abiertos">Por jugar</button>
+        <button class="filtro" data-filtro="mis">Mis pronósticos</button>
+        <button class="filtro" data-filtro="finalizados">Finalizados</button>
+      </div>
+
+      <div class="loader" id="munLoader">
+        <svg class="ball-spin" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="92" fill="#fff" stroke="#185F64" stroke-width="4"/>
+          <polygon points="100,58 124,76 115,104 85,104 76,76" fill="#185F64"/>
+        </svg>
+        Cargando el fixture del Mundial…
+      </div>
+
+      <div class="matches" id="munMatches"></div>
+
+      <div class="vacio" id="munEmpty" style="display:none;">
+        <i class="ico fa-solid fa-futbol"></i>
+        <p>No hay partidos para mostrar en este filtro.</p>
+      </div>
+    </section>
+
+    <div class="mun-footer">
+      ⚽ <b>Club de Puntos Micelu</b> · Polla Mundialista 2026 · Juega limpio y disfruta el fútbol.
+    </div>
+
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+  <div class="toast" id="munToast"></div>
+
+  <script src="{{ url_for('static', filename='js/mundial.js') }}"></script>
+</body>
+
+</html>

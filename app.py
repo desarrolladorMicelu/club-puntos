@@ -37,6 +37,7 @@ from apscheduler.triggers.cron import CronTrigger
 import pytz
 from cloudflare_r2_service import r2_service
 from pdf_consentimiento_service import generar_hash_firma, generar_pdf_consentimiento
+import mundial_service
 
  
 app = Flask(__name__)
@@ -291,6 +292,75 @@ class Consentimientos_Digitales(db.Model):
     
     def __repr__(self):
         return f'<Consentimiento Doc:{self.documento} Hash:{self.hash_firma[:16]}...>'
+
+# ============================================================================
+# MODELOS: POLLA MUNDIAL 2026
+# ============================================================================
+class MundialPartido(db.Model):
+    """
+    Partidos del Mundial 2026 sincronizados desde la API football-data.org.
+    El campo api_id es el identificador único del partido en la API.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'mundial_partidos'
+    __table_args__ = {'schema': 'plan_beneficios'}
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    api_id = db.Column(db.BigInteger, nullable=False, unique=True, index=True)
+    fecha_partido = db.Column(db.DateTime, nullable=True, index=True)
+    estado = db.Column(db.String(20), default='SCHEDULED')  # SCHEDULED, TIMED, IN_PLAY, PAUSED, FINISHED
+    stage = db.Column(db.String(40), nullable=True)         # GROUP_STAGE, LAST_16, etc.
+    grupo = db.Column(db.String(20), nullable=True)
+    matchday = db.Column(db.Integer, nullable=True)
+
+    equipo_local = db.Column(db.String(80), nullable=False)
+    equipo_local_tla = db.Column(db.String(10), nullable=True)
+    equipo_local_crest = db.Column(db.String(300), nullable=True)
+    equipo_visitante = db.Column(db.String(80), nullable=False)
+    equipo_visitante_tla = db.Column(db.String(10), nullable=True)
+    equipo_visitante_crest = db.Column(db.String(300), nullable=True)
+
+    goles_local = db.Column(db.Integer, nullable=True)
+    goles_visitante = db.Column(db.Integer, nullable=True)
+
+    # Control de calificación de la polla
+    puntos_calculados = db.Column(db.Boolean, default=False, index=True)
+
+    creado_en = db.Column(db.DateTime, default=datetime.now)
+    actualizado_en = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<MundialPartido {self.equipo_local} vs {self.equipo_visitante}>'
+
+
+class MundialPronostico(db.Model):
+    """
+    Pronóstico de un usuario para un partido del Mundial 2026.
+    Restricción única: un usuario solo puede tener un pronóstico por partido.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'mundial_pronosticos'
+    __table_args__ = (
+        db.UniqueConstraint('documento', 'api_id', name='uq_pronostico_usuario_partido'),
+        {'schema': 'plan_beneficios'}
+    )
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    documento = db.Column(db.String(50), nullable=False, index=True)
+    api_id = db.Column(db.BigInteger, nullable=False, index=True)
+
+    pred_local = db.Column(db.Integer, nullable=False)
+    pred_visitante = db.Column(db.Integer, nullable=False)
+
+    puntos_obtenidos = db.Column(db.Integer, default=0)
+    tipo_acierto = db.Column(db.String(20), nullable=True)  # EXACTO, RESULTADO, FALLO
+    calificado = db.Column(db.Boolean, default=False, index=True)
+
+    creado_en = db.Column(db.DateTime, default=datetime.now)
+    actualizado_en = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<MundialPronostico {self.documento} P{self.api_id} {self.pred_local}-{self.pred_visitante}>'
 
 # ============================================================================
 # FUNCIONES DEL NUEVO SISTEMA DE PUNTOS
@@ -7282,6 +7352,614 @@ def admin_init_productos_carrusel():
         return jsonify({'success': True, 'message': 'Tabla plan_beneficios.productos_carrusel creada o ya existía.'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================================================================
+# ============================================================================
+# POLLA MUNDIAL 2026 - LÓGICA Y RUTAS
+# ============================================================================
+# ============================================================================
+
+def ensure_mundial_tables():
+    """
+    Crea (si faltan) las tablas de la Polla Mundial 2026 en el esquema
+    plan_beneficios. Idempotente. Requiere contexto de aplicación Flask activo.
+    """
+    ddl_schema = sqlalchemy.text("CREATE SCHEMA IF NOT EXISTS plan_beneficios")
+    ddl_partidos = sqlalchemy.text("""
+        CREATE TABLE IF NOT EXISTS plan_beneficios.mundial_partidos (
+            id UUID PRIMARY KEY,
+            api_id BIGINT NOT NULL UNIQUE,
+            fecha_partido TIMESTAMP WITHOUT TIME ZONE,
+            estado VARCHAR(20) DEFAULT 'SCHEDULED',
+            stage VARCHAR(40),
+            grupo VARCHAR(20),
+            matchday INTEGER,
+            equipo_local VARCHAR(80) NOT NULL,
+            equipo_local_tla VARCHAR(10),
+            equipo_local_crest VARCHAR(300),
+            equipo_visitante VARCHAR(80) NOT NULL,
+            equipo_visitante_tla VARCHAR(10),
+            equipo_visitante_crest VARCHAR(300),
+            goles_local INTEGER,
+            goles_visitante INTEGER,
+            puntos_calculados BOOLEAN DEFAULT FALSE,
+            creado_en TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP WITHOUT TIME ZONE
+        )
+    """)
+    ddl_pronosticos = sqlalchemy.text("""
+        CREATE TABLE IF NOT EXISTS plan_beneficios.mundial_pronosticos (
+            id UUID PRIMARY KEY,
+            documento VARCHAR(50) NOT NULL,
+            api_id BIGINT NOT NULL,
+            pred_local INTEGER NOT NULL,
+            pred_visitante INTEGER NOT NULL,
+            puntos_obtenidos INTEGER DEFAULT 0,
+            tipo_acierto VARCHAR(20),
+            calificado BOOLEAN DEFAULT FALSE,
+            creado_en TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP WITHOUT TIME ZONE,
+            CONSTRAINT uq_pronostico_usuario_partido UNIQUE (documento, api_id)
+        )
+    """)
+    engine = db.engines["db3"]
+    with engine.begin() as conn:
+        conn.execute(ddl_schema)
+        conn.execute(ddl_partidos)
+        conn.execute(ddl_pronosticos)
+
+
+@app.route('/admin/init_mundial')
+@login_required
+@admin_required
+def admin_init_mundial():
+    """Crea las tablas de la Polla Mundial si no existen (ejecutar una vez como admin)."""
+    try:
+        ensure_mundial_tables()
+        resumen = mundial_sincronizar_partidos()
+        return jsonify({
+            'success': True,
+            'message': 'Tablas de la Polla Mundial creadas o ya existían.',
+            'sincronizacion': resumen,
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def mundial_sincronizar_partidos():
+    """
+    Sincroniza los partidos del Mundial desde la API hacia la BD (upsert por api_id).
+    Idempotente. Devuelve un resumen.
+    """
+    partidos, fuente, error = mundial_service.obtener_partidos_api()
+    nuevos, actualizados = 0, 0
+
+    try:
+        for p in partidos:
+            existente = MundialPartido.query.filter_by(api_id=p['api_id']).first()
+            if existente:
+                # Actualizar datos volátiles (estado, marcador, fecha)
+                existente.fecha_partido = p['utc_date']
+                existente.estado = p['estado']
+                existente.stage = p['stage']
+                existente.grupo = p['grupo']
+                existente.matchday = p['matchday']
+                existente.equipo_local = p['equipo_local']
+                existente.equipo_local_tla = p['equipo_local_tla']
+                existente.equipo_local_crest = p['equipo_local_crest']
+                existente.equipo_visitante = p['equipo_visitante']
+                existente.equipo_visitante_tla = p['equipo_visitante_tla']
+                existente.equipo_visitante_crest = p['equipo_visitante_crest']
+                existente.goles_local = p['goles_local']
+                existente.goles_visitante = p['goles_visitante']
+                actualizados += 1
+            else:
+                nuevo = MundialPartido(
+                    api_id=p['api_id'],
+                    fecha_partido=p['utc_date'],
+                    estado=p['estado'],
+                    stage=p['stage'],
+                    grupo=p['grupo'],
+                    matchday=p['matchday'],
+                    equipo_local=p['equipo_local'],
+                    equipo_local_tla=p['equipo_local_tla'],
+                    equipo_local_crest=p['equipo_local_crest'],
+                    equipo_visitante=p['equipo_visitante'],
+                    equipo_visitante_tla=p['equipo_visitante_tla'],
+                    equipo_visitante_crest=p['equipo_visitante_crest'],
+                    goles_local=p['goles_local'],
+                    goles_visitante=p['goles_visitante'],
+                    puntos_calculados=False,
+                )
+                db.session.add(nuevo)
+                nuevos += 1
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {'success': False, 'error': str(e), 'fuente': fuente}
+
+    return {
+        'success': True,
+        'nuevos': nuevos,
+        'actualizados': actualizados,
+        'fuente': fuente,
+        'aviso': error,
+    }
+
+
+def mundial_calificar_partidos_terminados():
+    """
+    Califica los pronósticos de los partidos que ya terminaron y aún no se han
+    procesado. Otorga puntos de la polla (NO puntos canjeables) en la columna
+    puntos_obtenidos de cada pronóstico. Idempotente.
+
+    Returns:
+        dict: resumen { partidos_calificados, pronosticos_calificados }
+    """
+    partidos_calificados = 0
+    pronosticos_calificados = 0
+
+    try:
+        terminados = MundialPartido.query.filter(
+            MundialPartido.estado == 'FINISHED',
+            MundialPartido.puntos_calculados == False,
+            MundialPartido.goles_local.isnot(None),
+            MundialPartido.goles_visitante.isnot(None),
+        ).all()
+
+        for partido in terminados:
+            pronosticos = MundialPronostico.query.filter_by(api_id=partido.api_id).all()
+            for pron in pronosticos:
+                puntos, tipo = mundial_service.calcular_puntos_pronostico(
+                    pron.pred_local, pron.pred_visitante,
+                    partido.goles_local, partido.goles_visitante,
+                    partido.stage
+                )
+                pron.puntos_obtenidos = puntos
+                pron.tipo_acierto = tipo
+                pron.calificado = True
+                pronosticos_calificados += 1
+
+            partido.puntos_calculados = True
+            partidos_calificados += 1
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {'success': False, 'error': str(e)}
+
+    return {
+        'success': True,
+        'partidos_calificados': partidos_calificados,
+        'pronosticos_calificados': pronosticos_calificados,
+    }
+
+
+def mundial_partido_abierto(partido):
+    """Determina si un partido todavía admite pronósticos (no ha empezado)."""
+    if partido.estado not in mundial_service.ESTADOS_ABIERTOS:
+        return False
+    if not partido.fecha_partido:
+        return True
+    cierre = partido.fecha_partido - timedelta(minutes=mundial_service.BUFFER_CIERRE_MIN)
+    return datetime.utcnow() < cierre
+
+
+def mundial_calcular_leaderboard():
+    """
+    Calcula la tabla de posiciones de la polla agrupando puntos por documento.
+
+    Returns:
+        list[dict]: ordenada desc por puntos. Cada item incluye nombre, documento,
+                    puntos, aciertos_exactos, aciertos_resultado, total_pronosticos.
+    """
+    filas = db.session.query(
+        MundialPronostico.documento,
+        db.func.coalesce(db.func.sum(MundialPronostico.puntos_obtenidos), 0).label('puntos'),
+        db.func.sum(db.case((MundialPronostico.tipo_acierto == 'EXACTO', 1), else_=0)).label('exactos'),
+        db.func.sum(db.case((MundialPronostico.tipo_acierto == 'RESULTADO', 1), else_=0)).label('resultados'),
+        db.func.count(MundialPronostico.id).label('total'),
+    ).group_by(MundialPronostico.documento).all()
+
+    # Resolver nombres de usuario en un solo query
+    documentos = [f.documento for f in filas]
+    nombres = {}
+    if documentos:
+        usuarios = Usuario.query.filter(Usuario.documento.in_(documentos)).all()
+        nombres = {u.documento: u.nombre for u in usuarios}
+
+    leaderboard = []
+    for f in filas:
+        leaderboard.append({
+            'documento': f.documento,
+            'nombre': nombres.get(f.documento, 'Participante'),
+            'puntos': int(f.puntos or 0),
+            'exactos': int(f.exactos or 0),
+            'resultados': int(f.resultados or 0),
+            'total': int(f.total or 0),
+        })
+
+    # Orden: puntos desc, luego exactos desc, luego total desc
+    leaderboard.sort(key=lambda x: (-x['puntos'], -x['exactos'], -x['total']))
+
+    # Asignar posición
+    for i, item in enumerate(leaderboard, start=1):
+        item['posicion'] = i
+
+    return leaderboard
+
+
+# ----------------------------------------------------------------------------
+# RUTAS DE USUARIO
+# ----------------------------------------------------------------------------
+# Acceso anticipado a la Polla Mundial (mientras no se habilita para todos).
+# SOLO estos documentos pueden entrar. Cualquier otro (incluidos admins)
+# verá la pantalla "próximamente".
+MUNDIAL_ACCESO_ANTICIPADO = {
+    '1151448160',
+    '1216727294',
+    '1036661888',
+}
+
+
+def mundial_tiene_acceso(documento):
+    """True SOLO si el documento está en la lista blanca. Sin excepciones."""
+    if not documento:
+        return False
+    return str(documento).strip() in MUNDIAL_ACCESO_ANTICIPADO
+
+
+@app.route('/mundial')
+@login_required
+def mundial():
+    """Página principal de la Polla Mundial 2026."""
+    documento = session.get('user_documento')
+    usuario = Usuario.query.filter_by(documento=documento).first()
+
+    # Si no tiene acceso anticipado, mostrar pantalla "próximamente".
+    if not mundial_tiene_acceso(documento):
+        return render_template('mundial_proximamente.html', usuario=usuario)
+
+    return render_template('mundial.html', usuario=usuario)
+
+
+@app.route('/api/mundial/partidos')
+@login_required
+def api_mundial_partidos():
+    """
+    Devuelve los partidos del Mundial junto con el pronóstico del usuario actual
+    (si existe) y si cada partido sigue abierto para pronosticar.
+    """
+    documento = session.get('user_documento')
+    if not mundial_tiene_acceso(documento):
+        return jsonify({'success': False, 'message': 'La Polla Mundialista aún no está disponible.'}), 403
+    try:
+        # Asegurar que las tablas existan (auto-reparable)
+        ensure_mundial_tables()
+
+        # Si no hay partidos en BD, intentar sincronizar automáticamente.
+        if MundialPartido.query.count() == 0:
+            mundial_sincronizar_partidos()
+
+        # Calificar lo que se pueda al vuelo (por si terminó algún partido).
+        mundial_calificar_partidos_terminados()
+
+        partidos = MundialPartido.query.order_by(
+            MundialPartido.fecha_partido.asc(),
+            MundialPartido.api_id.asc()
+        ).all()
+
+        pronosticos = {
+            p.api_id: p for p in
+            MundialPronostico.query.filter_by(documento=documento).all()
+        }
+
+        data = []
+        for partido in partidos:
+            pron = pronosticos.get(partido.api_id)
+            data.append({
+                'api_id': partido.api_id,
+                'fecha': partido.fecha_partido.isoformat() + 'Z' if partido.fecha_partido else None,
+                'estado': partido.estado,
+                'stage': partido.stage,
+                'grupo': partido.grupo,
+                'abierto': mundial_partido_abierto(partido),
+                'equipo_local': partido.equipo_local,
+                'equipo_local_tla': partido.equipo_local_tla,
+                'equipo_local_crest': partido.equipo_local_crest,
+                'equipo_visitante': partido.equipo_visitante,
+                'equipo_visitante_tla': partido.equipo_visitante_tla,
+                'equipo_visitante_crest': partido.equipo_visitante_crest,
+                'goles_local': partido.goles_local,
+                'goles_visitante': partido.goles_visitante,
+                'pronostico': None if not pron else {
+                    'pred_local': pron.pred_local,
+                    'pred_visitante': pron.pred_visitante,
+                    'puntos_obtenidos': pron.puntos_obtenidos,
+                    'tipo_acierto': pron.tipo_acierto,
+                    'calificado': pron.calificado,
+                },
+            })
+
+        return jsonify({'success': True, 'partidos': data})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/mundial/pronosticar', methods=['POST'])
+@login_required
+def api_mundial_pronosticar():
+    """Guarda o actualiza el pronóstico del usuario para un partido."""
+    documento = session.get('user_documento')
+    if not mundial_tiene_acceso(documento):
+        return jsonify({'success': False, 'message': 'La Polla Mundialista aún no está disponible.'}), 403
+    try:
+        data = request.get_json(force=True)
+        api_id = int(data.get('api_id'))
+        pred_local = int(data.get('pred_local'))
+        pred_visitante = int(data.get('pred_visitante'))
+
+        if pred_local < 0 or pred_visitante < 0 or pred_local > 99 or pred_visitante > 99:
+            return jsonify({'success': False, 'message': 'Marcador inválido.'}), 400
+
+        partido = MundialPartido.query.filter_by(api_id=api_id).first()
+        if not partido:
+            return jsonify({'success': False, 'message': 'Partido no encontrado.'}), 404
+
+        if not mundial_partido_abierto(partido):
+            return jsonify({'success': False, 'message': 'Este partido ya cerró. No se admiten pronósticos.'}), 403
+
+        pron = MundialPronostico.query.filter_by(documento=documento, api_id=api_id).first()
+        if pron:
+            pron.pred_local = pred_local
+            pron.pred_visitante = pred_visitante
+            mensaje = 'Pronóstico actualizado.'
+        else:
+            pron = MundialPronostico(
+                documento=documento,
+                api_id=api_id,
+                pred_local=pred_local,
+                pred_visitante=pred_visitante,
+            )
+            db.session.add(pron)
+            mensaje = 'Pronóstico guardado.'
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': mensaje})
+    except (ValueError, TypeError):
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Datos inválidos.'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/mundial/mi_posicion')
+@login_required
+def api_mundial_mi_posicion():
+    """Devuelve la posición y estadísticas del usuario actual en el leaderboard."""
+    documento = session.get('user_documento')
+    if not mundial_tiene_acceso(documento):
+        return jsonify({'success': False, 'message': 'La Polla Mundialista aún no está disponible.'}), 403
+    try:
+        mundial_calificar_partidos_terminados()
+        leaderboard = mundial_calcular_leaderboard()
+        total_participantes = len(leaderboard)
+
+        mi_fila = next((x for x in leaderboard if x['documento'] == documento), None)
+        if not mi_fila:
+            mi_fila = {
+                'posicion': None, 'puntos': 0, 'exactos': 0,
+                'resultados': 0, 'total': 0,
+            }
+
+        # Top 3 para mostrar el podio al usuario
+        top3 = [
+            {'posicion': x['posicion'], 'nombre': x['nombre'], 'puntos': x['puntos']}
+            for x in leaderboard[:3]
+        ]
+
+        return jsonify({
+            'success': True,
+            'mi_posicion': mi_fila,
+            'total_participantes': total_participantes,
+            'top3': top3,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ----------------------------------------------------------------------------
+# RUTAS DE ADMINISTRACIÓN
+# ----------------------------------------------------------------------------
+@app.route('/admin/mundial')
+@login_required
+@admin_required
+def admin_mundial():
+    """Panel de administración de la Polla Mundial."""
+    return render_template('admin_mundial.html')
+
+
+@app.route('/admin/api/mundial/sincronizar', methods=['POST'])
+@login_required
+@admin_required
+def admin_api_mundial_sincronizar():
+    """Fuerza la sincronización de partidos desde la API."""
+    resultado = mundial_sincronizar_partidos()
+    # Tras sincronizar, intentar calificar partidos terminados.
+    if resultado.get('success'):
+        mundial_calificar_partidos_terminados()
+    status = 200 if resultado.get('success') else 500
+    return jsonify(resultado), status
+
+
+@app.route('/admin/api/mundial/calificar', methods=['POST'])
+@login_required
+@admin_required
+def admin_api_mundial_calificar():
+    """Fuerza la calificación de los partidos terminados."""
+    resultado = mundial_calificar_partidos_terminados()
+    status = 200 if resultado.get('success') else 500
+    return jsonify(resultado), status
+
+
+@app.route('/admin/api/mundial/leaderboard')
+@login_required
+@admin_required
+def admin_api_mundial_leaderboard():
+    """Devuelve la tabla COMPLETA de posiciones (solo admin)."""
+    try:
+        mundial_calificar_partidos_terminados()
+        leaderboard = mundial_calcular_leaderboard()
+        return jsonify({
+            'success': True,
+            'total': len(leaderboard),
+            'leaderboard': leaderboard,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/mundial/estado')
+@login_required
+@admin_required
+def admin_api_mundial_estado():
+    """Devuelve métricas generales de la polla para el dashboard admin."""
+    try:
+        ensure_mundial_tables()
+        total_partidos = MundialPartido.query.count()
+        terminados = MundialPartido.query.filter_by(estado='FINISHED').count()
+        total_pronosticos = MundialPronostico.query.count()
+        participantes = db.session.query(
+            db.func.count(db.distinct(MundialPronostico.documento))
+        ).scalar()
+        token_ok = bool(mundial_service.obtener_token())
+
+        return jsonify({
+            'success': True,
+            'total_partidos': total_partidos,
+            'partidos_terminados': terminados,
+            'total_pronosticos': total_pronosticos,
+            'participantes': int(participantes or 0),
+            'token_configurado': token_ok,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ----------------------------------------------------------------------------
+# TAREA PROGRAMADA: sincronizar y calificar automáticamente
+# ----------------------------------------------------------------------------
+@app.route('/admin/api/mundial/simular_resultado', methods=['POST'])
+@login_required
+@admin_required
+def admin_api_mundial_simular():
+    """
+    SOLO PARA PRUEBAS: Simula que un partido terminó con un marcador dado.
+    Esto permite probar el flujo completo (pronóstico → calificación → puntos)
+    sin esperar a que el Mundial empiece.
+
+    Body JSON: { "api_id": 123456, "goles_local": 2, "goles_visitante": 1 }
+    """
+    try:
+        data = request.get_json(force=True)
+        api_id = int(data.get('api_id'))
+        goles_local = int(data.get('goles_local'))
+        goles_visitante = int(data.get('goles_visitante'))
+
+        partido = MundialPartido.query.filter_by(api_id=api_id).first()
+        if not partido:
+            return jsonify({'success': False, 'message': f'Partido con api_id={api_id} no encontrado.'}), 404
+
+        # Simular resultado
+        partido.estado = 'FINISHED'
+        partido.goles_local = goles_local
+        partido.goles_visitante = goles_visitante
+        partido.puntos_calculados = False  # Para que se recalcule
+        db.session.commit()
+
+        # Calificar inmediatamente
+        resultado = mundial_calificar_partidos_terminados()
+
+        return jsonify({
+            'success': True,
+            'message': f'Partido simulado: {partido.equipo_local} {goles_local} - {goles_visitante} {partido.equipo_visitante}. Calificación ejecutada.',
+            'calificacion': resultado,
+        })
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Datos inválidos: {e}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/mundial/reset_simulacion', methods=['POST'])
+@login_required
+@admin_required
+def admin_api_mundial_reset_sim():
+    """
+    Resetea un partido simulado a su estado original (SCHEDULED, sin marcador).
+    Body JSON: { "api_id": 123456 }
+    """
+    try:
+        data = request.get_json(force=True)
+        api_id = int(data.get('api_id'))
+
+        partido = MundialPartido.query.filter_by(api_id=api_id).first()
+        if not partido:
+            return jsonify({'success': False, 'message': 'Partido no encontrado.'}), 404
+
+        partido.estado = 'SCHEDULED'
+        partido.goles_local = None
+        partido.goles_visitante = None
+        partido.puntos_calculados = False
+
+        # Resetear pronósticos calificados de ese partido
+        pronosticos = MundialPronostico.query.filter_by(api_id=api_id).all()
+        for p in pronosticos:
+            p.puntos_obtenidos = 0
+            p.tipo_acierto = None
+            p.calificado = False
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Partido {api_id} reseteado a SCHEDULED.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def mundial_job_automatico():
+    """Job que corre periódicamente: sincroniza resultados y califica la polla."""
+    with app.app_context():
+        try:
+            ensure_mundial_tables()
+            mundial_sincronizar_partidos()
+            mundial_calificar_partidos_terminados()
+            print(f"[MUNDIAL] Sincronización/calificación OK: {datetime.now(bogota_tz).strftime('%Y-%m-%d %H:%M:%S')}")
+        except Exception as e:
+            print(f"[MUNDIAL] Error en job automático: {e}")
+
+
+try:
+    # Cada 30 minutos: traer resultados de la API y calificar pronósticos.
+    # Son ~48 requests/día (muy por debajo del free tier).
+    # Durante el Mundial los partidos duran 90+min, así que 30min es suficiente
+    # para capturar el resultado final poco después de que termine.
+    scheduler.add_job(
+        mundial_job_automatico, 'interval',
+        minutes=30,
+        id='mundial_sync_calificar',
+        replace_existing=True,
+    )
+    print("[MUNDIAL] Job automático registrado (cada 30 min).")
+except Exception as e:
+    print(f"[MUNDIAL] No se pudo registrar el job automático: {e}")
 
 
 if __name__ == '__main__':
