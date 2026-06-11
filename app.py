@@ -9,7 +9,7 @@ import string
 import threading
 import msal
 from time import timezone
-from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for, Response
+from flask import Flask, flash, json, jsonify, logging, redirect, render_template, request, session, url_for, Response, g
 import csv
 import os
 from flask_sqlalchemy import SQLAlchemy
@@ -836,10 +836,15 @@ def inject_admin_status():
     Esto permite mostrar/ocultar elementos según si el usuario es admin.
     """
     is_admin = False
+    mundial_acceso = False
     if 'user_documento' in session:
         documento = session.get('user_documento')
         is_admin = es_usuario_admin(documento)
-    return dict(is_admin=is_admin)
+        try:
+            mundial_acceso = mundial_tiene_acceso(documento)
+        except Exception:
+            mundial_acceso = False
+    return dict(is_admin=is_admin, mundial_acceso=mundial_acceso)
  
 @app.route('/recuperar_pass', methods=['GET', 'POST'])
 def recuperar_pass():
@@ -5434,6 +5439,18 @@ def limpiar_coberturas_inactivas_antiguas():
 
 
 
+def mundial_job_automatico():
+    """Job que corre periódicamente: sincroniza resultados y califica la polla del Mundial."""
+    with app.app_context():
+        try:
+            ensure_mundial_tables()
+            mundial_sincronizar_partidos()
+            mundial_calificar_partidos_terminados()
+            print(f"[MUNDIAL] Sincronización/calificación OK: {datetime.now(bogota_tz).strftime('%Y-%m-%d %H:%M:%S')}")
+        except Exception as e:
+            print(f"[MUNDIAL] Error en job automático: {e}")
+
+
 def configurar_tareas_programadas():
     """
     Configura todas las tareas programadas del sistema
@@ -5450,7 +5467,6 @@ def configurar_tareas_programadas():
             id='exportar_coberturas',
             replace_existing=True
         )
-        
         # 2. Actualización diaria de coberturas inactivas a las 23:00
         scheduler.add_job(
             actualizar_coberturas_inactivas_diario, 'cron',
@@ -5484,6 +5500,14 @@ def configurar_tareas_programadas():
             hour='8', minute='50',
             timezone=bogota_tz,
             id='limpiar_coberturas_antiguas',
+            replace_existing=True
+        )
+
+        # 6. POLLA MUNDIAL: sincronizar resultados y calificar cada 30 minutos
+        scheduler.add_job(
+            mundial_job_automatico, 'interval',
+            minutes=30,
+            id='mundial_sync_calificar',
             replace_existing=True
         )
         
@@ -7593,21 +7617,197 @@ def mundial_calcular_leaderboard():
 # ----------------------------------------------------------------------------
 # RUTAS DE USUARIO
 # ----------------------------------------------------------------------------
-# Acceso anticipado a la Polla Mundial (mientras no se habilita para todos).
-# SOLO estos documentos pueden entrar. Cualquier otro (incluidos admins)
-# verá la pantalla "próximamente".
+# ============================================================================
+# AUTO-SINCRONIZACIÓN CON THROTTLE (respaldo si el scheduler no corre)
+# ============================================================================
+# Guarda la última vez que se sincronizó automáticamente al cargar partidos.
+_mundial_ultima_sync = {'ts': None}
+MUNDIAL_SYNC_INTERVALO_SEG = 180  # mínimo 3 min entre auto-syncs por carga
+
+
+def mundial_autosync_si_corresponde(forzar=False):
+    """
+    Sincroniza y califica desde la API, pero como máximo una vez cada
+    MUNDIAL_SYNC_INTERVALO_SEG segundos (throttle). Sirve de respaldo cuando
+    el scheduler de fondo no está activo en el despliegue.
+    """
+    ahora = datetime.utcnow()
+    ultima = _mundial_ultima_sync.get('ts')
+    if not forzar and ultima is not None:
+        if (ahora - ultima).total_seconds() < MUNDIAL_SYNC_INTERVALO_SEG:
+            return  # demasiado pronto, no sincronizar
+    _mundial_ultima_sync['ts'] = ahora
+    try:
+        mundial_sincronizar_partidos()
+        mundial_calificar_partidos_terminados()
+    except Exception as e:
+        print(f"⚠️ mundial_autosync: {e}")
+
+
+# ============================================================================
+# CONTROL DE ACCESO A LA POLLA MUNDIAL POR COMPRAS DE JUNIO 2026
+# ============================================================================
+# Año/mes que habilita el acceso (compra/factura en este periodo).
+MUNDIAL_ANIO_REQUERIDO = 2026
+MUNDIAL_MES_REQUERIDO = 6  # Junio
+
+# Switch maestro: mientras esté True, SOLO la whitelist entra (modo pre-lanzamiento).
+# Cuando lo pongas en False, el acceso pasa a depender de tener factura en junio 2026.
+MUNDIAL_MODO_WHITELIST = True
+
+# Whitelist de acceso anticipado (modo pre-lanzamiento).
 MUNDIAL_ACCESO_ANTICIPADO = {
     '1151448160',
     '1216727294',
     '1036661888',
+    '1036689216'
+}
+
+# SOLO PRUEBAS: documentos que se tratan como si TUVIERAN factura de junio 2026,
+# sin tocar las bases de datos reales. Útil para verificar el flujo de acceso
+# por compra antes de que existan facturas reales del mes. Vaciar en producción.
+MUNDIAL_FACTURA_SIMULADA = {
+    '1036689216',
 }
 
 
-def mundial_tiene_acceso(documento):
-    """True SOLO si el documento está en la lista blanca. Sin excepciones."""
+def _parsear_fecha_compra(fecha_str):
+    """
+    Parsea FHCOMPRA igual que el resto del sistema.
+    Acepta datetime, 'dd/mm/yyyy' y 'yyyy-mm-dd...'. Devuelve datetime o None.
+    """
+    if fecha_str is None:
+        return None
+    if isinstance(fecha_str, datetime):
+        return fecha_str
+    # date (sin hora)
+    try:
+        from datetime import date as _date
+        if isinstance(fecha_str, _date):
+            return datetime(fecha_str.year, fecha_str.month, fecha_str.day)
+    except Exception:
+        pass
+    if isinstance(fecha_str, str):
+        s = fecha_str.strip()
+        for fmt in ('%d/%m/%Y', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%d/%m/%Y %H:%M:%S'):
+            try:
+                return datetime.strptime(s[:19] if len(s) >= 19 and ' ' in s else s, fmt)
+            except (ValueError, TypeError):
+                continue
+        # último intento: ISO
+        try:
+            return datetime.fromisoformat(s.replace('Z', ''))
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def tiene_factura_en_periodo(documento, anio, mes):
+    """
+    Verifica si un cliente tiene al menos una factura/compra en el año y mes dados.
+    Consulta las MISMAS fuentes que usa el sistema de puntos:
+      - SQL Server (MVTRADE) para compras recientes (2026+)
+      - PostgreSQL backup (micelu_backup.mvtrade) para históricas
+    Retorna True/False. Cualquier error se trata como "sin acceso" (False) salvo
+    que la otra fuente confirme la factura.
+    """
     if not documento:
         return False
-    return str(documento).strip() in MUNDIAL_ACCESO_ANTICIPADO
+
+    documento = str(documento).strip()
+
+    # SOLO PRUEBAS: factura simulada
+    if documento in MUNDIAL_FACTURA_SIMULADA:
+        return True
+
+    # ---- 1) SQL Server (Ofima) ----
+    try:
+        query_sql_server = """
+        SELECT m.FHCOMPRA
+        FROM MVTRADE m
+        WHERE (m.NIT = ? OR m.NIT LIKE ?)
+            AND CAST(m.VLRVENTA AS DECIMAL(15,2)) > 0
+            AND (m.TIPODCTO = 'FM' OR m.TIPODCTO = 'FB' OR m.TIPODCTO = 'FC' OR m.TIPODCTO = 'FN')
+        """
+        resultados = ejecutar_query_sql_server(query_sql_server, (documento, f"{documento}%"))
+        if resultados:
+            for row in resultados:
+                fecha = _parsear_fecha_compra(row[0])
+                if fecha and fecha.year == anio and fecha.month == mes:
+                    return True
+    except Exception as e:
+        print(f"⚠️ tiene_factura_en_periodo - SQL Server: {e}")
+
+    # ---- 2) PostgreSQL backup ----
+    conn_pg = None
+    cursor_pg = None
+    try:
+        conn_pg = obtener_conexion_bd_backup()
+        cursor_pg = conn_pg.cursor()
+        query_postgres = """
+        SELECT m.fhcompra
+        FROM micelu_backup.mvtrade m
+        WHERE m.nit = %s
+            AND CAST(m.vlrventa AS DECIMAL(15,2)) > 0
+            AND (m.tipodcto = 'FM' OR m.tipodcto = 'FB' OR m.tipodcto = 'FC' OR m.tipodcto = 'FN')
+        """
+        cursor_pg.execute(query_postgres, (documento,))
+        filas = cursor_pg.fetchall()
+        for row in filas:
+            fecha = _parsear_fecha_compra(row[0])
+            if fecha and fecha.year == anio and fecha.month == mes:
+                return True
+    except Exception as e:
+        print(f"⚠️ tiene_factura_en_periodo - PostgreSQL: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    finally:
+        try:
+            if cursor_pg:
+                cursor_pg.close()
+            if conn_pg:
+                conn_pg.close()
+        except Exception:
+            pass
+
+    return False
+
+
+def mundial_tiene_acceso(documento):
+    """
+    Determina si un usuario puede acceder a la Polla Mundial.
+
+    - Modo whitelist (pre-lanzamiento): SOLO documentos en la lista blanca.
+    - Modo abierto: cualquier usuario con factura/compra en junio 2026.
+
+    Cachea el resultado por request (g) para no consultar la BD varias veces.
+    """
+    if not documento:
+        return False
+    documento = str(documento).strip()
+
+    # Cache por request
+    cache_key = f'_mundial_acceso_{documento}'
+    if hasattr(g, cache_key):
+        return getattr(g, cache_key)
+
+    if MUNDIAL_MODO_WHITELIST:
+        acceso = documento in MUNDIAL_ACCESO_ANTICIPADO
+    else:
+        # La whitelist siempre tiene acceso (útil para pruebas internas);
+        # el resto necesita factura de junio 2026.
+        acceso = (
+            documento in MUNDIAL_ACCESO_ANTICIPADO
+            or tiene_factura_en_periodo(documento, MUNDIAL_ANIO_REQUERIDO, MUNDIAL_MES_REQUERIDO)
+        )
+
+    try:
+        setattr(g, cache_key, acceso)
+    except Exception:
+        pass
+    return acceso
 
 
 @app.route('/mundial')
@@ -7638,12 +7838,12 @@ def api_mundial_partidos():
         # Asegurar que las tablas existan (auto-reparable)
         ensure_mundial_tables()
 
-        # Si no hay partidos en BD, intentar sincronizar automáticamente.
+        # Auto-sincronizar resultados desde la API (con throttle), como respaldo
+        # por si el scheduler de fondo no está corriendo en el despliegue.
         if MundialPartido.query.count() == 0:
-            mundial_sincronizar_partidos()
-
-        # Calificar lo que se pueda al vuelo (por si terminó algún partido).
-        mundial_calificar_partidos_terminados()
+            mundial_autosync_si_corresponde(forzar=True)
+        else:
+            mundial_autosync_si_corresponde()
 
         partidos = MundialPartido.query.order_by(
             MundialPartido.fecha_partido.asc(),
@@ -7744,6 +7944,8 @@ def api_mundial_mi_posicion():
     if not mundial_tiene_acceso(documento):
         return jsonify({'success': False, 'message': 'La Polla Mundialista aún no está disponible.'}), 403
     try:
+        # Respaldo: sincroniza con la API (throttled) por si el scheduler no corre.
+        mundial_autosync_si_corresponde()
         mundial_calificar_partidos_terminados()
         leaderboard = mundial_calcular_leaderboard()
         total_participantes = len(leaderboard)
@@ -7934,33 +8136,8 @@ def admin_api_mundial_reset_sim():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-def mundial_job_automatico():
-    """Job que corre periódicamente: sincroniza resultados y califica la polla."""
-    with app.app_context():
-        try:
-            ensure_mundial_tables()
-            mundial_sincronizar_partidos()
-            mundial_calificar_partidos_terminados()
-            print(f"[MUNDIAL] Sincronización/calificación OK: {datetime.now(bogota_tz).strftime('%Y-%m-%d %H:%M:%S')}")
-        except Exception as e:
-            print(f"[MUNDIAL] Error en job automático: {e}")
-
-
-try:
-    # Cada 30 minutos: traer resultados de la API y calificar pronósticos.
-    # Son ~48 requests/día (muy por debajo del free tier).
-    # Durante el Mundial los partidos duran 90+min, así que 30min es suficiente
-    # para capturar el resultado final poco después de que termine.
-    scheduler.add_job(
-        mundial_job_automatico, 'interval',
-        minutes=30,
-        id='mundial_sync_calificar',
-        replace_existing=True,
-    )
-    print("[MUNDIAL] Job automático registrado (cada 30 min).")
-except Exception as e:
-    print(f"[MUNDIAL] No se pudo registrar el job automático: {e}")
-
+if __name__ == '__main__':
+    app.run(debug=True, port=os.getenv("PORT", default=5000))
 
 if __name__ == '__main__':
     app.run(debug=True, port=os.getenv("PORT", default=5000))
