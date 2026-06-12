@@ -7463,6 +7463,14 @@ def mundial_sincronizar_partidos():
         for p in partidos:
             existente = MundialPartido.query.filter_by(api_id=p['api_id']).first()
             if existente:
+                # Detectar si cambió el marcador o el estado respecto a lo guardado.
+                # Si cambió, hay que volver a calificar (reset puntos_calculados).
+                cambio_relevante = (
+                    existente.estado != p['estado']
+                    or existente.goles_local != p['goles_local']
+                    or existente.goles_visitante != p['goles_visitante']
+                )
+
                 # Actualizar datos volátiles (estado, marcador, fecha)
                 existente.fecha_partido = p['utc_date']
                 existente.estado = p['estado']
@@ -7477,6 +7485,11 @@ def mundial_sincronizar_partidos():
                 existente.equipo_visitante_crest = p['equipo_visitante_crest']
                 existente.goles_local = p['goles_local']
                 existente.goles_visitante = p['goles_visitante']
+
+                # Si el resultado/estado cambió, forzar recalificación.
+                if cambio_relevante:
+                    existente.puntos_calculados = False
+
                 actualizados += 1
             else:
                 nuevo = MundialPartido(
@@ -8052,6 +8065,18 @@ def admin_api_mundial_estado():
         })
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/mundial/diagnostico')
+@login_required
+@admin_required
+def admin_api_mundial_diagnostico():
+    """Diagnóstico crudo de la API: qué responde realmente football-data.org."""
+    try:
+        diag = mundial_service.diagnosticar_api()
+        return jsonify({'success': True, 'diagnostico': diag})
+    except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

@@ -220,3 +220,66 @@ def generar_partidos_demo():
             'goles_visitante': marcador[1] if finished else None,
         })
     return partidos
+
+
+# ----------------------------------------------------------------------------
+# DIAGNÓSTICO (para depurar por qué no llegan resultados)
+# ----------------------------------------------------------------------------
+def diagnosticar_api():
+    """
+    Llama a la API en crudo y devuelve un resumen para depurar:
+    código HTTP, cantidad de partidos, estados, y un ejemplo de partido terminado.
+    No usa fallback demo: queremos ver la verdad de la API.
+    """
+    token = obtener_token()
+    info = {
+        'token_presente': bool(token),
+        'token_preview': (token[:6] + '...' if token else None),
+        'url': f"{API_BASE}/competitions/{COMPETICION}/matches",
+    }
+    if not token:
+        info['error'] = 'No hay token configurado.'
+        return info
+
+    try:
+        resp = requests.get(info['url'], headers={'X-Auth-Token': token}, timeout=TIMEOUT)
+        info['status_code'] = resp.status_code
+        # Cabeceras útiles de rate-limit / versión
+        info['headers'] = {
+            'X-Requests-Available-Minute': resp.headers.get('X-Requests-Available-Minute'),
+            'X-RequestCounter-Reset': resp.headers.get('X-RequestCounter-Reset'),
+            'X-API-Version': resp.headers.get('X-API-Version'),
+        }
+        if resp.status_code != 200:
+            # Cuerpo del error (mensaje de la API)
+            try:
+                info['cuerpo_error'] = resp.json()
+            except Exception:
+                info['cuerpo_error'] = resp.text[:500]
+            return info
+
+        data = resp.json()
+        matches = data.get('matches', []) or []
+        info['total_partidos'] = len(matches)
+
+        # Conteo por estado
+        estados = {}
+        finalizados_ejemplos = []
+        for m in matches:
+            st = m.get('status', 'NULL')
+            estados[st] = estados.get(st, 0) + 1
+            if st == 'FINISHED' and len(finalizados_ejemplos) < 3:
+                score = (m.get('score') or {}).get('fullTime') or {}
+                finalizados_ejemplos.append({
+                    'id': m.get('id'),
+                    'local': (m.get('homeTeam') or {}).get('name'),
+                    'visitante': (m.get('awayTeam') or {}).get('name'),
+                    'marcador': f"{score.get('home')}-{score.get('away')}",
+                    'utcDate': m.get('utcDate'),
+                })
+        info['estados'] = estados
+        info['ejemplos_finalizados'] = finalizados_ejemplos
+        return info
+    except Exception as e:
+        info['excepcion'] = str(e)
+        return info
