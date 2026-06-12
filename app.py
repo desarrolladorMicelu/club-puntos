@@ -7660,7 +7660,8 @@ MUNDIAL_ACCESO_ANTICIPADO = {
     '1151448160',
     '1216727294',
     '1036661888',
-    '1036689216'
+    '1036689216',
+    '1038125631'
 }
 
 # SOLO PRUEBAS: documentos que se tratan como si TUVIERAN factura de junio 2026,
