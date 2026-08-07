@@ -603,6 +603,13 @@
             <i class="fas fa-box-open"></i> Productos
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="activaciones-tab" data-bs-toggle="tab" data-bs-target="#activaciones-panel"
+            type="button" role="tab" aria-controls="activaciones-panel" aria-selected="false"
+            onclick="loadActivaciones()">
+            <i class="fas fa-bolt"></i> Activaciones
+          </button>
+        </li>
       </ul>
 
       <!-- Tab Content -->
@@ -1037,6 +1044,105 @@
               </table>
             </div>
           </div>
+        </div>
+
+        <!-- ── Panel de Activaciones ── -->
+        <div class="tab-pane fade" id="activaciones-panel" role="tabpanel" aria-labelledby="activaciones-tab">
+
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="mb-0">Activaciones de Puntos</h4>
+              <p class="text-muted small mb-0">Crea períodos promocionales donde los clientes ganan puntos multiplicados</p>
+            </div>
+          </div>
+
+          <!-- Estado actual -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <div id="activacion-vigente-banner" style="display:none;">
+                <div class="stat-card">
+                  <div class="stat-icon bg-success">
+                    <i class="fas fa-bolt"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3 id="banner-titulo" style="font-size:18px;">—</h3>
+                    <p id="banner-detalle">—</p>
+                  </div>
+                </div>
+              </div>
+              <div id="activacion-sin-vigente" style="display:none;">
+                <div class="stat-card">
+                  <div class="stat-icon" style="background:#e5e7eb;">
+                    <i class="fas fa-bolt" style="color:#9ca3af;"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3 style="font-size:16px;color:#6c757d;">Sin activación</h3>
+                    <p>No hay ninguna activación vigente ahora mismo</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulario nueva activación -->
+          <div class="search-section mb-4">
+            <h5 style="font-weight:600;font-size:15px;margin-bottom:16px;color:#2d3436;">
+              <i class="fas fa-plus-circle me-2" style="color:#28a745;"></i>Nueva activación
+            </h5>
+            <form id="formActivacion" onsubmit="crearActivacion(event)">
+              <div class="row g-3 align-items-end">
+                <div class="col-md-2">
+                  <label class="form-label" style="font-size:13px;font-weight:500;">Multiplicador</label>
+                  <div class="input-group">
+                    <span class="input-group-text" style="font-size:13px;">x</span>
+                    <input type="number" class="form-control" id="act-multiplicador" min="2" max="10" value="2" required style="font-size:14px;">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label" style="font-size:13px;font-weight:500;">Fecha y hora de inicio</label>
+                  <input type="datetime-local" class="form-control" id="act-fecha-inicio" required style="font-size:14px;">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label" style="font-size:13px;font-weight:500;">Fecha y hora de fin</label>
+                  <input type="datetime-local" class="form-control" id="act-fecha-fin" required style="font-size:14px;">
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-success w-100" style="font-size:14px;font-weight:600;">
+                    <i class="fas fa-bolt me-1"></i>Crear
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tabla de activaciones -->
+          <div class="results-section">
+            <h5 style="font-weight:600;font-size:15px;margin-bottom:16px;color:#2d3436;">
+              <i class="fas fa-list me-2 text-secondary"></i>Historial
+            </h5>
+            <div class="table-responsive">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>Multiplicador</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Estado</th>
+                    <th>Creada por</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="activaciones-tbody">
+                  <tr>
+                    <td colspan="6" class="text-center" style="padding:24px;">
+                      <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -2117,6 +2223,135 @@
         valorPunto = 320;
       } catch {}
     })();
+    // ── GESTIÓN DE ACTIVACIONES ─────────────────────────────────────────────
+
+    async function loadActivaciones() {
+      try {
+        const vigRes  = await fetch('/admin/api/activaciones/activa');
+        const vigData = await vigRes.json();
+        const banner  = document.getElementById('activacion-vigente-banner');
+        const sinVig  = document.getElementById('activacion-sin-vigente');
+
+        if (vigData.activacion) {
+          const a      = vigData.activacion;
+          const inicio = new Date(a.fecha_inicio).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
+          const fin    = new Date(a.fecha_fin).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
+          document.getElementById('banner-titulo').textContent = `Activación x${a.multiplicador} activa`;
+          document.getElementById('banner-detalle').textContent = `${inicio} → ${fin}`;
+          banner.style.display  = 'block';
+          sinVig.style.display  = 'none';
+        } else {
+          banner.style.display  = 'none';
+          sinVig.style.display  = 'block';
+        }
+
+        const res   = await fetch('/admin/api/activaciones');
+        const data  = await res.json();
+        const tbody = document.getElementById('activaciones-tbody');
+
+        if (!data.success || !data.activaciones.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:20px;">Sin activaciones creadas aún</td></tr>';
+          return;
+        }
+
+        // Resolver nombres de admins en paralelo
+        const docs   = [...new Set(data.activaciones.map(a => a.creado_por).filter(Boolean))];
+        const nombres = {};
+        await Promise.all(docs.map(async doc => {
+          try {
+            const r = await fetch(`/admin/api/cliente/${doc}`);
+            const d = await r.json();
+            nombres[doc] = d.success ? d.cliente.nombre : doc;
+          } catch { nombres[doc] = doc; }
+        }));
+
+        tbody.innerHTML = '';
+        data.activaciones.forEach(a => {
+          const inicio   = new Date(a.fecha_inicio).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
+          const fin      = new Date(a.fecha_fin).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
+          const esActiva = a.estado === 'ACTIVA';
+          const nombre   = a.creado_por ? (nombres[a.creado_por] || a.creado_por) : '—';
+
+          const estadoBadge = esActiva
+            ? `<span class="status-activo">● Activa</span>`
+            : `<span style="color:#6c757d;font-weight:bold;">● Pausada</span>`;
+
+          const boton = esActiva
+            ? `<button class="btn-action btn-anular" onclick="pausarActivacion('${a.id}')">Pausar</button>`
+            : `<button class="btn-action btn-corregir" onclick="reanudarActivacion('${a.id}')">Reanudar</button>`;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>x${a.multiplicador}</strong></td>
+            <td>${inicio}</td>
+            <td>${fin}</td>
+            <td>${estadoBadge}</td>
+            <td>${nombre}</td>
+            <td>${boton}</td>`;
+          tbody.appendChild(tr);
+        });
+
+      } catch (e) {
+        console.error('Error cargando activaciones:', e);
+        document.getElementById('activaciones-tbody').innerHTML =
+          '<tr><td colspan="6" class="text-center text-danger" style="padding:20px;">Error al cargar activaciones</td></tr>';
+      }
+    }
+
+    async function crearActivacion(e) {
+      e.preventDefault();
+      const multiplicador = parseInt(document.getElementById('act-multiplicador').value, 10);
+      const fecha_inicio  = document.getElementById('act-fecha-inicio').value;
+      const fecha_fin     = document.getElementById('act-fecha-fin').value;
+
+      if (!fecha_inicio || !fecha_fin) { alert('Completa las fechas.'); return; }
+
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creando...';
+
+      try {
+        const res  = await fetch('/admin/api/activaciones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ multiplicador, fecha_inicio, fecha_fin })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('formActivacion').reset();
+          await loadActivaciones();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch { alert('Error de conexión.'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bolt me-1"></i>Crear';
+      }
+    }
+
+    async function pausarActivacion(id) {
+      if (!confirm('¿Pausar esta activación?')) return;
+      try {
+        const res  = await fetch(`/admin/api/activaciones/${id}/pausar`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) await loadActivaciones();
+        else alert('Error: ' + data.message);
+      } catch { alert('Error de conexión.'); }
+    }
+
+    async function reanudarActivacion(id) {
+      if (!confirm('¿Reanudar esta activación?')) return;
+      try {
+        const res  = await fetch(`/admin/api/activaciones/${id}/reanudar`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) await loadActivaciones();
+        else alert('Error: ' + data.message);
+      } catch { alert('Error de conexión.'); }
+    }
+
+    document.getElementById('activaciones-tab').addEventListener('shown.bs.tab', loadActivaciones);
+
   </script>
 </body>
 

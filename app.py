@@ -239,6 +239,42 @@ class ProductoCarrusel(db.Model):
         return f'<ProductoCarrusel {self.nombre}>'
 
 # ============================================================================
+# MODELO: ACTIVACIONES DE PUNTOS (Multiplicadores Temporales)
+# ============================================================================
+class Activacion(db.Model):
+    """
+    Períodos configurables en los que los usuarios ganan puntos con un
+    multiplicador especial (ej: x2, x3).  Solo puede haber una activación
+    activa al mismo tiempo; crear una nueva pausa automáticamente la anterior.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'activaciones'
+    __table_args__ = {'schema': 'plan_beneficios'}
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    multiplicador = db.Column(db.Integer, nullable=False)          # Ej: 2 → x2
+    fecha_inicio = db.Column(db.DateTime, nullable=False)
+    fecha_fin = db.Column(db.DateTime, nullable=False)
+    estado = db.Column(db.String(20), nullable=False, default='ACTIVA')  # 'ACTIVA' | 'PAUSADA'
+    creado_por = db.Column(db.String(50), nullable=True)           # documento del admin
+    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    actualizado_en = db.Column(db.DateTime, nullable=True, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<Activacion x{self.multiplicador} {self.estado} {self.fecha_inicio:%Y-%m-%d}→{self.fecha_fin:%Y-%m-%d}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'multiplicador': self.multiplicador,
+            'fecha_inicio': self.fecha_inicio.isoformat(),
+            'fecha_fin': self.fecha_fin.isoformat(),
+            'estado': self.estado,
+            'creado_por': self.creado_por,
+            'creado_en': self.creado_en.isoformat(),
+        }
+
+# ============================================================================
 # NUEVO MODELO: TRANSACCIONES DE PUNTOS (Sistema de Auditoría)
 # ============================================================================
 class Transacciones_Puntos(db.Model):
@@ -535,7 +571,7 @@ def calcular_puntos_con_fallback(documento):
                     if row[5]:
                         facturas_dict[key]['lineas'].add(str(row[5]).upper())
             
-            # Calcular puntos con retraso
+            # Calcular puntos con retraso (sin activación: ruta interna de fallback)
             total_puntos_disponibles, _, _ = calcular_puntos_con_retraso(facturas_dict, documento)
             
             # Agregar puntos de referidos
@@ -677,6 +713,26 @@ def obtener_fecha_limite_puntos():
     fecha_limite = datetime.now().date() - timedelta(days=1)
     return fecha_limite
 
+def get_activacion_activa():
+    """
+    Devuelve la activación vigente en este momento (estado='ACTIVA' y dentro
+    del rango fecha_inicio–fecha_fin) o None si no hay ninguna.
+    El resultado NO se cachea a nivel de proceso para reflejar cambios
+    inmediatos desde el panel admin.
+    """
+    try:
+        ahora = datetime.now()
+        activacion = Activacion.query.filter(
+            Activacion.estado == 'ACTIVA',
+            Activacion.fecha_inicio <= ahora,
+            Activacion.fecha_fin >= ahora
+        ).order_by(Activacion.creado_en.desc()).first()
+        return activacion
+    except Exception as e:
+        print(f"⚠️ Error consultando activación activa: {e}")
+        return None
+
+
 def es_compra_disponible_para_puntos(fecha_compra):
     """
     Verifica si una compra ya está disponible para acumular puntos.
@@ -685,16 +741,24 @@ def es_compra_disponible_para_puntos(fecha_compra):
     # Todas las compras están disponibles inmediatamente
     return True
 
-def calcular_puntos_con_retraso(facturas_dict, documento):
+def calcular_puntos_con_retraso(facturas_dict, documento, activacion=None):
     """
     Calcula los puntos de las compras del cliente.
     Todos los puntos están disponibles inmediatamente.
+
+    Si se pasa una activacion activa, los puntos base se multiplican por
+    activacion.multiplicador ANTES de aplicar el x2 de línea/medio de pago,
+    para que ambos multiplicadores sean aditivos y no se pisen entre sí.
+
     Retorna: (total_puntos_disponibles, total_puntos_pendientes, historial)
     """
     total_puntos_disponibles = 0
     total_puntos_pendientes = 0
     historial = []
-    
+
+    # Multiplicador de activación (1 = sin activación, sin efecto)
+    factor_activacion = activacion.multiplicador if activacion else 1
+
     # Obtener el valor base para el cálculo de puntos
     obtener_puntos_valor = maestros.query.with_entities(maestros.obtener_puntos).first()[0]
     
@@ -734,6 +798,12 @@ def calcular_puntos_con_retraso(facturas_dict, documento):
                 aplicar_multiplicador = True
             if aplicar_multiplicador:
                 puntos_factura *= 2
+
+        # ── Aplicar multiplicador de activación promocional ──────────────────
+        # Se aplica DESPUÉS del x2 de línea/pago, de forma independiente.
+        # Ej: puntos_base=10, x2 línea → 20, x2 activación → 40
+        if factor_activacion > 1:
+            puntos_factura *= factor_activacion
         
         # Separar puntos disponibles de pendientes
         if compra_disponible:
@@ -1414,7 +1484,8 @@ def mhistorialcompras():
         # CALCULAR PUNTOS DE COMPRAS
         # Todos los puntos están disponibles inmediatamente
         # ============================================================================
-        total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
+        activacion_activa = get_activacion_activa()
+        total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento, activacion=activacion_activa)
         
         # Agregar referidos (lógica original - los referidos son inmediatos)
         referidos = Referidos.query.filter_by(
@@ -1529,7 +1600,8 @@ def mhistorialcompras():
             total_puntos=total_puntos,
             puntos_pendientes=total_puntos_pendientes,
             usuario=usuario,
-            puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0
+            puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0,
+            activacion_activa=activacion_activa
         )
         
     except Exception as e:
@@ -1588,7 +1660,7 @@ def mpuntosprincipal():
         print(f"Error fetching products: {e}")
         products = []
    
-    return render_template('mpuntosprincipal.html', total_puntos=total_puntos, products=products, usuario=usuario)
+    return render_template('mpuntosprincipal.html', total_puntos=total_puntos, products=products, usuario=usuario, activacion_activa=get_activacion_activa())
  
 wcapi = API(
     url="https://micelu.co",
@@ -1846,7 +1918,8 @@ def quesonpuntos():
                     facturas_dict[key]['lineas'].add(str(row[5]).upper())
         
         # Calcular puntos con retraso
-        total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento)
+        activacion_activa = get_activacion_activa()
+        total_puntos_disponibles, total_puntos_pendientes, historial = calcular_puntos_con_retraso(facturas_dict, documento, activacion=activacion_activa)
         
         # Agregar referidos
         referidos = Referidos.query.filter_by(documento_referido=documento).all()
@@ -1899,7 +1972,8 @@ def quesonpuntos():
                                total_puntos=total_puntos, 
                                puntos_pendientes=total_puntos_pendientes,
                                usuario=usuario,
-                               puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0)
+                               puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0,
+                               activacion_activa=activacion_activa)
     
     except Exception as e:
         print(f"❌ Error en quesonpuntos: {e}")
@@ -1917,14 +1991,16 @@ def quesonpuntos():
                                    total_puntos=total_puntos, 
                                    puntos_pendientes=0,
                                    usuario=usuario,
-                                   puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0)
+                                   puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0,
+                                   activacion_activa=None)
         except:
             flash('Error al cargar puntos. Por favor intenta de nuevo.', 'error')
             return render_template('puntos.html', 
                                    total_puntos=0, 
                                    puntos_pendientes=0,
                                    usuario=Usuario.query.filter_by(documento=documento).first(),
-                                   puntos_regalo=0)
+                                   puntos_regalo=0,
+                                   activacion_activa=None)
 
 @app.route('/test_imei_samples')
 @login_required
@@ -2949,7 +3025,7 @@ def crear_usuario(cedula, contraseña, habeasdata, genero, ciudad, barrio, fecha
                                     if row[5]:
                                         facturas_dict[key]['lineas'].add(str(row[5]).upper())
                             
-                            # Calcular puntos con retraso
+                            # Calcular puntos con retraso (migración: sin activación)
                             total_puntos_disponibles, _, _ = calcular_puntos_con_retraso(facturas_dict, documento)
                             
                             # Crear registro en Puntos_Clientes
@@ -3056,7 +3132,7 @@ def redime_ahora():
     # Usar sistema híbrido para calcular puntos
     total_puntos = calcular_puntos_con_fallback(documento_usuario)
     
-    return render_template("redime_ahora.html", total_puntos=total_puntos, usuario=usuario)
+    return render_template("redime_ahora.html", total_puntos=total_puntos, usuario=usuario, activacion_activa=get_activacion_activa())
 
 @app.route('/acumulapuntos')
 def acumulapuntos():
@@ -8161,6 +8237,143 @@ def admin_api_mundial_reset_sim():
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# ============================================================================
+# ACTIVACIONES DE PUNTOS — CRUD ADMIN
+# ============================================================================
+
+@app.route('/admin/api/activaciones', methods=['GET'])
+@login_required
+@admin_required
+def admin_list_activaciones():
+    """Lista todas las activaciones ordenadas por fecha de creación descendente."""
+    try:
+        activaciones = Activacion.query.order_by(Activacion.creado_en.desc()).all()
+        return jsonify({'success': True, 'activaciones': [a.to_dict() for a in activaciones]})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/activaciones', methods=['POST'])
+@login_required
+@admin_required
+def admin_crear_activacion():
+    """
+    Crea una nueva activación.
+    Si ya existe una activación ACTIVA, la pausa automáticamente antes de crear la nueva.
+    Body JSON: { multiplicador, fecha_inicio, fecha_fin }
+    """
+    try:
+        data = request.get_json(force=True)
+        multiplicador = int(data.get('multiplicador', 0))
+        fecha_inicio_str = data.get('fecha_inicio', '')
+        fecha_fin_str = data.get('fecha_fin', '')
+
+        # Validaciones
+        if multiplicador < 2:
+            return jsonify({'success': False, 'message': 'El multiplicador debe ser 2 o mayor.'}), 400
+
+        try:
+            fecha_inicio = datetime.fromisoformat(fecha_inicio_str)
+            fecha_fin = datetime.fromisoformat(fecha_fin_str)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Fechas inválidas. Usa formato ISO (YYYY-MM-DDTHH:MM).'}), 400
+
+        if fecha_fin <= fecha_inicio:
+            return jsonify({'success': False, 'message': 'La fecha de fin debe ser posterior a la de inicio.'}), 400
+
+        admin_documento = session.get('user_documento')
+
+        # Pausar cualquier activación activa existente (no puede haber simultáneas)
+        activaciones_activas = Activacion.query.filter_by(estado='ACTIVA').all()
+        for act in activaciones_activas:
+            act.estado = 'PAUSADA'
+            print(f"⏸ Activación {act.id} pausada automáticamente al crear nueva.")
+
+        nueva = Activacion(
+            multiplicador=multiplicador,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            estado='ACTIVA',
+            creado_por=admin_documento,
+        )
+        db.session.add(nueva)
+        db.session.commit()
+
+        print(f"✅ Activación x{multiplicador} creada: {fecha_inicio} → {fecha_fin}")
+        return jsonify({'success': True, 'activacion': nueva.to_dict()}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/activaciones/<activacion_id>/pausar', methods=['POST'])
+@login_required
+@admin_required
+def admin_pausar_activacion(activacion_id):
+    """Pausa una activación activa."""
+    try:
+        act = Activacion.query.filter_by(id=activacion_id).first()
+        if not act:
+            return jsonify({'success': False, 'message': 'Activación no encontrada.'}), 404
+        if act.estado == 'PAUSADA':
+            return jsonify({'success': False, 'message': 'La activación ya está pausada.'}), 400
+
+        act.estado = 'PAUSADA'
+        db.session.commit()
+        return jsonify({'success': True, 'activacion': act.to_dict()})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/activaciones/<activacion_id>/reanudar', methods=['POST'])
+@login_required
+@admin_required
+def admin_reanudar_activacion(activacion_id):
+    """
+    Reanuda una activación pausada.
+    Pausa cualquier otra activación activa para mantener la regla de unicidad.
+    """
+    try:
+        act = Activacion.query.filter_by(id=activacion_id).first()
+        if not act:
+            return jsonify({'success': False, 'message': 'Activación no encontrada.'}), 404
+        if act.estado == 'ACTIVA':
+            return jsonify({'success': False, 'message': 'La activación ya está activa.'}), 400
+
+        # Pausar otras activas
+        otras_activas = Activacion.query.filter(
+            Activacion.estado == 'ACTIVA',
+            Activacion.id != activacion_id
+        ).all()
+        for otra in otras_activas:
+            otra.estado = 'PAUSADA'
+
+        act.estado = 'ACTIVA'
+        db.session.commit()
+        return jsonify({'success': True, 'activacion': act.to_dict()})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/api/activaciones/activa', methods=['GET'])
+@login_required
+@admin_required
+def admin_get_activacion_activa():
+    """Devuelve la activación vigente en este momento o null."""
+    try:
+        act = get_activacion_activa()
+        return jsonify({'success': True, 'activacion': act.to_dict() if act else None})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================================================================
 
 if __name__ == '__main__':
     app.run(debug=True, port=os.getenv("PORT", default=5000))

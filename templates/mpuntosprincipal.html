@@ -38,6 +38,7 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/header-improvements.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/mobile-sidebar-menu.css') }}">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/activaciones.css') }}">
   <script src="{{ url_for('static', filename='js/miperfil.js') }}"></script>
 
 </head>
@@ -72,11 +73,7 @@
               <li class="nav-item">
                 <a class="nav-link" href="/cobertura" id="coberturaLink">Activa Cobertura</a>
               </li>
-              {% if mundial_acceso %}
-              <li class="nav-item">
-                <a class="nav-link nav-mundial" href="/mundial">⚽ Mundial 2026</a>
-              </li>
-              {% endif %}
+
               {% if is_admin %}
               <li class="nav-item">
                 <a class="nav-link" href="/admin/auditoria" style="color: #ff6b35; font-weight: 600;">
@@ -93,7 +90,13 @@
                 <i class="fa-solid fa-user"></i>
                 <span class="fw-bold1">Hola {{ usuario.nombre|title }}, tienes</span>
               </div>
-              <span id="nav-points" class="badge custom-badge">{{ "{:,.0f}".format(total_puntos) }} Puntos</span>
+              {% if activacion_activa %}
+              <span id="nav-points" class="badge custom-badge activacion-badge-activa">
+                🔥 {{ "{:,.0f}".format(total_puntos) }} Puntos &nbsp;<span style="background:#ff6b00;color:#fff;border-radius:20px;padding:3px 10px;font-weight:800;font-size:12px;letter-spacing:0.5px;margin-left:2px;">x{{ activacion_activa.multiplicador }}</span>
+              </span>
+              {% else %}
+              <span id="nav-points" class="badge custom-badge">⚡ {{ "{:,.0f}".format(total_puntos) }} Puntos</span>
+              {% endif %}
             </div>
             
             <!-- User Dropdown -->
@@ -115,6 +118,32 @@
     <!-- end header section -->
     
     <!-- ==================== BANNER SECTION ==================== -->
+    {% if activacion_activa %}
+    <div class="activacion-banner-cliente" role="alert">
+      <div class="activacion-banner-inner">
+        <div class="activacion-bloque-tag">
+          <i class="fas fa-bolt"></i>
+          <span>Promoción activa</span>
+        </div>
+        <div class="activacion-bloque-info">
+          <div class="activacion-bloque-titulo">
+            Puntos <span>x{{ activacion_activa.multiplicador }}</span> activos ahora
+          </div>
+          <div class="activacion-bloque-sep"></div>
+          <div class="activacion-bloque-desc">
+            Estás ganando puntos con multiplicador <b>x{{ activacion_activa.multiplicador }}</b> en cada compra durante este período.
+          </div>
+        </div>
+        <div class="activacion-bloque-fecha">
+          <div>
+            <span class="activacion-bloque-fecha-label">Válido hasta</span>
+            <span class="activacion-bloque-fecha-valor">{{ activacion_activa.fecha_fin.strftime('%d/%m/%Y %H:%M') }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="banner-container">
       <div class="image-container">
         <a href="#" onclick="location.href='/redime_ahora'">

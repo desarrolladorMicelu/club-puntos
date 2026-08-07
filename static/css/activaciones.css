@@ -1,0 +1,180 @@
+/* ============================================================
+   Activaciones de Puntos
+   ============================================================ */
+
+/* ── Badge en el header ─────────────────────────────────────── */
+.activacion-badge-activa {
+  background: linear-gradient(135deg, #31C0CA 0%, #26a0a8 100%) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  animation: activacion-pulse 2.5s ease-in-out infinite;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.activacion-multiplicador-tag {
+  background: rgba(0,0,0,0.2);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+@keyframes activacion-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(49,192,202,.5); }
+  50%      { box-shadow: 0 0 0 7px rgba(49,192,202,0); }
+}
+
+/* ── Banner full-width horizontal ───────────────────────────── */
+.activacion-banner-cliente {
+  width: 100%;
+  background: linear-gradient(90deg, #001a1b 0%, #002e30 40%, #001a1b 100%);
+  border-top: 2px solid #31C0CA;
+  border-bottom: 2px solid rgba(49,192,202,.4);
+  padding: 0;
+  box-sizing: border-box;
+  box-shadow: 0 6px 30px rgba(49,192,202,.2);
+}
+
+.activacion-banner-inner {
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  min-height: 72px;
+}
+
+/* Bloque izquierdo */
+.activacion-bloque-tag {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  background: #31C0CA;
+  gap: 12px;
+}
+.activacion-bloque-tag i {
+  font-size: 18px;
+  color: #000;
+}
+.activacion-bloque-tag span {
+  font-size: 13px;
+  font-weight: 800;
+  color: #000;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Bloque central */
+.activacion-bloque-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 36px;
+  border-right: 1px solid rgba(49,192,202,.2);
+}
+.activacion-bloque-titulo {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  font-family: 'Poppins', sans-serif;
+  text-shadow: 0 0 20px rgba(255,255,255,.1);
+}
+.activacion-bloque-titulo span {
+  color: #31C0CA;
+  text-shadow: 0 0 20px rgba(49,192,202,.9);
+}
+.activacion-bloque-sep {
+  width: 1px;
+  height: 26px;
+  background: rgba(255,255,255,.12);
+  flex-shrink: 0;
+}
+.activacion-bloque-desc {
+  font-size: 14px;
+  color: #cbd5e1;
+  font-family: 'Poppins', sans-serif;
+}
+.activacion-bloque-desc b {
+  color: #31C0CA;
+  font-weight: 700;
+}
+
+/* Bloque derecho: fecha */
+.activacion-bloque-fecha {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 36px;
+}
+.activacion-bloque-fecha-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #31C0CA;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  margin-bottom: 2px;
+}
+.activacion-bloque-fecha-valor {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: -0.3px;
+  text-shadow: 0 0 16px rgba(49,192,202,.4);
+}
+
+/* ── Badge inline historial ──────────────────────────────────── */
+.activacion-badge-inline {
+  display: inline-block;
+  background: #31C0CA;
+  color: #000;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+/* ── Contenedor puntos historial ─────────────────────────────── */
+.puntos-container-activa {
+  border: 2px solid rgba(49,192,202,.4) !important;
+  border-radius: 10px;
+  background: rgba(49,192,202,.04) !important;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .activacion-banner-inner {
+    flex-wrap: wrap;
+    min-height: auto;
+  }
+  .activacion-bloque-tag {
+    width: 100%;
+    padding: 12px 16px;
+    justify-content: center;
+  }
+  .activacion-bloque-info {
+    width: 100%;
+    padding: 14px 16px;
+    border-right: none;
+    border-bottom: 1px solid rgba(49,192,202,.12);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .activacion-bloque-titulo { font-size: 16px; white-space: normal; }
+  .activacion-bloque-sep { display: none; }
+  .activacion-bloque-desc { font-size: 13px; }
+  .activacion-bloque-fecha {
+    width: 100%;
+    padding: 12px 16px;
+    justify-content: flex-start;
+  }
+  .activacion-bloque-fecha-valor { font-size: 16px; }
+}
