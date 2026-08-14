@@ -1594,10 +1594,13 @@ def mhistorialcompras():
         
         print(f"📊 Puntos disponibles: {total_puntos_disponibles}, Puntos pendientes: {total_puntos_pendientes}")
         
+        # ── Aplicar multiplicador al total mostrado ──
+        total_puntos_mostrar = total_puntos * activacion_activa.multiplicador if activacion_activa else total_puntos
+
         return render_template(
             'mhistorialcompras.html',
             historial=historial,
-            total_puntos=total_puntos,
+            total_puntos=total_puntos_mostrar,
             puntos_pendientes=total_puntos_pendientes,
             usuario=usuario,
             puntos_regalo=puntos_usuario.puntos_regalo if puntos_usuario else 0,
@@ -1618,6 +1621,9 @@ def mpuntosprincipal():
    
     # Usar sistema híbrido para calcular puntos
     total_puntos = calcular_puntos_con_fallback(documento)
+    _activacion = get_activacion_activa()
+    if _activacion:
+        total_puntos = total_puntos * _activacion.multiplicador
    
     try:
         wcapi = API(
@@ -1961,6 +1967,9 @@ def quesonpuntos():
         
         # Calcular puntos finales usando sistema híbrido
         total_puntos = calcular_puntos_con_fallback(documento)
+        # Aplicar multiplicador de activación al saldo mostrado
+        if activacion_activa:
+            total_puntos = total_puntos * activacion_activa.multiplicador
         
         print(f"🔍 DEBUG quesonpuntos: Total puntos finales: {total_puntos}")
         
@@ -3131,8 +3140,10 @@ def redime_ahora():
     
     # Usar sistema híbrido para calcular puntos
     total_puntos = calcular_puntos_con_fallback(documento_usuario)
-    
-    return render_template("redime_ahora.html", total_puntos=total_puntos, usuario=usuario, activacion_activa=get_activacion_activa())
+    activacion_activa = get_activacion_activa()
+    if activacion_activa:
+        total_puntos = total_puntos * activacion_activa.multiplicador
+    return render_template("redime_ahora.html", total_puntos=total_puntos, usuario=usuario, activacion_activa=activacion_activa)
 
 @app.route('/acumulapuntos')
 def acumulapuntos():
