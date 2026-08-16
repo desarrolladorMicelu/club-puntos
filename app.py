@@ -1689,8 +1689,12 @@ def redimir_puntos():
  
         # ============================================================================
         # USAR SISTEMA HÍBRIDO PARA VERIFICAR PUNTOS DISPONIBLES
+        # Aplicar multiplicador de activación si hay una activa
         # ============================================================================
         puntos_disponibles = calcular_puntos_con_fallback(documento)
+        activacion = get_activacion_activa()
+        if activacion:
+            puntos_disponibles = puntos_disponibles * activacion.multiplicador
         
         if puntos_a_redimir > puntos_disponibles:
             return jsonify({
@@ -1742,6 +1746,8 @@ def redimir_puntos():
         
         # Recalcular puntos disponibles después de la redención
         nuevos_puntos = calcular_puntos_con_fallback(documento)
+        if activacion:
+            nuevos_puntos = nuevos_puntos * activacion.multiplicador
  
         return jsonify({
             'success': True,
