@@ -38,6 +38,7 @@ import pytz
 from cloudflare_r2_service import r2_service
 from pdf_consentimiento_service import generar_hash_firma, generar_pdf_consentimiento
 import mundial_service
+import ruleta_service
 
  
 app = Flask(__name__)
@@ -397,6 +398,28 @@ class MundialPronostico(db.Model):
 
     def __repr__(self):
         return f'<MundialPronostico {self.documento} P{self.api_id} {self.pred_local}-{self.pred_visitante}>'
+
+
+class Ruleta(db.Model):
+    """
+    Registro de tiros de la ruleta de premios. Cada documento solo
+    puede aparecer una vez (columna UNIQUE), garantizando un solo giro.
+    """
+    __bind_key__ = 'db3'
+    __tablename__ = 'ruleta'
+    __table_args__ = {'schema': 'plan_beneficios'}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    documento = db.Column(db.String(10), nullable=False, unique=True)
+    fecha_canjeo = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(ruleta_service.ZONA_BOGOTA).replace(tzinfo=None),
+        nullable=False,
+    )
+    premio = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return f'<Ruleta {self.documento} {self.premio}>'
 
 # ============================================================================
 # FUNCIONES DEL NUEVO SISTEMA DE PUNTOS
@@ -8250,6 +8273,66 @@ def admin_api_mundial_reset_sim():
 
         db.session.commit()
         return jsonify({'success': True, 'message': f'Partido {api_id} reseteado a SCHEDULED.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================================================================
+# RULETA DE PREMIOS pública
+# ============================================================================
+@app.route('/ruleta')
+def ruleta():
+    """Página pública de la ruleta de premios."""
+    return render_template('ruleta.html')
+
+
+@app.route('/api/ruleta/girar', methods=['POST'])
+def api_ruleta_girar():
+    """
+    Gira la ruleta para un documento.
+    Reglas: un documento solo puede girar una vez (columna UNIQUE en `ruleta`).
+    """
+    try:
+        data = request.get_json(force=True) or {}
+
+        documento_ok, documento_o_error = ruleta_service.validar_documento(data.get('documento'))
+        if not documento_ok:
+            return jsonify({'success': False, 'message': documento_o_error}), 400
+
+        documento = documento_o_error
+
+        tiro_existente = Ruleta.query.filter_by(documento=documento).first()
+        if tiro_existente:
+            fecha_legible = ruleta_service.formatear_fecha_bogota(tiro_existente.fecha_canjeo)
+            return jsonify({
+                'success': False,
+                'ya_participo': True,
+                'message': f'No es posible que gires la ruleta porque ya participaste el {fecha_legible}.',
+                'premio': tiro_existente.premio,
+            })
+
+        premio = ruleta_service.normalizar_premio(ruleta_service.seleccionar_premio())
+        ahora_bogota = datetime.now(ruleta_service.ZONA_BOGOTA).replace(tzinfo=None)
+        nuevo_tiro = Ruleta(documento=documento, premio=premio, fecha_canjeo=ahora_bogota)
+        db.session.add(nuevo_tiro)
+        try:
+            db.session.commit()
+        except sqlalchemy.exc.IntegrityError:
+            db.session.rollback()
+            tiro_existente = Ruleta.query.filter_by(documento=documento).first()
+            fecha_legible = ruleta_service.formatear_fecha_bogota(tiro_existente.fecha_canjeo) if tiro_existente else ''
+            return jsonify({
+                'success': False,
+                'ya_participo': True,
+                'message': f'No es posible que gires la ruleta porque ya participaste el {fecha_legible}.',
+            })
+
+        return jsonify({
+            'success': True,
+            'premio': premio,
+            'message': f'¡Ganaste: {premio}!',
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

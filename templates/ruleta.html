@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/home-modern.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/header-improvements.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/mobile-sidebar-menu.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ruleta.css') }}">
+</head>
+<body>
+    <div class="hero_area">
+      <header class="header_section">
+        <div class="container-fluid">
+          <nav class="navbar navbar-expand-lg custom_nav-container">
+            <a class="navbar-brand">
+              <span>
+                <img src="{{ url_for('static', filename='images/logopequeño.png') }}" class="imgcelu">
+              </span>
+            </a>
+            <button class="navbar-toggler ml-auto" type="button" data-toggle="collapse"
+              data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+              aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+              <ul class="navbar-nav mx-auto">
+                <li class="nav-item">
+                  <a class="nav-link" href="/homepuntos">Personas</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="/redimir">Redimir</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="/acumulapuntos">Acumula</a>
+                </li>
+                <li class="nav-item active">
+                  <a class="nav-link active" href="/ruleta" aria-current="page">Ruleta</a>
+                </li>
+              </ul>
+              <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                  <a class="nav-link login-button" href="/iniciosesion">Iniciar Sesion</a>
+                </li>
+              </ul>
+            </div>
+          </nav>
+        </div>
+      </header>
+    </div>
+
+    <div class="rl-page">
+      <section class="rl-panel">
+        <header class="rl-header">
+          <h1>Gira la ruleta y gana un premio</h1>
+          <h7>Un giro, muchas posibilidades. ¿Qué te hará sonreír hoy? ♡</h7>
+        </header>
+
+        <div class="rl-stage">
+          <div class="rl-wheel-wrap">
+            <div class="rl-pointer"></div>
+            <div class="rl-ring" id="rl-ring"></div>
+            <div class="rl-wheel-sparkles" id="rl-wheel-sparkles"></div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+
+    <button class="rl-info-btn" id="rl-info-btn" type="button" aria-label="Cómo funciona">?</button>
+
+    <!-- Modal de datos: nombre + documento, se abre al presionar "Girar la ruleta" -->
+    <div class="rl-form-overlay" id="rl-form-overlay" aria-hidden="true">
+      <div class="rl-form-modal">
+        <button class="rl-info-close" id="rl-form-close" type="button" aria-label="Cerrar">&times;</button>
+
+        <div class="rl-form-head">
+          <span class="rl-form-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8Z"/><path d="M13 6v2M13 11v2M13 16v2"/></svg>
+          </span>
+          <div>
+            <h3>Ingresa tus datos</h3>
+            <p class="rl-form-subtitle">Completa la información para continuar</p>
+          </div>
+        </div>
+
+        <div class="rl-form">
+          <div class="rl-field" id="rl-field-nombre">
+            <span class="rl-field-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            </span>
+            <input type="text" id="rl-nombre" placeholder="Nombre completo" autocomplete="name">
+            <span class="rl-error"></span>
+          </div>
+          <div class="rl-field" id="rl-field-documento">
+            <span class="rl-field-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
+            </span>
+            <input type="text" id="rl-doc" inputmode="numeric" placeholder="Número de documento" maxlength="10">
+            <span class="rl-error"></span>
+          </div>
+          <button id="btn-girar-modal" class="rl-btn rl-btn-compact" type="button">
+            Girar ahora
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <p class="rl-hint" id="rl-form-msg"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel lateral informativo: paso 1 (cómo funciona) y paso 2 (premios en juego)-->
+    <aside class="rl-info-overlay" id="rl-info-overlay" aria-hidden="true">
+      <button class="rl-panel-close" id="rl-info-close" type="button" aria-label="Cerrar">&times;</button>
+
+      <div class="rl-panel-head">
+        <h3 id="rl-info-heading">¿Cómo funciona?</h3>
+      </div>
+
+      <div class="rl-panel-steps" id="rl-panel-steps">
+        <div class="rl-panel-step-item rl-step-current" data-step-item="1">
+          <span class="rl-panel-step-num">1</span>
+          <span class="rl-panel-step-label">Cómo funciona</span>
+        </div>
+        <div class="rl-panel-step-line"></div>
+        <div class="rl-panel-step-item" data-step-item="2">
+          <span class="rl-panel-step-num">2</span>
+          <span class="rl-panel-step-label">Premios</span>
+        </div>
+      </div>
+
+      <div class="rl-panel-body">
+        <div class="rl-panel-pane rl-active" data-panel-step="1">
+          <p class="rl-panel-hint-text">Ingresa tu nombre y documento, gira la ruleta y espera el sorteo. Cada documento participa una sola vez. ¡Mucha suerte!</p>
+
+          <div class="rl-mascot">
+            <div class="rl-mascot-bubble">¿Cuáles son los premios en juego?</div>
+            <svg viewBox="0 0 120 120" class="rl-mascot-figure">
+              <ellipse cx="60" cy="112" rx="30" ry="5" fill="#12333a" opacity="0.08"/>
+              <path d="M32 108c-2-20 3-36 28-36s30 16 28 36c-8-5-18-8-28-8s-20 3-28 8Z" fill="#28A0A8"/>
+              <circle cx="60" cy="46" r="26" fill="#f6c99a"/>
+              <path d="M34 42a26 26 0 0 1 52 0c-8-6-17-9-26-9s-18 3-26 9Z" fill="#123a3f"/>
+              <circle cx="51" cy="48" r="2.6" fill="#123a3f"/>
+              <circle cx="69" cy="48" r="2.6" fill="#123a3f"/>
+              <path d="M53 58c3 2.5 11 2.5 14 0" stroke="#123a3f" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+
+          <button id="rl-info-next" class="rl-btn" type="button">Siguiente</button>
+
+        </div>
+
+        <div class="rl-panel-pane" data-panel-step="2">
+          <div class="rl-info-list" id="rl-info-prizes"></div>
+          <div class="rl-panel-actions">
+            <button id="rl-info-prev" class="rl-btn-ghost" type="button">Atrás</button>
+            <button id="rl-info-done" class="rl-btn" type="button">Entendido</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Revelación del resultado: overlay oscuro transparente + caja de regalo + card horizontal -->
+    <div class="rl-result-overlay" id="rl-result-overlay" aria-hidden="true">
+      <div class="rl-confetti-layer" id="rl-confetti-layer" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;"></div>
+
+      <div class="rl-box-wrap">
+        <svg viewBox="0 0 280 250">
+          <defs>
+            <linearGradient id="rl-box-side" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#17484e"/>
+              <stop offset="100%" stop-color="#0b262a"/>
+            </linearGradient>
+            <linearGradient id="rl-box-lid" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#1e5c62"/>
+              <stop offset="100%" stop-color="#103b41"/>
+            </linearGradient>
+            <linearGradient id="rl-box-rib" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#c79c48"/>
+              <stop offset="45%" stop-color="#f2dba4"/>
+              <stop offset="100%" stop-color="#c0933f"/>
+            </linearGradient>
+            <radialGradient id="rl-box-burst" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#ffe9b8" stop-opacity="0.9"/>
+              <stop offset="55%" stop-color="#e2be74" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#e2be74" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <ellipse cx="140" cy="232" rx="104" ry="14" fill="#04181b" fill-opacity="0.45"/>
+
+          <circle class="rl-box-burst" cx="140" cy="120" r="130" fill="url(#rl-box-burst)"/>
+
+          <g class="rl-box-sparkles">
+            <path class="rl-box-spark rl-box-spark-1" d="M0 -10 L2.4 -2.4 L10 0 L2.4 2.4 L0 10 L-2.4 2.4 L-10 0 L-2.4 -2.4 Z" transform="translate(66,84)" fill="#fff3d6"/>
+            <path class="rl-box-spark rl-box-spark-2" d="M0 -7 L1.7 -1.7 L7 0 L1.7 1.7 L0 7 L-1.7 1.7 L-7 0 L-1.7 -1.7 Z" transform="translate(206,70)" fill="#fff3d6"/>
+            <path class="rl-box-spark rl-box-spark-3" d="M0 -8 L2 -2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2 -2 Z" transform="translate(214,150)" fill="#fff3d6"/>
+            <path class="rl-box-spark rl-box-spark-4" d="M0 -6 L1.5 -1.5 L6 0 L1.5 1.5 L0 6 L-1.5 1.5 L-6 0 L-1.5 -1.5 Z" transform="translate(56,158)" fill="#fff3d6"/>
+          </g>
+
+          <g class="rl-box-group">
+            <rect class="rl-box-glow" x="38" y="108" width="204" height="126" rx="14" fill="none" stroke="#f2dba4" stroke-width="6"/>
+            <rect x="42" y="112" width="196" height="118" rx="12" fill="url(#rl-box-side)"/>
+            <rect x="42" y="112" width="196" height="118" rx="12" fill="none" stroke="#e2be74" stroke-opacity="0.28"/>
+            <rect x="126" y="112" width="28" height="118" fill="url(#rl-box-rib)"/>
+            <g class="rl-box-lid">
+              <rect x="28" y="78" width="224" height="38" rx="10" fill="url(#rl-box-lid)"/>
+              <rect x="28" y="78" width="224" height="38" rx="10" fill="none" stroke="#e2be74" stroke-opacity="0.35"/>
+              <rect x="126" y="78" width="28" height="38" fill="url(#rl-box-rib)"/>
+              <g class="rl-box-bow-l">
+                <circle cx="118" cy="66" r="18" fill="none" stroke="url(#rl-box-rib)" stroke-width="9"/>
+              </g>
+              <g class="rl-box-bow-r">
+                <circle cx="162" cy="66" r="18" fill="none" stroke="url(#rl-box-rib)" stroke-width="9"/>
+              </g>
+              <circle cx="140" cy="72" r="8" fill="url(#rl-box-rib)"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="rl-result-card">
+        <button class="rl-info-close" id="rl-result-close-x" type="button" aria-label="Cerrar">&times;</button>
+        <div class="rl-result-icon-wrap">
+          <span class="rl-result-icon-spark rl-result-icon-spark-l">›</span>
+          <div class="rl-result-icon" id="rl-result-icon" aria-hidden="true"></div>
+          <span class="rl-result-icon-spark rl-result-icon-spark-r">‹</span>
+        </div>
+        <span class="rl-result-kicker" id="rl-result-kicker">¡Felicidades!</span>
+        <p class="rl-result-title" id="rl-result-title">—</p>
+        <div class="rl-result-meta">
+          <span id="rl-result-nombre">—</span>
+          <span id="rl-result-doc">—</span>
+        </div>
+        <div class="rl-result-note" id="rl-result-note-wrap">
+          <span class="rl-result-note-icon" id="rl-result-note-icon" aria-hidden="true"></span>
+          <p id="rl-result-note"></p>
+        </div>
+        <button class="rl-result-close" id="rl-result-close" type="button">Cerrar</button>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/mobile-sidebar-menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ruleta.js') }}"></script>
+</body>
+</html>

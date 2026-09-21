@@ -12,3 +12,4 @@ routes/__pycache__
 services/__pycache__
 .cursor/
 static/images/productos/
+flask/
