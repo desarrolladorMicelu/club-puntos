@@ -54,7 +54,8 @@ app.config['SQLALCHEMY_BINDS'] = {
     #'db2':'postgresql://postgres:WeLZnkiKBsfVFvkaRHWqfWtGzvmSnOUn@viaduct.proxy.rlwy.net:35149/railway',
     'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway',
     #'db3':'postgresql://postgres:123@localhost:5432/Puntos'
-    'db_empleados':'postgresql://postgres:aAB2Be35CBAd2GgA5*DdC45FaCf26G44@viaduct.proxy.rlwy.net:58920/railway'
+    'db_empleados':'postgresql://postgres:aAB2Be35CBAd2GgA5*DdC45FaCf26G44@viaduct.proxy.rlwy.net:58920/railway',
+    'db_logs': os.getenv('POSTGRESQLCONNSTR_BASE_LOGS', 'postgresql://postgres@viaduct.proxy.rlwy.net:48483/railway')
 }
 
 CLIENTE_ID = os.getenv('CLIENTE_ID')
@@ -193,6 +194,25 @@ class cobertura_clientes(db.Model):
         target.id = f"{target.documento}-{target.imei}"
  
 db.event.listen(cobertura_clientes, 'before_insert', cobertura_clientes.before_insert)
+
+
+class LogApiAcinco(db.Model):
+    """
+    Tabla para registrar todas las operaciones realizadas con la API de Acinco.
+    Guarda payload enviado, respuesta recibida y estado de la operación.
+    """
+    __bind_key__ = 'db_logs'
+    __tablename__ = 'log'
+    __table_args__ = {'schema': 'public'}
+    
+    id = db.Column(db.String, primary_key=True)
+    marca_de_tiempo = db.Column(db.DateTime(timezone=False), nullable=True)
+    base = db.Column(db.String, nullable=True)
+    quien_lo_realizo = db.Column(db.String, nullable=True)
+    descripcion = db.Column(db.Text, nullable=True)
+    
+    def __repr__(self):
+        return f'<LogApiAcinco {self.id}>'
 
 # ============================================================================
 # MODELO: EMPLEADOS (Control de acceso administrativo)
@@ -4406,7 +4426,15 @@ class PolicyIntegrationService:
             # 5. Construir payload con validaciones adicionales
             correo = str(datos_cobertura.get('correo', client_info.get('correo', client_info.get('Correo', '')))).strip()
             nit = str(datos_cobertura.get('nit', client_info.get('nit', client_info.get('NIT', '')))).strip()
+            
+            # LOG: Rastrear de dónde viene el valor
+            self.logger.info(f"🔍 DEBUG VALOR - datos_cobertura.get('valor'): {datos_cobertura.get('valor')}")
+            self.logger.info(f"🔍 DEBUG VALOR - client_info.get('valor'): {client_info.get('valor')}")
+            self.logger.info(f"🔍 DEBUG VALOR - client_info.get('Valor'): {client_info.get('Valor')}")
+            
             valor = float(datos_cobertura.get('valor', client_info.get('valor', client_info.get('Valor', 0))))
+            
+            self.logger.info(f"🔍 DEBUG VALOR - Valor final usado en payload: {valor}")
             
             payload = {
                 "sponsorId": "MICELU",
@@ -4440,10 +4468,44 @@ class PolicyIntegrationService:
             # 6. Pregeneración
             pre_response = self.pre_generate_policy(payload, token, token_type, environment)
             if not pre_response:
+                self.logger.error(f"Pregeneración no devolvió respuesta para IMEI: {imei}")
+                # Registrar log de error sin respuesta
+                plan_info_dict = {
+                    'plan_id': plan_id,
+                    'price_option_id': price_option_id,
+                    'nombre_plan': self.PLANES_ESPECIFICOS[tipo_plan]['nombre'] if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS else 'Plan estándar'
+                }
+                registrar_log_api_acinco(
+                    exito=False,
+                    imei=imei,
+                    payload=payload,
+                    respuesta_pre=None,
+                    respuesta_final=None,
+                    environment=environment,
+                    error="Error en la pregeneración de póliza - No se obtuvo respuesta",
+                    plan_info=plan_info_dict
+                )
                 return False, "Error en la pregeneración de póliza", None
 
             if not (pre_response.get('data', {}).get('message') == 'Pregeneración exitosa'):
                 error_msg = pre_response.get('error', {}).get('message', 'Error desconocido en pregeneración')
+                self.logger.error(f"Pregeneración rechazada para IMEI: {imei} - {error_msg}")
+                # Registrar log de error con respuesta
+                plan_info_dict = {
+                    'plan_id': plan_id,
+                    'price_option_id': price_option_id,
+                    'nombre_plan': self.PLANES_ESPECIFICOS[tipo_plan]['nombre'] if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS else 'Plan estándar'
+                }
+                registrar_log_api_acinco(
+                    exito=False,
+                    imei=imei,
+                    payload=payload,
+                    respuesta_pre=pre_response,
+                    respuesta_final=None,
+                    environment=environment,
+                    error=f"Pregeneración falló: {error_msg}",
+                    plan_info=plan_info_dict
+                )
                 return False, f"Pregeneración falló: {error_msg}", pre_response
 
             # 7. Generación final (solo en producción)
@@ -4451,26 +4513,173 @@ class PolicyIntegrationService:
             if environment == 'prod':
                 final_response = self.generate_policy(payload, token, token_type, environment)
                 if not final_response:
+                    self.logger.error(f"Generación final falló para IMEI: {imei}")
+                    # Registrar log de error
+                    registrar_log_api_acinco(
+                        exito=False,
+                        imei=imei,
+                        payload=payload,
+                        respuesta_pre=pre_response,
+                        respuesta_final=None,
+                        environment=environment,
+                        error="Error en la generación final de póliza",
+                        plan_info={
+                            'plan_id': plan_id,
+                            'price_option_id': price_option_id,
+                            'nombre_plan': self.PLANES_ESPECIFICOS[tipo_plan]['nombre'] if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS else 'Plan estándar'
+                        }
+                    )
                     return False, "Error en la generación final de póliza", pre_response
 
             self.logger.info(f"Póliza procesada exitosamente para IMEI: {imei}{plan_info}")
+            
+            # Construir info del plan para el log
+            plan_info_dict = {
+                'plan_id': plan_id,
+                'price_option_id': price_option_id,
+                'tipo_plan': tipo_plan if usar_plan_especifico else 'estandar',
+                'nombre_plan': self.PLANES_ESPECIFICOS[tipo_plan]['nombre'] if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS else 'Plan estándar'
+            }
+            
+            # Registrar log exitoso
+            registrar_log_api_acinco(
+                exito=True,
+                imei=imei,
+                payload=payload,
+                respuesta_pre=pre_response,
+                respuesta_final=final_response,
+                environment=environment,
+                error=None,
+                plan_info=plan_info_dict
+            )
             
             return True, None, {
                 'pre_generation': pre_response,
                 'final_generation': final_response,
                 'environment': environment,
                 'payload_used': payload,
-                'plan_info': {
-                    'plan_id': plan_id,
-                    'price_option_id': price_option_id,
-                    'tipo_plan': tipo_plan if usar_plan_especifico else 'estandar',
-                    'nombre_plan': self.PLANES_ESPECIFICOS[tipo_plan]['nombre'] if usar_plan_especifico and tipo_plan in self.PLANES_ESPECIFICOS else 'Plan estándar'
-                }
+                'plan_info': plan_info_dict
             }
             
         except Exception as e:
             self.logger.error(f"Error inesperado en procesamiento completo: {str(e)}")
+            # Registrar log de error de excepción
+            try:
+                registrar_log_api_acinco(
+                    exito=False,
+                    imei=imei if 'imei' in locals() else 'UNKNOWN',
+                    payload=payload if 'payload' in locals() else {},
+                    respuesta_pre=None,
+                    respuesta_final=None,
+                    environment=environment,
+                    error=f"Error inesperado: {str(e)}",
+                    plan_info=None
+                )
+            except:
+                pass  # No fallar si el logging falla
             return False, f"Error inesperado: {str(e)}", None
+
+# ============================================================================
+# FUNCIÓN: REGISTRO DE LOGS API ACINCO
+# ============================================================================
+def registrar_log_api_acinco(exito, imei, payload, respuesta_pre=None, respuesta_final=None, environment='prod', error=None, plan_info=None):
+    """
+    Registra en base de datos todas las operaciones con la API de Acinco.
+    
+    Args:
+        exito: Si la operación fue exitosa
+        imei: IMEI del dispositivo
+        payload: Datos enviados a la API
+        respuesta_pre: Respuesta de pregeneración
+        respuesta_final: Respuesta de generación final
+        environment: Ambiente utilizado (qa/prod)
+        error: Mensaje de error si lo hay
+        plan_info: Información del plan utilizado
+    """
+    try:
+        # Extraer datos del payload
+        factura = payload.get('device', {}).get('imei', 'N/A')
+        valor_asegurado = payload.get('insuredValue', 0)
+        cliente_nombre = f"{payload.get('client', {}).get('firstName', '')} {payload.get('client', {}).get('lastName', '')}".strip()
+        
+        # Construir tipo de cobertura basado en plan_info
+        tipo_cobertura = "CELPROT (Fractura Pantalla)"
+        if plan_info:
+            nombre_plan = plan_info.get('nombre_plan', 'Plan estándar')
+            if 'Hurto' in nombre_plan:
+                tipo_cobertura = "CELPROT (Hurto + Reparación)"
+        
+        # Determinar estado de la operación
+        if exito:
+            estado = "ENVÍO API ACINCO - EXITOSO"
+            http_status = respuesta_pre.get('status', 200) if respuesta_pre else 200
+            mensaje_api = respuesta_pre.get('data', {}).get('message', 'Pregeneración exitosa') if respuesta_pre else 'Exitoso'
+        else:
+            estado = "ENVÍO API ACINCO - ERROR"
+            http_status = respuesta_pre.get('status', 500) if respuesta_pre else 500
+            mensaje_api = error or 'Error desconocido'
+        
+        # Construir plan info string
+        plan_str = ""
+        if plan_info:
+            plan_id = plan_info.get('plan_id', 'N/A')
+            price_id = plan_info.get('price_option_id', 'N/A')
+            nombre_plan = plan_info.get('nombre_plan', 'N/A')
+            plan_str = f"\nPlan: {nombre_plan} (ID: {plan_id}, Price: {price_id})"
+        
+        # Construir datos técnicos como JSON
+        datos_tecnicos = {
+            "payload": payload,
+            "respuesta_pregeneracion": respuesta_pre if respuesta_pre else None,
+            "respuesta_final": respuesta_final if respuesta_final else None,
+            "error": error if error else None
+        }
+        
+        # Serializar a JSON con manejo de errores
+        try:
+            datos_tecnicos_json = json.dumps(datos_tecnicos, indent=2, ensure_ascii=False, default=str)
+        except Exception as json_error:
+            app.logger.warning(f"⚠️ Error al serializar datos técnicos: {json_error}")
+            # Fallback: convertir todo a string
+            datos_tecnicos_json = json.dumps({
+                "payload": str(payload),
+                "respuesta_pregeneracion": str(respuesta_pre) if respuesta_pre else None,
+                "respuesta_final": str(respuesta_final) if respuesta_final else None,
+                "error": str(error) if error else None,
+                "serialization_error": str(json_error)
+            }, indent=2, ensure_ascii=False)
+        
+        # Construir descripción formateada
+        descripcion = f"""{estado}
+Factura: {factura} | Cobertura: {tipo_cobertura} | IMEI: {imei}
+Ambiente: {environment.upper()} | HTTP: {http_status} | {mensaje_api}{plan_str}
+Datos técnicos:
+{datos_tecnicos_json}"""
+        
+        # Crear registro de log
+        log_id = str(uuid.uuid4())
+        nuevo_log = LogApiAcinco(
+            id=log_id,
+            marca_de_tiempo=datetime.now(),
+            base='club-puntos',
+            quien_lo_realizo='Automatico',
+            descripcion=descripcion
+        )
+        
+        # Guardar en base de datos
+        db.session.add(nuevo_log)
+        db.session.flush()  # Enviar a BD sin hacer commit todavía
+        db.session.commit()  # Commit final
+        
+        app.logger.info(f"✅ Log API Acinco registrado exitosamente: {log_id}")
+        
+    except Exception as e:
+        app.logger.error(f"❌ Error al registrar log en base de datos: {str(e)}")
+        # No lanzar excepción para no interrumpir el flujo principal
+        try:
+            db.session.rollback()
+        except:
+            pass
 
 @app.route("/cobertura", methods=['GET', 'POST'])
 @login_required
@@ -4644,6 +4853,11 @@ def cobertura():
             try:
                 app.logger.info(f"Iniciando procesamiento de API externa para IMEI: {imei_limpio}")
                 
+                # LOG: Validar qué valor recibimos del frontend
+                valor_recibido = datos.get('valor')
+                app.logger.info(f"🔍 DEBUG VALOR - Recibido del frontend: '{valor_recibido}' (tipo: {type(valor_recibido).__name__})")
+                app.logger.info(f"🔍 DEBUG VALOR - Datos completos del request: {json.dumps(datos, default=str, ensure_ascii=False)}")
+                
                 policy_service = PolicyIntegrationService()
                 datos_para_api = {
                     'imei': imei_limpio,
@@ -4653,6 +4867,9 @@ def cobertura():
                     'valor': float(datos.get('valor', 0)),
                     'telefono': datos.get('telefono', '').strip()
                 }
+                
+                # LOG: Qué estamos enviando a procesar_cobertura_completa
+                app.logger.info(f"🔍 DEBUG VALOR - Enviando a procesar_cobertura_completa: {json.dumps(datos_para_api, default=str, ensure_ascii=False)}")
 
                 exito_api, error_api, respuesta_api = policy_service.procesar_cobertura_completa(
                     datos_para_api, 

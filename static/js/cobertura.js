@@ -127,7 +127,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 nombreClienteInput.value = data.datos.nombre?.trim() || '';
                 fechaInput.value = data.datos.fecha || '';
-                valorInput.value = data.datos.valor || '';
+                
+                // Validación especial para el valor
+                if (data.datos.valor && parseFloat(data.datos.valor) > 0) {
+                    valorInput.value = parseFloat(data.datos.valor);
+                    console.log('✅ Valor obtenido de BD:', data.datos.valor);
+                } else {
+                    valorInput.value = '';
+                    console.warn('⚠️ Valor no disponible o es cero:', data.datos.valor);
+                }
+                
                 nitInput.value = nitLimpio;
                 referenciaInput.value = data.datos.referencia?.trim() || '';
                 telefonoInput.value = data.datos.telefono?.trim() || '';
@@ -282,6 +291,23 @@ document.addEventListener('DOMContentLoaded', function() {
             cobBtnConf.disabled = true;
             cobBtnConf.textContent = 'Procesando...';
     
+            // Validar valor antes de enviar
+            const valorParaEnviar = parseFloat(valorInput.value);
+            console.log('🔍 Frontend - Valor a enviar:', valorParaEnviar, 'Input value:', valorInput.value);
+            
+            if (!valorParaEnviar || valorParaEnviar <= 0) {
+                fullPageSpinner.classList.add('d-none');
+                cobBtnConf.disabled = false;
+                cobBtnConf.textContent = 'Confirmar';
+                
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Valor inválido',
+                    text: 'El valor del dispositivo no puede ser cero o vacío. Por favor verifique la información.'
+                });
+                return;
+            }
+    
             // Activar cobertura directamente
             const response = await fetch('/cobertura', {
                 method: 'POST',
@@ -298,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     referencia: referenciaValue,
                     fecha: fechaInput.value,
-                    valor: valorInput.value,
+                    valor: valorParaEnviar,
                     telefono: telefonoInput.value.trim(),
                 }),
             });
