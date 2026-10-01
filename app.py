@@ -55,7 +55,7 @@ app.config['SQLALCHEMY_BINDS'] = {
     'db3':'postgresql://postgres:vWUiwzFrdvcyroebskuHXMlBoAiTfgzP@junction.proxy.rlwy.net:47834/railway',
     #'db3':'postgresql://postgres:123@localhost:5432/Puntos'
     'db_empleados':'postgresql://postgres:aAB2Be35CBAd2GgA5*DdC45FaCf26G44@viaduct.proxy.rlwy.net:58920/railway',
-    'db_logs': os.getenv('POSTGRESQLCONNSTR_BASE_LOGS', 'postgresql://postgres@viaduct.proxy.rlwy.net:48483/railway')
+    'db_logs': os.getenv('POSTGRESQLCONNSTR_BASE_LOGS', 'postgresql://postgres:5cBa11Af5aGGGCCaAe1dcFedef6d5D1F@viaduct.proxy.rlwy.net:48483/railway')
 }
 
 CLIENTE_ID = os.getenv('CLIENTE_ID')
