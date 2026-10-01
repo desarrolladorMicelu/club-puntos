@@ -3939,7 +3939,7 @@ def buscar_por_imei(imei):
                 FROM VSeriesUtilidad v WITH (NOLOCK)
                 JOIN MTMercia m ON v.Producto = m.CODIGO
                 JOIN MTPROCLI c ON v.nit = c.NIT
-                WHERE v.Tipo_Documento IN ('FB', 'FM', 'FC', 'FN') AND v.Valor > 0
+                WHERE v.Tipo_Documento IN ('FB', 'FM', 'FC', 'FN', 'TPI') AND v.Valor > 0
                     AND m.CODLINEA = 'CEL' AND m.CODGRUPO = 'SEMI'
                     AND v.NIT NOT IN ('1152718000', '1053817613', '1000644140', '01')
                     AND (v.Serie = ? OR LEFT(v.Serie, 15) = ?)
@@ -3987,7 +3987,7 @@ def buscar_por_imei(imei):
                     COALESCE(c.nombre, '') AS nombre_cliente
                 FROM micelu_backup.vseries_utilidad v
                 LEFT JOIN micelu_backup.clientes c ON TRIM(v.nit) = TRIM(c.nit)
-                WHERE v.tipo_documento IN ('FB', 'FM', 'FC', 'FN')
+                WHERE v.tipo_documento IN ('FB', 'FM', 'FC', 'FN', 'TPI')
                     AND CAST(v.valor AS DECIMAL(15,2)) > 0
                     AND v.nit NOT IN ('1152718000', '1053817613', '1000644140', '01')
                     AND (v.serie = %s OR LEFT(v.serie, 15) = %s)
@@ -5100,7 +5100,7 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
     JOIN
         MTPROCLI c ON v.nit = c.NIT
     WHERE 
-        v.Tipo_Documento IN ('FB', 'FM', 'FC')
+        v.Tipo_Documento IN ('FB', 'FM', 'FC', 'FN', 'TPI')
         AND v.Valor > 0
         AND v.Fecha_Inicial BETWEEN ? AND ?
         AND m.CODLINEA = 'CEL'
@@ -5134,7 +5134,7 @@ def obtener_datos_consulta(fecha_inicio, fecha_fin):
     LEFT JOIN
         micelu_backup.clientes c ON v.nit = c.nit
     WHERE 
-        v.tipo_documento IN ('FB', 'FM', 'FC')
+        v.tipo_documento IN ('FB', 'FM', 'FC', 'FN', 'TPI')
         AND CAST(v.valor AS DECIMAL(15,2)) > 0
         AND CASE 
             WHEN v.fecha_inicial ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN v.fecha_inicial::DATE
